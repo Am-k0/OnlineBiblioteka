@@ -10,7 +10,6 @@
 
     <div class="photo-section">
       <div class="photo-upload-box" @click="triggerFileInput">
-        <!-- Camera icon - only shows when no image is selected -->
         <v-icon 
           v-if="!imageUrl" 
           size="large" 
@@ -68,6 +67,7 @@
         color="primary"
         class="save-btn"
         @click="saveAuthor"
+        :loading="loading"
       >
         Sačuvaj
       </v-btn>
@@ -85,6 +85,11 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useSupabaseClient } from '#imports'
+
+const supabase = useSupabaseClient()
+const router = useRouter()
 
 const photo = ref(null)
 const imageUrl = ref('')
@@ -96,6 +101,7 @@ const errors = ref({
   firstName: '',
   lastName: ''
 })
+const loading = ref(false)
 
 const triggerFileInput = () => {
   fileInput.value.click()
@@ -109,41 +115,66 @@ const handleFileUpload = (e) => {
   }
 }
 
-const saveAuthor = () => {
+const saveAuthor = async () => {
   errors.value = {
     firstName: '',
     lastName: ''
   }
+  
   if (!firstName.value) errors.value.firstName = 'Morate unijeti ime!'
   if (!lastName.value) errors.value.lastName = 'Morate unijeti prezime!'
-  if (firstName.value && lastName.value) {
-    console.log('Author saved', {
-      photo: photo.value,
-      firstName: firstName.value,
-      lastName: lastName.value,
-      description: description.value
-    })
+  
+  if (!firstName.value || !lastName.value) return
+  
+  try {
+    loading.value = true
+    
+    const naziv = `${firstName.value} ${lastName.value}`.trim()
+    
+    // Ako korisnik nije izabrao sliku, koristite placeholder
+    const avatarUrl = imageUrl.value ? imageUrl.value : '/placeholder-author.png'
+    
+    const { data, error } = await supabase
+      .from('autori')
+      .insert({
+        naziv: naziv,
+        opis: description.value,
+        avatar: avatarUrl
+      })
+      .select()
+    
+    if (error) throw error
+    
+    if (data && data[0]?.id) {
+      router.push(`/author/${data[0].id}`)
+    } else {
+      throw new Error('Nije moguće dobiti ID novog autora')
+    }
+  } catch (error) {
+    console.error('Greška pri čuvanju autora:', error)
+    alert('Došlo je do greške pri čuvanju autora: ' + error.message)
+  } finally {
+    loading.value = false
   }
 }
 
 const cancel = () => {
-  photo.value = null
-  imageUrl.value = ''
   firstName.value = ''
   lastName.value = ''
   description.value = ''
+  photo.value = null
+  imageUrl.value = ''
   errors.value = {
     firstName: '',
     lastName: ''
   }
 }
 </script>
-
 <style scoped>
 .form-container {
   max-width: 724px;
   padding: 24px;
-  margin: 0 auto;
+  margin: 0;
 }
 
 .header {
@@ -156,16 +187,19 @@ const cancel = () => {
   margin-bottom: 8px;
   color: #212121;
 }
+
 .breadcrumbs {
   display: flex;
   align-items: center;
   gap: 8px;
   color: #757575;
 }
+
 .breadcrumbs a {
   color: #3392EA;
   text-decoration: none;
 }
+
 .breadcrumbs a:hover {
   text-decoration: underline;
 }
@@ -192,11 +226,13 @@ const cancel = () => {
 .photo-upload-box:hover {
   border-color: #3392EA;
 }
+
 .upload-text {
   margin-top: 8px;
   color: #757575;
   font-size: 14px;
 }
+
 .image-preview {
   width: 100%;
   height: 100%;
@@ -208,6 +244,7 @@ const cancel = () => {
 
 .form-field {
   margin-bottom: 16px;
+  max-width: 463px;
 }
 
 .error-message {
@@ -219,7 +256,7 @@ const cancel = () => {
 
 .buttons {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 16px;
   margin-top: 24px;
 }
