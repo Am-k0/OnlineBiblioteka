@@ -1,20 +1,14 @@
 <template>
   <div>
-    <v-toolbar flat color="white" class="mb-4">
-      <v-toolbar-title>Autori</v-toolbar-title>
-      <v-spacer></v-spacer>
-      <v-btn color="primary" class="ml-2" @click="onAddAutor">
-        + NOVI AUTOR
-      </v-btn>
-    </v-toolbar>
-
     <v-data-table
       :headers="visibleHeaders"
-      :items="autori"
+      :items="filteredAutori"
       :loading="loading"
       loading-text="Učitavam autore..."
       item-value="id"
-      items-per-page="10"
+      :items-per-page="itemsPerPage"
+      :page="currentPage"
+      hide-default-footer
       hover
       class="elevation-1"
       show-select
@@ -24,10 +18,23 @@
           <img :src="item.avatar || defaultAvatar" alt="Avatar" />
         </v-avatar>
       </template>
+
       <template v-slot:item.actions="{ item }">
-        <v-btn icon>
-          <v-icon>mdi-dots-vertical</v-icon>
-        </v-btn>
+        <ActionMenu 
+          :author="item"
+          :on-view="onView"
+          :on-edit="onEdit"
+          @deleted="fetchAutori"
+          @error="setError"
+        />
+      </template>
+
+      <template v-slot:bottom>
+        <PaginationFooter
+          v-model:itemsPerPage="itemsPerPage"
+          v-model:currentPage="currentPage"
+          :total-items="filteredAutori.length"
+        />
       </template>
     </v-data-table>
 
@@ -41,15 +48,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import ActionMenu from './ActionMenu.vue'
+import PaginationFooter from './PaginationFooter.vue'
+
+const props = defineProps({
+  search: {
+    type: String,
+    default: '',
+  },
+})
 
 const supabase = useSupabaseClient()
 const autori = ref([])
 const loading = ref(false)
 const error = ref(null)
-const defaultAvatar = 'https://randomuser.me/api/portraits/men/1.jpg' 
+const defaultAvatar = 'https://randomuser.me/api/portraits/men/1.jpg'
+const itemsPerPage = ref(10)
+const currentPage = ref(1)
 
-// Zaglavlja tabele
 const visibleHeaders = ref([
   { title: '', key: 'avatar', align: 'center', sortable: false },
   { title: 'Naziv Autora', key: 'naziv', align: 'start' },
@@ -61,30 +78,42 @@ const fetchAutori = async () => {
   try {
     loading.value = true
     error.value = null
-
     const { data, error: supabaseError } = await supabase
       .from('autori')
-      .select('id, naziv, opis, avatar') 
+      .select('id, naziv, opis, avatar')
 
     if (supabaseError) throw supabaseError
 
-    // Dodaj default avatar ako nije setovan
     autori.value = (data || []).map(a => ({
       ...a,
       avatar: a.avatar || defaultAvatar,
     }))
   } catch (err) {
-    console.error('Greška pri dohvatu autora:', err)
-    error.value = `Došlo je do greške: ${err.message}`
+    setError(`Došlo je do greške: ${err.message}`)
   } finally {
     loading.value = false
   }
 }
 
-function onAddAutor() {
-
-  alert('Dodaj autora - implementacija po potrebi')
+const setError = (err) => {
+  error.value = err
 }
+
+const onView = (author) => {
+  alert(`Pregledaj autora: ${author.naziv}`)
+}
+
+const onEdit = (author) => {
+  alert(`Izmijeni autora: ${author.naziv}`)
+}
+
+const filteredAutori = computed(() => {
+  if (!props.search) return autori.value
+  return autori.value.filter(a =>
+    a.naziv.toLowerCase().includes(props.search.toLowerCase()) ||
+    a.opis.toLowerCase().includes(props.search.toLowerCase())
+  )
+})
 
 onMounted(fetchAutori)
 </script>
