@@ -10,33 +10,47 @@
       :page="currentPage"
       hide-default-footer
       hover
-      class="elevation-1"
       show-select
+      class="no-border-table"
+      :item-class="itemClass"
     >
-      <template v-slot:item.avatar="{ item }">
-        <v-avatar size="36">
-          <img :src="item.avatar || defaultAvatar" alt="Avatar" />
-        </v-avatar>
+      <!-- Avatar + naziv autora -->
+      <template v-slot:item.naziv="{ item }">
+        <div class="cell-naziv d-flex align-center">
+          <v-avatar size="36" class="mr-2">
+            <img :src="item.avatar || defaultAvatar" alt="Avatar" />
+          </v-avatar>
+          <span class="naziv-text">{{ item.naziv }}</span>
+        </div>
       </template>
 
+      <!-- Opis autora -->
+      <template v-slot:item.opis="{ item }">
+        <span class="opis-text">{{ item.opis }}</span>
+      </template>
+
+      <!-- Akcije -->
       <template v-slot:item.actions="{ item }">
-        <ActionMenu 
-          :author="item"
-          @edit="handleEdit"
-          @delete="handleDelete"
-          @error="setError"
-        />
-      </template>
-
-      <template v-slot:bottom>
-        <PaginationFooter
-          v-model:itemsPerPage="itemsPerPage"
-          v-model:currentPage="currentPage"
-          :total-items="filteredAutori.length"
-        />
+        <div class="cell-actions">
+          <ActionMenu 
+            :author="item"
+            @edit="handleEdit"
+            @delete="handleDelete"
+            @error="setError"
+          />
+        </div>
       </template>
     </v-data-table>
 
+    <!-- Pagination ispod tabele -->
+    <PaginationFooter
+      v-model:itemsPerPage="itemsPerPage"
+      v-model:currentPage="currentPage"
+      :total-items="filteredAutori.length"
+      class="pagination-footer mt-4"
+    />
+
+    <!-- Greška -->
     <v-alert v-if="error" type="error" class="mt-4">
       {{ error }}
       <div class="mt-2">
@@ -64,9 +78,8 @@ const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
 const visibleHeaders = ref([
-  { title: '', key: 'avatar', align: 'center', sortable: false },
-  { title: 'Naziv Autora', key: 'naziv', align: 'start' },
-  { title: 'Opis', key: 'opis' },
+  { title: 'Naziv Autora', key: 'naziv', value: 'naziv', align: 'start', sortable: true },
+  { title: 'Opis', key: 'opis', value: 'opis', sortable: true },
   { title: '', key: 'actions', align: 'end', sortable: false },
 ])
 
@@ -110,6 +123,8 @@ const filteredAutori = computed(() => {
   )
 })
 
+const itemClass = () => 'table-row'
+
 const handleEdit = ({ author, mode }) => {
   if (mode === 'view') {
     router.push(`/author/${author.id}`)
@@ -119,8 +134,46 @@ const handleEdit = ({ author, mode }) => {
 }
 
 const handleDelete = () => {
-  fetchAutori() // refresha tabelu nakon brisanja
+  fetchAutori()
 }
 
 onMounted(fetchAutori)
 </script>
+
+<style scoped>
+.table-row {
+  height: 56px;
+}
+
+.cell-naziv {
+  width: 130px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.naziv-text {
+  font-family: Roboto, sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 14px;
+  letter-spacing: 0.25px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.opis-text {
+  font-family: Roboto, sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 14px;
+  letter-spacing: 0.25px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+</style>

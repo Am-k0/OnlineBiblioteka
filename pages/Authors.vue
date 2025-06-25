@@ -1,25 +1,30 @@
 <template>
-  <div>
-    <div class="header-container">
-      <div class="left-section">
-        <v-toolbar-title class="toolbar-title">
-          Autori
-        </v-toolbar-title>
-        <v-btn color="primary" dark class="add-button" @click="onAddAutor">
-          + NOVI AUTOR
+  <div class="page-container">
+    <div class="page-header">
+      <h1 class="page-title">Autori</h1>
+      <div class="header-actions">
+        <v-btn
+          color="primary"
+          class="add-button"
+          @click="onAddAutor"
+          prepend-icon="mdi-plus"
+        >
+          NOVI AUTOR
         </v-btn>
+        <div class="search-wrapper">
+          <v-text-field
+            v-model="search"
+            placeholder="Pretraži autore..."
+            hide-details
+            density="compact"
+            variant="solo"
+            flat
+            rounded
+            class="search-field"
+            append-inner-icon="mdi-magnify"
+          />
+        </div>
       </div>
-
-      <v-text-field
-        v-model="search"
-        placeholder="Pretraži autora ..."
-        hide-details
-        dense
-        solo
-        class="search-field"
-        rounded
-        prepend-inner-icon="mdi-magnify"
-      />
     </div>
 
     <AutoriTable :search="search" />
@@ -40,45 +45,73 @@ const onAddAutor = () => {
 </script>
 
 <style scoped>
-.header-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 16px;
-  margin-bottom: 16px;
+.page-container {
+  padding: 24px;
 }
 
-.left-section {
+.page-header {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
-.toolbar-title {
+.page-title {
+ font-family: 'Roboto', sans-serif !important;
   font-size: 20px;
-  font-weight: 600;
-  color: #333;
+  font-weight: 500;
+  color: #222;
+    line-height: 100%;
+  letter-spacing: 0.15px;
+  vertical-align: middle;
+  margin: 0;
 }
 
-.search-field {
-  width: 300px;
-}
-
-.search-field :deep(.v-input__control) {
-  min-height: 36px !important;
-}
-
-.search-field :deep(.v-field) {
-  border-radius: 18px !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
 }
 
 .add-button {
-  height: 36px;
-  font-weight: 500;
-  text-transform: none;
-  letter-spacing: normal;
-  background-color: #1976D2 !important;
+  font-family: 'Roboto', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  line-height: 100% !important;
+  letter-spacing: 1.25px !important;
+  width: 147px !important;
+  height: 36px !important;
+  align-items: center;
+  justify-content: center;
+  background-color: #3392EA !important;
   color: white !important;
 }
+
+.search-field {
+  font-family: 'Roboto', sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 14px !important;
+  line-height: 100% !important;
+  letter-spacing: 0.25px !important;
+  width: 132px;
+  height: 24px;
+}
+
+.search-field :deep(input) {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  font-size: 14px;
+}
+
+.search-field :deep(.v-icon) {
+  font-size: 24px !important;
+  opacity: 0.6;
+ 
+}
+
+
+
 </style>
