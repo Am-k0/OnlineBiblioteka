@@ -22,9 +22,8 @@
       <template v-slot:item.actions="{ item }">
         <ActionMenu 
           :author="item"
-          :on-view="onView"
-          :on-edit="onEdit"
-          @deleted="fetchAutori"
+          @edit="handleEdit"
+          @delete="handleDelete"
           @error="setError"
         />
       </template>
@@ -49,17 +48,14 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useSupabaseClient } from '#imports'
 import ActionMenu from './ActionMenu.vue'
 import PaginationFooter from './PaginationFooter.vue'
 
-const props = defineProps({
-  search: {
-    type: String,
-    default: '',
-  },
-})
-
+const router = useRouter()
 const supabase = useSupabaseClient()
+
 const autori = ref([])
 const loading = ref(false)
 const error = ref(null)
@@ -73,6 +69,13 @@ const visibleHeaders = ref([
   { title: 'Opis', key: 'opis' },
   { title: '', key: 'actions', align: 'end', sortable: false },
 ])
+
+const props = defineProps({
+  search: {
+    type: String,
+    default: '',
+  },
+})
 
 const fetchAutori = async () => {
   try {
@@ -99,14 +102,6 @@ const setError = (err) => {
   error.value = err
 }
 
-const onView = (author) => {
-  alert(`Pregledaj autora: ${author.naziv}`)
-}
-
-const onEdit = (author) => {
-  alert(`Izmijeni autora: ${author.naziv}`)
-}
-
 const filteredAutori = computed(() => {
   if (!props.search) return autori.value
   return autori.value.filter(a =>
@@ -114,6 +109,18 @@ const filteredAutori = computed(() => {
     a.opis.toLowerCase().includes(props.search.toLowerCase())
   )
 })
+
+const handleEdit = ({ author, mode }) => {
+  if (mode === 'view') {
+    router.push(`/author/${author.id}`)
+  } else if (mode === 'edit') {
+    router.push(`/author/${author.id}?edit=true`)
+  }
+}
+
+const handleDelete = () => {
+  fetchAutori() // refresha tabelu nakon brisanja
+}
 
 onMounted(fetchAutori)
 </script>

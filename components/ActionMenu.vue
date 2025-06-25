@@ -7,15 +7,26 @@
         </v-btn>
       </template>
 
-      <v-list density="compact">
-        <v-list-item @click="handleView">
-          <v-list-item-title>Pogledaj detalje</v-list-item-title>
+      <v-list class="dropdown-menu">
+        <v-list-item v-if="showView" @click="handleView" class="dropdown-item view-item">
+          <template v-slot:prepend>
+            <v-icon size="24" class="dropdown-icon">mdi-file-document-outline</v-icon>
+          </template>
+          <v-list-item-title class="dropdown-text">Pogledaj detalje</v-list-item-title>
         </v-list-item>
-        <v-list-item @click="handleEdit">
-          <v-list-item-title>Izmijeni autora</v-list-item-title>
+
+        <v-list-item @click="handleEdit" class="dropdown-item edit-item">
+          <template v-slot:prepend>
+            <v-icon size="24" class="dropdown-icon">mdi-pencil-outline</v-icon>
+          </template>
+          <v-list-item-title class="dropdown-text">Izmijeni autora</v-list-item-title>
         </v-list-item>
-        <v-list-item @click="handleDelete">
-          <v-list-item-title>Izbriši autora</v-list-item-title>
+
+        <v-list-item @click="handleDelete" class="dropdown-item delete-item">
+          <template v-slot:prepend>
+            <v-icon size="24" class="dropdown-icon">mdi-delete-outline</v-icon>
+          </template>
+          <v-list-item-title class="dropdown-text">Izbriši autora</v-list-item-title>
         </v-list-item>
       </v-list>
     </v-menu>
@@ -41,27 +52,31 @@ import { ref } from 'vue'
 import { useSupabaseClient } from '#imports'
 
 const supabase = useSupabaseClient()
+
 const props = defineProps({
   author: {
     type: Object,
     required: true
   },
-  onEdit: {
-    type: Function,
-    default: () => {}
+  showView: {
+    type: Boolean,
+    default: true
   }
 })
 
-const emit = defineEmits(['deleted'])
+const emit = defineEmits(['edit', 'delete', 'error'])
 
 const deleteDialog = ref(false)
 
 const handleView = () => {
-  navigateTo(`/author/${props.author.id}`)
+  // Emit event za roditelja da može da navigira
+  emit('edit', { author: props.author, mode: 'view' }) 
+  // Ili možeš direktno koristiti router (ako ti je draže)
+  // navigateTo(`/author/${props.author.id}`)
 }
 
 const handleEdit = () => {
-  props.onEdit(props.author)
+  emit('edit', { author: props.author, mode: 'edit' })
 }
 
 const handleDelete = () => {
@@ -77,7 +92,7 @@ const confirmDelete = async () => {
 
     if (error) throw error
 
-    emit('deleted')
+    emit('delete', props.author)
     deleteDialog.value = false
   } catch (err) {
     console.error('Greška pri brisanju autora:', err)
@@ -85,3 +100,31 @@ const confirmDelete = async () => {
   }
 }
 </script>
+
+
+<style scoped>
+.dropdown-menu {
+  width: 320px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  width: 320px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.dropdown-icon {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.dropdown-text {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.6);
+  margin-left: 4px;
+}
+</style>
