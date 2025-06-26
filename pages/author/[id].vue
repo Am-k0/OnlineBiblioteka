@@ -8,10 +8,12 @@
         </p>
       </div>
 
-      <ActionMenu 
+     <ActionMenu 
         v-if="author"
-        :author="author"
+        :item="author"
         :showView="false"
+        entity-name="autora"
+        title-property="naziv"
         @edit="handleEdit"
         @delete="handleDelete"
         @error="setError"

@@ -2,9 +2,9 @@
   <div>
     <v-data-table
       :headers="visibleHeaders"
-      :items="filteredAutori"
+      :items="filteredStudenti"
       :loading="loading"
-      loading-text="Učitavam autore..."
+      loading-text="Učitavam studente..."
       item-value="id"
       :items-per-page="itemsPerPage"
       :page="currentPage"
@@ -14,19 +14,29 @@
       class="no-border-table"
       :item-class="itemClass"
     >
-      <!-- Avatar + naziv autora -->
-      <template v-slot:item.naziv="{ item }">
+      <!-- Avatar + ime studenta -->
+      <template v-slot:item.ime_i_prezime="{ item }">
         <div class="cell-naziv d-flex align-center">
           <v-avatar size="36" class="mr-2">
             <img :src="item.avatar || defaultAvatar" alt="Avatar" />
           </v-avatar>
-          <span class="naziv-text">{{ item.naziv }}</span>
+          <span class="naziv-text">{{ item.ime_i_prezime }}</span>
         </div>
       </template>
 
-      <!-- Opis autora -->
-      <template v-slot:item.opis="{ item }">
-        <span class="opis-text">{{ item.opis }}</span>
+      <!-- Email -->
+      <template v-slot:item.email="{ item }">
+        <span class="opis-text">{{ item.email }}</span>
+      </template>
+
+      <!-- Tip (student) -->
+      <template v-slot:item.tip="{ item }">
+        <span class="opis-text">Student</span>
+      </template>
+
+     <!-- Zadnji pristup -->
+      <template v-slot:item.zadnji_pristup_sistemu="{ item }">
+        <span class="opis-text">{{ formatDate(item.zadnji_pristup_sistemu) }}</span>
       </template>
 
       <!-- Akcije -->
@@ -34,8 +44,8 @@
         <div class="cell-actions">
           <ActionMenu 
             :item="item"
-            entity-name="autora"
-            title-property="naziv"
+            entity-name="studenta"
+            title-property="ime_i_prezime"
             @edit="handleEdit"
             @delete="handleDelete"
             @error="setError"
@@ -44,19 +54,17 @@
       </template>
     </v-data-table>
 
-    <!-- Pagination ispod tabele -->
     <PaginationFooter
       v-model:itemsPerPage="itemsPerPage"
       v-model:currentPage="currentPage"
-      :total-items="filteredAutori.length"
+      :total-items="filteredStudenti.length"
       class="pagination-footer mt-4"
     />
 
-    <!-- Greška -->
     <v-alert v-if="error" type="error" class="mt-4">
       {{ error }}
       <div class="mt-2">
-        <v-btn @click="fetchAutori" color="white" small>Pokušaj ponovo</v-btn>
+        <v-btn @click="fetchStudenti" color="white" small>Pokušaj ponovo</v-btn>
       </div>
     </v-alert>
   </div>
@@ -72,7 +80,7 @@ import PaginationFooter from './PaginationFooter.vue'
 const router = useRouter()
 const supabase = useSupabaseClient()
 
-const autori = ref([])
+const studenti = ref([])
 const loading = ref(false)
 const error = ref(null)
 const defaultAvatar = 'https://randomuser.me/api/portraits/men/1.jpg'
@@ -80,8 +88,10 @@ const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
 const visibleHeaders = ref([
-  { title: 'Naziv Autora', key: 'naziv', value: 'naziv', align: 'start', sortable: true },
-  { title: 'Opis', key: 'opis', value: 'opis', sortable: true },
+  { title: 'Ime i prezime', key: 'ime_i_prezime', align: 'start', sortable: true },
+  { title: 'Email', key: 'email', sortable: true },
+  { title: 'Tip', key: 'tip', sortable: true },
+  { title: 'Zadnji pristup sistemu', key: 'zadnji_pristup_sistemu', sortable: true },
   { title: '', key: 'actions', align: 'end', sortable: false },
 ])
 
@@ -92,19 +102,25 @@ const props = defineProps({
   },
 })
 
-const fetchAutori = async () => {
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+}
+
+const fetchStudenti = async () => {
   try {
     loading.value = true
     error.value = null
     const { data, error: supabaseError } = await supabase
-      .from('autori')
-      .select('id, naziv, opis, avatar')
+      .from('ucenici')
+      .select('id, ime_i_prezime, email, zadnji_pristup_sistemu, avatar')
 
     if (supabaseError) throw supabaseError
 
-    autori.value = (data || []).map(a => ({
-      ...a,
-      avatar: a.avatar || defaultAvatar,
+    studenti.value = (data || []).map(s => ({
+      ...s,
+      avatar: s.avatar || defaultAvatar,
     }))
   } catch (err) {
     setError(`Došlo je do greške: ${err.message}`)
@@ -117,11 +133,11 @@ const setError = (err) => {
   error.value = err
 }
 
-const filteredAutori = computed(() => {
-  if (!props.search) return autori.value
-  return autori.value.filter(a =>
-    a.naziv.toLowerCase().includes(props.search.toLowerCase()) ||
-    a.opis.toLowerCase().includes(props.search.toLowerCase())
+const filteredStudenti = computed(() => {
+  if (!props.search) return studenti.value
+  return studenti.value.filter(s => 
+    s.ime_i_prezime.toLowerCase().includes(props.search.toLowerCase()) ||
+    s.email.toLowerCase().includes(props.search.toLowerCase())
   )
 })
 
@@ -129,62 +145,59 @@ const itemClass = () => 'table-row'
 
 const handleEdit = ({ item, mode }) => {
   if (mode === 'view') {
-    router.push(`/author/${item.id}`)
+    router.push(`/student/${item.id}`)
   } else if (mode === 'edit') {
-    router.push(`/author/${item.id}?edit=true`)
+    router.push(`/student/${item.id}?edit=true`)
   }
 }
 
 const handleDelete = async (item) => {
   try {
     const { error } = await supabase
-      .from('autori')
+      .from('ucenici')
       .delete()
       .eq('id', item.id)
 
     if (error) throw error
 
-    await fetchAutori()
+    await fetchStudenti()
   } catch (err) {
     setError(`Došlo je do greške pri brisanju: ${err.message}`)
   }
 }
 
-onMounted(fetchAutori)
+onMounted(fetchStudenti)
 </script>
 
 <style scoped>
+.no-border-table {
+  border: none;
+  box-shadow: none;
+}
+
 .table-row {
   height: 56px;
 }
 
 .cell-naziv {
-  width: 130px;
-  height: 40px;
-  display: flex;
-  align-items: center;
+  width: 100%;
   overflow: hidden;
 }
 
 .naziv-text {
-  font-family: Roboto, sans-serif;
-  font-weight: 400;
-  font-size: 14px;
-  line-height: 14px;
-  letter-spacing: 0.25px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .opis-text {
-  font-family: Roboto, sans-serif;
-  font-weight: 400;
-  font-size: 14px;
-  line-height: 14px;
-  letter-spacing: 0.25px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.cell-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

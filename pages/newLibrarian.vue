@@ -1,14 +1,14 @@
 <template>
   <div class="form-container">
     <div class="header">
-      <h1> <b> Novi Bibliotekar</b></h1>
+      <h1><b>Novi Bibliotekar</b></h1>
       <div class="breadcrumbs">
         <a href="/theLibrarian">Svi Bibliotekari</a>
         <span>/ Novi Bibliotekar</span>
       </div>
     </div>
 
-    <PersonForm />
+    <PersonForm collection="librarians" />
   </div>
 </template>
 
@@ -21,6 +21,7 @@ export default {
   }
 }
 </script>
+
 <style scoped>
 .breadcrumbs {
   display: flex;

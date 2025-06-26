@@ -19,14 +19,14 @@
           <template v-slot:prepend>
             <v-icon size="24" class="dropdown-icon">mdi-pencil-outline</v-icon>
           </template>
-          <v-list-item-title class="dropdown-text">Izmijeni autora</v-list-item-title>
+          <v-list-item-title class="dropdown-text">{{ editText }}</v-list-item-title>
         </v-list-item>
 
         <v-list-item @click="handleDelete" class="dropdown-item delete-item">
           <template v-slot:prepend>
             <v-icon size="24" class="dropdown-icon">mdi-delete-outline</v-icon>
           </template>
-          <v-list-item-title class="dropdown-text">Izbriši autora</v-list-item-title>
+          <v-list-item-title class="dropdown-text">{{ deleteText }}</v-list-item-title>
         </v-list-item>
       </v-list>
     </v-menu>
@@ -35,7 +35,7 @@
       <v-card>
         <v-card-title class="text-h5">Potvrdite brisanje</v-card-title>
         <v-card-text>
-          Da li ste sigurni da želite obrisati autora "{{ author?.naziv }}"?
+          Da li ste sigurni da želite obrisati {{ entityName.toLowerCase() }} "{{ entityTitle }}"?
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
@@ -48,19 +48,24 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useSupabaseClient } from '#imports'
-
-const supabase = useSupabaseClient()
+import { ref, computed } from 'vue'
 
 const props = defineProps({
-  author: {
+  item: {
     type: Object,
     required: true
   },
   showView: {
     type: Boolean,
     default: true
+  },
+  entityName: {
+    type: String,
+    default: 'zapis'
+  },
+  titleProperty: {
+    type: String,
+    default: 'naziv'
   }
 })
 
@@ -68,15 +73,16 @@ const emit = defineEmits(['edit', 'delete', 'error'])
 
 const deleteDialog = ref(false)
 
+const entityTitle = computed(() => props.item[props.titleProperty] || props.item.id)
+const editText = computed(() => `Izmijeni ${props.entityName.toLowerCase()}`)
+const deleteText = computed(() => `Izbriši ${props.entityName.toLowerCase()}`)
+
 const handleView = () => {
-  // Emit event za roditelja da može da navigira
-  emit('edit', { author: props.author, mode: 'view' }) 
-  // Ili možeš direktno koristiti router (ako ti je draže)
-  // navigateTo(`/author/${props.author.id}`)
+  emit('edit', { item: props.item, mode: 'view' })
 }
 
 const handleEdit = () => {
-  emit('edit', { author: props.author, mode: 'edit' })
+  emit('edit', { item: props.item, mode: 'edit' })
 }
 
 const handleDelete = () => {
@@ -85,22 +91,14 @@ const handleDelete = () => {
 
 const confirmDelete = async () => {
   try {
-    const { error } = await supabase
-      .from('autori')
-      .delete()
-      .eq('id', props.author.id)
-
-    if (error) throw error
-
-    emit('delete', props.author)
+    emit('delete', props.item)
     deleteDialog.value = false
   } catch (err) {
-    console.error('Greška pri brisanju autora:', err)
+    console.error('Greška pri brisanju:', err)
     emit('error', `Došlo je do greške pri brisanju: ${err.message}`)
   }
 }
 </script>
-
 
 <style scoped>
 .dropdown-menu {

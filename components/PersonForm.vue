@@ -79,7 +79,7 @@
   <div v-if="errors.repeatPassword" class="error-message">{{ errors.repeatPassword }}</div>
 
   <ActionButtons 
-    @save="saveStudent" 
+    @save="savePerson" 
     @cancel="cancel"
     :loading="isSaving"
     container-class="mt-4"
@@ -87,8 +87,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, defineProps } from 'vue'
 import ActionButtons from '@/components/ActionButtons.vue'
+import { createClient } from '@supabase/supabase-js'
+
+const props = defineProps({
+  collection: {
+    type: String,
+    required: true
+  }
+})
 
 const photo = ref(null)
 const imageUrl = ref('')
@@ -131,7 +139,7 @@ const handleFileUpload = (e) => {
   }
 }
 
-const saveStudent = async () => {
+const savePerson = async () => {
   errors.value = {
     firstName: '',
     lastName: '',
@@ -158,17 +166,23 @@ const saveStudent = async () => {
   if (!hasErrors) {
     isSaving.value = true
     try {
-      console.log('Učenik sačuvan', {
-        photo: photo.value,
-        firstName: firstName.value,
-        lastName: lastName.value,
-        jmbg: jmbg.value,
-        email: email.value,
-        username: username.value,
-        password: password.value
-      })
-      // Simulacija API poziva
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const { error } = await supabase
+        .from(props.collection)
+        .insert([{
+          first_name: firstName.value,
+          last_name: lastName.value,
+          jmbg: jmbg.value,
+          email: email.value,
+          username: username.value,
+          password: password.value
+        }])
+
+      if (error) {
+        console.error('Greška prilikom čuvanja:', error)
+      } else {
+        console.log('Podaci uspješno sačuvani!')
+        cancel()
+      }
     } finally {
       isSaving.value = false
     }
