@@ -8,7 +8,7 @@
       </div>
     </div>
 
-    <PersonForm collection="students" />
+    <PersonForm collection="ucenici" />
   </div>
 </template>
 

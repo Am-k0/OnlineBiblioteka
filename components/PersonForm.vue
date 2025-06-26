@@ -1,89 +1,92 @@
 <template>
-  <div class="photo-section">
-    <div class="photo-upload-box" @click="triggerFileInput">
-      <v-icon v-if="!imageUrl" size="large" color="#757575">mdi-image</v-icon>
-      <input type="file" ref="fileInput" accept="image/*" @change="handleFileUpload" style="display: none">
-      <div v-if="!imageUrl" class="upload-text">Add photo</div>
-      <v-img v-if="imageUrl" :src="imageUrl" class="image-preview"></v-img>
+  <div class="form-container">
+    
+    <div class="photo-section">
+      <div class="photo-upload-box" @click="triggerFileInput">
+        <v-icon v-if="!imageUrl" size="large" color="#757575">mdi-image</v-icon>
+        <input type="file" ref="fileInput" accept="image/*" @change="handleFileUpload" style="display: none">
+        <div v-if="!imageUrl" class="upload-text">Add photo</div>
+        <v-img v-if="imageUrl" :src="imageUrl" class="image-preview"></v-img>
+      </div>
     </div>
+
+    <v-text-field
+      v-model="firstName"
+      label="Unesite Ime..."
+      variant="outlined"
+      hide-details
+      class="form-field"
+    ></v-text-field>
+    <div v-if="errors.firstName" class="error-message">{{ errors.firstName }}</div>
+
+    <v-text-field
+      v-model="lastName"
+      label="Unesite Prezime..."
+      variant="outlined"
+      hide-details
+      class="form-field"
+    ></v-text-field>
+    <div v-if="errors.lastName" class="error-message">{{ errors.lastName }}</div>
+
+    <v-text-field
+      v-model="jmbg"
+      label="Unesite JMBG..."
+      variant="outlined"
+      hide-details
+      type="number"
+      @keypress="isNumber($event)"
+      class="form-field"
+    ></v-text-field>
+    <div v-if="errors.jmbg" class="error-message">{{ errors.jmbg }}</div>
+
+    <v-text-field
+      v-model="email"
+      label="Unesite E-mail..."
+      variant="outlined"
+      hide-details
+      type="email"
+      class="form-field"
+    ></v-text-field>
+    <div v-if="errors.email" class="error-message">{{ errors.email }}</div>
+
+    <v-text-field
+      v-model="username"
+      label="Unesite korisničko ime..."
+      variant="outlined"
+      hide-details
+      class="form-field"
+    ></v-text-field>
+    <div v-if="errors.username" class="error-message">{{ errors.username }}</div>
+
+    <v-text-field
+      v-model="password"
+      label="Unesite željenu šifru..."
+      variant="outlined"
+      :type="visible ? 'text' : 'password'"
+      :append-inner-icon="visible ? 'mdi-eye-off' : 'mdi-eye'"
+      @click:append-inner="visible = !visible"
+      hide-details
+      class="form-field"
+    ></v-text-field>
+    <div v-if="errors.password" class="error-message">{{ errors.password }}</div>
+
+    <v-text-field
+      v-model="repeatPassword"
+      label="Ponovo unesite šifru..."
+      variant="outlined"
+      :type="visible ? 'text' : 'password'"
+      hide-details
+      class="form-field"
+    ></v-text-field>
+    <div v-if="errors.repeatPassword" class="error-message">{{ errors.repeatPassword }}</div>
+
+    <ActionButtons 
+      @save="savePerson" 
+      @cancel="cancel"
+      :loading="isSaving"
+      container-class="button-container"
+    />
   </div>
-
-  <v-text-field
-    v-model="firstName"
-    label="Unesite Ime..."
-    variant="outlined"
-    hide-details
-    class="form-field"
-  ></v-text-field>
-  <div v-if="errors.firstName" class="error-message">{{ errors.firstName }}</div>
-
-  <v-text-field
-    v-model="lastName"
-    label="Unesite Prezime..."
-    variant="outlined"
-    hide-details
-    class="form-field"
-  ></v-text-field>
-  <div v-if="errors.lastName" class="error-message">{{ errors.lastName }}</div>
-
-  <v-text-field
-    v-model="jmbg"
-    label="Unesite JMBG..."
-    variant="outlined"
-    hide-details
-    class="form-field"
-    type="number"
-    @keypress="isNumber($event)"
-  ></v-text-field>
-  <div v-if="errors.jmbg" class="error-message">{{ errors.jmbg }}</div>
-
-  <v-text-field
-    v-model="email"
-    label="Unesite E-mail..."
-    variant="outlined"
-    hide-details
-    class="form-field"
-    type="email"
-  ></v-text-field>
-  <div v-if="errors.email" class="error-message">{{ errors.email }}</div>
-
-  <v-text-field
-    v-model="username"
-    label="Unesite korisničko ime..."
-    variant="outlined"
-    hide-details
-    class="form-field"
-  ></v-text-field>
-  <div v-if="errors.username" class="error-message">{{ errors.username }}</div>
-
-  <v-text-field
-    v-model="password"
-    label="Unesite željenu šifru..."
-    variant="outlined"
-    :type="visible ? 'text' : 'password'"
-    :append-inner-icon="visible ? 'mdi-eye-off' : 'mdi-eye'"
-    @click:append-inner="visible = !visible"
-    hide-details
-    class="form-field"
-  ></v-text-field>
-  <div v-if="errors.password" class="error-message">{{ errors.password }}</div>
-
-  <v-text-field
-    v-model="repeatPassword"
-    label="Ponovo unesite šifru..."
-    variant="outlined"
-    :type="visible ? 'text' : 'password'"
-    hide-details
-    class="form-field"
-  ></v-text-field>
-  <div v-if="errors.repeatPassword" class="error-message">{{ errors.repeatPassword }}</div>
-
-  <ActionButtons 
-    @save="savePerson" 
-    @cancel="cancel"
-    :loading="isSaving"
-    container-class="mt-4"
-  />
 </template>
 
 <script setup>
@@ -97,6 +100,8 @@ const props = defineProps({
     required: true
   }
 })
+
+const supabase = createClient('https://YOUR-SUPABASE-URL.supabase.co', 'YOUR-SUPABASE-KEY')
 
 const photo = ref(null)
 const imageUrl = ref('')
@@ -212,9 +217,20 @@ const cancel = () => {
 </script>
 
 <style scoped>
-.photo-section {
-  margin-bottom: 24px;
+.form-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  width: 724px;
+  height: 734px;
+  box-sizing: border-box;
 }
+
+.photo-section {
+  margin-bottom: 0;
+}
+
 .photo-upload-box {
   width: 200px;
   height: 160px;
@@ -229,14 +245,17 @@ const cancel = () => {
   position: relative;
   overflow: hidden;
 }
+
 .photo-upload-box:hover {
   border-color: #3392EA;
 }
+
 .upload-text {
   margin-top: 8px;
   color: #757575;
   font-size: 14px;
 }
+
 .image-preview {
   width: 100%;
   height: 100%;
@@ -245,13 +264,15 @@ const cancel = () => {
   top: 0;
   left: 0;
 }
+
 .form-field {
-  margin-bottom: 16px;
+  width: 100%;
 }
+
 .error-message {
   color: #ff5252;
   font-size: 12px;
   margin-top: -10px;
-  margin-bottom: 16px;
 }
+
 </style>
