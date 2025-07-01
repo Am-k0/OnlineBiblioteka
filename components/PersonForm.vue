@@ -1,4 +1,5 @@
 <template>
+    <div class="form-wrapper">
   <div class="photo-section">
     <div class="photo-upload-box" @click="triggerFileInput">
       <v-icon v-if="!imageUrl" size="large" color="#757575">mdi-image</v-icon>
@@ -8,82 +9,85 @@
     </div>
   </div>
 
-  <v-text-field
-    v-model="firstName"
-    label="Unesite Ime..."
-    variant="outlined"
-    hide-details
-    class="form-field"
-  ></v-text-field>
-  <div v-if="errors.firstName" class="error-message">{{ errors.firstName }}</div>
+  <div class="form-container">
+    <v-text-field
+      v-model="firstName"
+      label="Unesite Ime..."
+      variant="outlined"
+      hide-details
+      class="form-field"
+    ></v-text-field>
+    <div v-if="errors.firstName" class="error-message">{{ errors.firstName }}</div>
 
-  <v-text-field
-    v-model="lastName"
-    label="Unesite Prezime..."
-    variant="outlined"
-    hide-details
-    class="form-field"
-  ></v-text-field>
-  <div v-if="errors.lastName" class="error-message">{{ errors.lastName }}</div>
+    <v-text-field
+      v-model="lastName"
+      label="Unesite Prezime..."
+      variant="outlined"
+      hide-details
+      class="form-field"
+    ></v-text-field>
+    <div v-if="errors.lastName" class="error-message">{{ errors.lastName }}</div>
 
-  <v-text-field
-    v-model="jmbg"
-    label="Unesite JMBG..."
-    variant="outlined"
-    hide-details
-    class="form-field"
-    type="number"
-    @keypress="isNumber($event)"
-  ></v-text-field>
-  <div v-if="errors.jmbg" class="error-message">{{ errors.jmbg }}</div>
+    <v-text-field
+      v-model="jmbg"
+      label="Unesite JMBG..."
+      variant="outlined"
+      hide-details
+      class="form-field"
+      type="number"
+      @keypress="isNumber($event)"
+    ></v-text-field>
+    <div v-if="errors.jmbg" class="error-message">{{ errors.jmbg }}</div>
 
-  <v-text-field
-    v-model="email"
-    label="Unesite E-mail..."
-    variant="outlined"
-    hide-details
-    class="form-field"
-    type="email"
-  ></v-text-field>
-  <div v-if="errors.email" class="error-message">{{ errors.email }}</div>
+    <v-text-field
+      v-model="email"
+      label="Unesite E-mail..."
+      variant="outlined"
+      hide-details
+      class="form-field"
+      type="email"
+    ></v-text-field>
+    <div v-if="errors.email" class="error-message">{{ errors.email }}</div>
 
-  <v-text-field
-    v-model="username"
-    label="Unesite korisničko ime..."
-    variant="outlined"
-    hide-details
-    class="form-field"
-  ></v-text-field>
-  <div v-if="errors.username" class="error-message">{{ errors.username }}</div>
+    <v-text-field
+      v-model="username"
+      label="Unesite korisničko ime..."
+      variant="outlined"
+      hide-details
+      class="form-field"
+    ></v-text-field>
+    <div v-if="errors.username" class="error-message">{{ errors.username }}</div>
 
-  <v-text-field
-    v-model="password"
-    label="Unesite željenu šifru..."
-    variant="outlined"
-    :type="visible ? 'text' : 'password'"
-    :append-inner-icon="visible ? 'mdi-eye-off' : 'mdi-eye'"
-    @click:append-inner="visible = !visible"
-    hide-details
-    class="form-field"
-  ></v-text-field>
-  <div v-if="errors.password" class="error-message">{{ errors.password }}</div>
+    <v-text-field
+      v-model="password"
+      label="Unesite željenu šifru..."
+      variant="outlined"
+      :type="visible ? 'text' : 'password'"
+      :append-inner-icon="visible ? 'mdi-eye-off' : 'mdi-eye'"
+      @click:append-inner="visible = !visible"
+      hide-details
+      class="form-field"
+    ></v-text-field>
+    <div v-if="errors.password" class="error-message">{{ errors.password }}</div>
 
-  <v-text-field
-    v-model="repeatPassword"
-    label="Ponovo unesite šifru..."
-    variant="outlined"
-    :type="visible ? 'text' : 'password'"
-    hide-details
-    class="form-field"
-  ></v-text-field>
-  <div v-if="errors.repeatPassword" class="error-message">{{ errors.repeatPassword }}</div>
+    <v-text-field
+      v-model="repeatPassword"
+      label="Ponovo unesite šifru..."
+      variant="outlined"
+      :type="visible ? 'text' : 'password'"
+      hide-details
+      class="form-field"
+    ></v-text-field>
+    <div v-if="errors.repeatPassword" class="error-message">{{ errors.repeatPassword }}</div>
 
-  <ActionButtons 
-    @save="savePerson" 
-    @cancel="cancel"
-    :loading="isSaving"
-    container-class="mt-4"
-  />
+    <ActionButtons 
+      @save="savePerson" 
+      @cancel="cancel"
+      :loading="isSaving"
+      container-class="mt-4"
+    />
+  </div>
+  </div>
 </template>
 
 <script setup>
@@ -97,6 +101,8 @@ const props = defineProps({
     required: true
   }
 })
+
+const supabase = createClient('https://your-supabase-url.supabase.co', 'your-anon-key')
 
 const photo = ref(null)
 const imageUrl = ref('')
@@ -245,13 +251,29 @@ const cancel = () => {
   top: 0;
   left: 0;
 }
+
+.form-container {
+  width: 724px;
+}
+
 .form-field {
+  width: 100%;
+  height: 48px;
   margin-bottom: 16px;
 }
+
 .error-message {
   color: #ff5252;
   font-size: 12px;
   margin-top: -10px;
   margin-bottom: 16px;
 }
+.form-wrapper {
+  width: 724px;
+  height: 734px;
+  flex-direction: column;
+  padding: 16px;
+ 
+}
+
 </style>

@@ -44,7 +44,7 @@
         <div class="cell-actions">
           <ActionMenu 
             :item="item"
-            entity-name="studenta"
+            entity-name="učenika"
             title-property="ime_i_prezime"
             @edit="handleEdit"
             @delete="handleDelete"
