@@ -11,9 +11,9 @@
      <ActionMenu 
         v-if="author"
         :item="author"
-        :showView="false"
         entity-name="autora"
         title-property="naziv"
+        :hideViewOption="true" 
         @edit="handleEdit"
         @delete="handleDelete"
         @error="setError"

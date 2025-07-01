@@ -1,59 +1,80 @@
 <template>
-  <div class="librarian-wrapper">
-    <div class="librarian-header">
+  <div class="student-wrapper">
+    <div class="student-header">
       <div>
-        <h1 class="librarian-title">{{ librarian?.ime_i_prezime }}</h1>
-        <p class="librarian-subtitle">
-          <span class="link" @click="router.push('/librarians')">Evidencija bibliotekara</span> / ID: {{ route.params.id }}
+        <h1 class="student-title">{{ librarian?.ime_i_prezime }}</h1>
+        <p class="student-subtitle">
+          <span class="link" @click="router.push('/librarians')">Svi bibliotekari</span> / ID: {{ route.params.id }}
         </p>
       </div>
 
-      <ActionMenu 
+      <ActionMenu
         v-if="librarian"
-        :author="librarian"
-        :showView="false"
+        :item="librarian"
+        :hideViewOption="true" 
         entityName="bibliotekara"
+        titleProperty="ime_i_prezime"
         @edit="handleEdit"
         @delete="handleDelete"
         @error="setError"
       />
     </div>
 
-    <div v-if="librarian" class="librarian-card">
-      <img :src="librarian.avatar || 'https://randomuser.me/api/portraits/men/1.jpg'" alt="Avatar bibliotekara" class="librarian-avatar" />
+    <div v-if="librarian" class="student-card">
+      <img 
+        :src="librarian.avatar || 'https://randomuser.me/api/portraits/men/1.jpg'" 
+        alt="Avatar bibliotekara" 
+        class="student-avatar"
+      />
 
-      <div class="librarian-info">
+      <div class="student-info">
         <div v-if="editMode">
-          <label class="label">Ime i prezime:</label>
-          <input v-model="form.ime_i_prezime" type="text" class="librarian-name name-field" />
+          <label class="label">Ime i Prezime:</label>
+          <input v-model="form.ime_i_prezime" type="text" class="student-input" />
+
+          <label class="label">JMBG:</label>
+          <input v-model="form.jmbg" type="text" class="student-input" />
 
           <label class="label">Email:</label>
-          <input v-model="form.email" type="email" class="librarian-name name-field" />
+          <input v-model="form.email" type="email" class="student-input" />
 
-          <label class="label">Tip korisnika:</label>
-          <input v-model="form.tip_korisnika" type="text" class="librarian-name name-field" />
+          <label class="label">Korisničko ime:</label>
+          <input v-model="form.korisnicko_ime" type="text" class="student-input" />
+
+          <label class="label">Broj logovanja:</label>
+          <input v-model.number="form.broj_logovanja" type="number" class="student-input" />
 
           <label class="label">Avatar URL:</label>
-          <input v-model="form.avatar" type="text" class="librarian-name name-field" />
+          <input v-model="form.avatar" type="text" class="student-input" />
 
-          <div class="btn-wrapper">
-            <v-btn color="primary" @click="saveLibrarian">Sačuvaj</v-btn>
-            <v-btn variant="outlined" @click="editMode = false">Otkaži</v-btn>
-          </div>
+          <Buttons @save="saveLibrarian" @cancel="editMode = false" />
         </div>
 
         <div v-else>
-          <label class="label">Ime i prezime:</label>
-          <p class="librarian-name">{{ librarian.ime_i_prezime }}</p>
-
-          <label class="label">Email:</label>
-          <p class="librarian-description">{{ librarian.email }}</p>
-
-          <label class="label">Tip korisnika:</label>
-          <p class="librarian-description">{{ librarian.tip_korisnika }}</p>
-
-          <label class="label">Zadnji pristup:</label>
-          <p class="librarian-description">{{ formatDate(librarian.zadnji_pristup_sistemu) }}</p>
+          <div class="student-field">
+            <span class="student-label">Ime i Prezime</span>
+            <div class="student-value">{{ librarian.ime_i_prezime }}</div>
+          </div>
+          <div class="student-field">
+            <span class="student-label">JMBG</span>
+            <div class="student-value">{{ librarian.jmbg }}</div>
+          </div>
+          <div class="student-field">
+            <span class="student-label">Email</span>
+            <div class="student-value email-link">{{ librarian.email }}</div>
+          </div>
+          <div class="student-field">
+            <span class="student-label">Korisničko ime</span>
+            <div class="student-value">{{ librarian.korisnicko_ime }}</div>
+          </div>
+          <div class="student-field">
+            <span class="student-label">Broj logovanja</span>
+            <div class="student-value">{{ librarian.broj_logovanja }}</div>
+          </div>
+          <div class="student-field">
+            <span class="student-label">Poslednji put logovan/a</span>
+            <div class="student-value">{{ formatDate(librarian.zadnji_pristup_sistemu) }}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -67,45 +88,41 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSupabaseClient } from '#imports'
 import ActionMenu from '~/components/ActionMenu.vue'
+import Buttons from '~/components/ActionButtons.vue'
 
 interface Librarian {
   id: number
   ime_i_prezime: string
+  jmbg: string
   email: string
-  tip_korisnika: string
+  korisnicko_ime: string
+  broj_logovanja: number
   zadnji_pristup_sistemu: string | null
   avatar: string | null
 }
 
 interface FormData {
   ime_i_prezime: string
+  jmbg: string
   email: string
-  tip_korisnika: string
+  korisnicko_ime: string
+  broj_logovanja: number
   avatar: string
 }
 
-type EditMode = 'edit' | 'view'
-
 const route = useRoute()
 const router = useRouter()
-interface LibrariansTable {
-  id: number
-  ime_i_prezime: string
-  email: string
-  tip_korisnika: string
-  zadnji_pristup_sistemu: string | null
-  avatar: string | null
-}
-
-const supabase = useSupabaseClient<{ bibliotekari: LibrariansTable }>()
+const supabase = useSupabaseClient<{ bibliotekari: Librarian }>()
 
 const librarian = ref<Librarian | null>(null)
 const error = ref<string | null>(null)
 const editMode = ref(false)
 const form = ref<FormData>({
   ime_i_prezime: '',
+  jmbg: '',
   email: '',
-  tip_korisnika: '',
+  korisnicko_ime: '',
+  broj_logovanja: 0,
   avatar: ''
 })
 
@@ -126,7 +143,7 @@ const loadLibrarian = async () => {
   try {
     const { data, error: supabaseError } = await supabase
       .from('bibliotekari')
-      .select('id, ime_i_prezime, email, tip_korisnika, zadnji_pristup_sistemu, avatar')
+      .select('id, ime_i_prezime, jmbg, email, korisnicko_ime, broj_logovanja, zadnji_pristup_sistemu, avatar')
       .eq('id', route.params.id)
       .single()
 
@@ -139,8 +156,10 @@ const loadLibrarian = async () => {
       }
       form.value = {
         ime_i_prezime: data.ime_i_prezime,
+        jmbg: data.jmbg,
         email: data.email,
-        tip_korisnika: data.tip_korisnika,
+        korisnicko_ime: data.korisnicko_ime,
+        broj_logovanja: data.broj_logovanja,
         avatar: data.avatar || ''
       }
     }
@@ -157,8 +176,10 @@ const saveLibrarian = async () => {
       .from('bibliotekari')
       .update({
         ime_i_prezime: form.value.ime_i_prezime,
+        jmbg: form.value.jmbg,
         email: form.value.email,
-        tip_korisnika: form.value.tip_korisnika,
+        korisnicko_ime: form.value.korisnicko_ime,
+        broj_logovanja: form.value.broj_logovanja,
         avatar: form.value.avatar || null
       })
       .eq('id', librarian.value.id)
@@ -176,7 +197,7 @@ const setError = (msg: string) => {
   error.value = msg
 }
 
-const handleEdit = ({ author: editedLibrarian, mode }: { author: Librarian; mode: EditMode }) => {
+const handleEdit = ({ item: editedLibrarian, mode }: { item: Librarian; mode: 'edit' | 'view' }) => {
   if (mode === 'edit') {
     editMode.value = true
   }
@@ -202,7 +223,7 @@ const handleDelete = async (deletedLibrarian: Librarian) => {
 </script>
 
 <style scoped>
-.librarian-wrapper {
+.student-wrapper {
   max-width: 800px;
   margin: 0;
   padding: 16px;
@@ -210,52 +231,66 @@ const handleDelete = async (deletedLibrarian: Librarian) => {
   position: relative;
 }
 
-.librarian-header {
+.student-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
 
-.librarian-title {
+.student-title {
   font-size: 24px;
   font-weight: bold;
   margin-bottom: 8px;
 }
 
-.librarian-subtitle {
+.student-subtitle {
   font-size: 14px;
   color: #777;
   margin: 0;
 }
 
-.librarian-subtitle .link {
+.student-subtitle .link {
   color: #1976d2;
   cursor: pointer;
   text-decoration: underline;
 }
 
-.librarian-card {
-  width: 100%;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 16px;
-  background: white;
-  display: flex;
-  gap: 24px;
-}
-
-.librarian-avatar {
-  width: 200px;
-  height: 200px;
+.student-avatar {
+  width: 160px;
+  height: 160px;
   object-fit: cover;
   border-radius: 4px;
+  margin-bottom: 16px;
 }
 
-.librarian-info {
+.student-info {
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
+  gap: 16px;
+}
+
+.student-field {
+  margin-bottom: 8px;
+}
+
+.student-label {
+  display: block;
+  color: #888;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.student-value {
+  font-weight: 400;
+  color: #222;
+  font-size: 16px;
+  word-break: break-word;
+}
+
+.email-link {
+  color: #1976d2;
+  cursor: pointer;
 }
 
 .label {
@@ -265,29 +300,13 @@ const handleDelete = async (deletedLibrarian: Librarian) => {
   margin-bottom: 4px;
 }
 
-.librarian-name {
+.student-input {
   width: 100%;
-  font-size: 16px;
-}
-
-.librarian-description {
-  width: 100%;
-  font-size: 16px;
-  margin-bottom: 12px;
-}
-
-.name-field {
-  width: 100%;
-  margin-bottom: 12px;
   padding: 8px;
+  font-size: 16px;
   border: 1px solid #ddd;
   border-radius: 4px;
-}
-
-.btn-wrapper {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
+  margin-bottom: 12px;
 }
 
 .error-message {

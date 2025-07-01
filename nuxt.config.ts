@@ -3,7 +3,12 @@ import tailwindcss from "@tailwindcss/vite"
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: true },
-  css: ['~/assets/css/main.css'],
+   css: [
+    '@fontsource/roboto/400.css', 
+    '@fontsource/roboto/500.css',  
+    '@fontsource/roboto/700.css',  
+    '~/assets/css/main.css',       
+  ],
 ssr:true,
 
 

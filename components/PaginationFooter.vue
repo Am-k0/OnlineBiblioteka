@@ -101,8 +101,6 @@ function goToPage(page) {
 
 <style scoped>
 .caption {
-  font-family: Roboto;
-  font-weight: 400;
   font-size: 12px;
   line-height: 24px;
   letter-spacing: 0.4px;
@@ -110,9 +108,7 @@ function goToPage(page) {
 
 .page-info {
   width: 33px; 
-  text-align: center; 
-  font-family: Roboto; 
-  font-weight: 500; 
+  font-weight: 400; 
   font-size: 12px; 
   line-height: 24px; 
   letter-spacing: 0.4px;

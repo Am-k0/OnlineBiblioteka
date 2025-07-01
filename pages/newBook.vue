@@ -1,13 +1,13 @@
 <template>
   <div class="header">
-      <h1>Nova knjiga</h1>
-      <div class="breadcrumbs">
-        <a href="/books">Evidencija knjiga</a>
-        <span>/ Nova knjiga</span>
-      </div>
+    <h1>Nova knjiga</h1>
+    <div class="breadcrumbs">
+      <a href="/books">Evidencija knjiga</a>
+      <span>/ Nova knjiga</span>
     </div>
-  <v-card>
-    <v-tabs v-model="tab">
+  </div>
+  <v-card class="form-card">
+    <v-tabs v-model="tab" class="tabs">
       <v-tab value="one">Osnovni Detalji</v-tab>
       <v-tab value="two">Specifikacija</v-tab>
       <v-tab value="three">Multimedia</v-tab>
@@ -15,14 +15,14 @@
 
     <v-card-text>
       <v-window v-model="tab">
-        <!-- Prvi tab - Osnovni detalji -->
-        <v-window-item value="one">
+        <!-- Prvi tab - Osnovni detalji (smanjena visina) -->
+        <v-window-item value="one" class="tab-content tab-one">
           <v-text-field
             v-model="book.title"
             label="Unesite naziv knjige..."
             variant="outlined"
             hide-details
-            class="form-field mb-4"
+            class="form-field"
           ></v-text-field>
 
           <v-textarea
@@ -30,57 +30,56 @@
             label="Unesite kratak sadržaj knjige..."
             variant="outlined"
             hide-details
-            class="form-field mb-4"
-            rows="3"
+            rows="5"
+            class="form-field textarea-field"
           ></v-textarea>
 
           <v-autocomplete
             v-model="book.categories"
             clearable
             label="Izaberite kategoriju"
-            :items="['Komedija', 'Drama', 'Naucna fantastika', 'Ljubavni romani', 'Horor', 'Misterija']"
+            :items="uniqueCategories"
             multiple
             variant="outlined"
-            class="mb-4"
+            class="form-field"
           ></v-autocomplete>
 
           <v-autocomplete
             v-model="book.genres"
             clearable
             label="Izaberite žanr"
-            :items="['Komedija', 'Drama', 'Naucna fantastika', 'Ljubavni romani', 'Horor', 'Misterija']"
+            :items="uniqueGenres"
             multiple
             variant="outlined"
-            class="mb-4"
+            class="form-field"
           ></v-autocomplete>
 
           <v-autocomplete
             v-model="book.authors"
             clearable
             label="Izaberite autore"
-            :items="['Ivo Andrić', 'Meša Selimović', 'Bora Ćosić', 'Danilo Kiš', 'Milorad Pavić']"
+            :items="uniqueAuthors"
             multiple
             variant="outlined"
-            class="mb-4"
+            class="form-field"
           ></v-autocomplete>
 
           <v-autocomplete
             v-model="book.publisher"
             clearable
             label="Izaberite izdavača"
-            :items="['Vulkan', 'Laguna', 'Dereta', 'Geopoetika', 'Plato']"
+            :items="uniquePublishers"
             variant="outlined"
-            class="mb-4"
+            class="form-field"
           ></v-autocomplete>
 
-          <v-text-field
+          <v-select
             v-model="book.publicationYear"
-            label="Unesite godinu izdavanja..."
+            label="Izaberite godinu izdavanja"
+            :items="years"
             variant="outlined"
-            type="number"
-            hide-details
-            class="form-field mb-4"
-          ></v-text-field>
+            class="form-field"
+          ></v-select>
 
           <v-text-field
             v-model="book.quantity"
@@ -88,57 +87,57 @@
             variant="outlined"
             type="number"
             hide-details
-            class="form-field mb-4"
+            class="form-field"
           ></v-text-field>
         </v-window-item>
 
-        <!-- Drugi tab - Specifikacija -->
-        <v-window-item value="two">
+        <!-- Drugi tab - Specifikacija (724x384) -->
+        <v-window-item value="two" class="tab-content tab-two">
           <v-text-field
             v-model="book.pageCount"
             label="Unesite broj strana"
             variant="outlined"
             type="number"
-            class="mb-4"
+            class="form-field"
           ></v-text-field>
 
           <v-autocomplete
             v-model="book.fontType"
             label="Izaberite vrstu pisma"
-            :items="['Times New Roman', 'Arial', 'Calibri', 'Georgia', 'Helvetica']"
+            :items="['ćirilica', 'latinica', 'ostalo']"
             variant="outlined"
-            class="mb-4"
+            class="form-field"
           ></v-autocomplete>
 
           <v-autocomplete
             v-model="book.bindingType"
             label="Izaberite vrstu poveza"
-            :items="['Tvrdi povez', 'Meki povez', 'Spiralni povez', 'Platnena korica']"
+            :items="['Tvrdi povez', 'Meki povez']"
             variant="outlined"
-            class="mb-4"
+            class="form-field"
           ></v-autocomplete>
 
           <v-autocomplete
             v-model="book.format"
             label="Izaberite vrstu formata"
-            :items="['A5', 'A4', 'B5', 'Pocket', 'Hardcover']"
+            :items="['A3', 'A4', 'A5', '21x29cm', '15x21cm']"
             variant="outlined"
-            class="mb-4"
+            class="form-field"
           ></v-autocomplete>
 
           <v-text-field
             v-model="book.isbn"
             label="Unesite ISBN"
             variant="outlined"
-            class="mb-1"
+            class="form-field"
           ></v-text-field>
           <div class="text-caption text-grey mb-4">
             International Standard Book Number
           </div>
         </v-window-item>
 
-        <!-- Treći tab - Multimedia -->
-        <v-window-item value="three">
+        <!-- Treći tab - Multimedia (724x286) -->
+        <v-window-item value="three" class="tab-content tab-three">
           <v-card
             variant="outlined"
             class="drop-zone pa-8 text-center"
@@ -148,7 +147,7 @@
           >
             <v-icon size="64" color="grey-lighten-1">mdi-cloud-upload</v-icon>
             <div class="text-h6 mt-2">
-              Drag your files here or click in this area
+              Prevucite fajlove ovde ili kliknite na ovu oblast
             </div>
 
             <input
@@ -194,122 +193,173 @@
   </v-card>
 </template>
 
-<script>
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { useSupabaseClient } from '#imports'
 import ActionButtons from '@/components/ActionButtons.vue'
 
-export default {
-  components: {
-    ActionButtons
-  },
-  data: () => ({
-    tab: 'one',
-    isSaving: false,
-    book: {
-      title: '',
-      summary: '',
-      categories: [],
-      genres: [],
-      authors: [],
-      publisher: '',
-      publicationYear: null,
-      quantity: 0,
-      pageCount: null,
-      fontType: '',
-      bindingType: '',
-      format: '',
-      isbn: '',
-      files: []
-    }
-  }),
-  methods: {
-    async saveBook() {
-      this.isSaving = true
-      try {
-        console.log('Sačuvana knjiga:', this.book)
-        // Simulacija API poziva
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      } finally {
-        this.isSaving = false
-      }
-    },
-    cancel() {
-      this.book = {
-        title: '',
-        summary: '',
-        categories: [],
-        genres: [],
-        authors: [],
-        publisher: '',
-        publicationYear: null,
-        quantity: 0,
-        pageCount: null,
-        fontType: '',
-        bindingType: '',
-        format: '',
-        isbn: '',
-        files: []
-      }
-      this.tab = 'one'
-    },
-    handleDrop(e) {
-      e.preventDefault()
-      this.book.files = [...this.book.files, ...Array.from(e.dataTransfer.files)]
-    },
-    handleFileSelect(e) {
-      this.book.files = [...this.book.files, ...Array.from(e.target.files)]
-      e.target.value = ''
-    },
-    removeFile(index) {
-      this.book.files.splice(index, 1)
-    }
+const tab = ref('one')
+const isSaving = ref(false)
+const fileInput = ref(null)
+
+const book = reactive({
+  title: '',
+  summary: '',
+  categories: [],
+  genres: [],
+  authors: [],
+  publisher: '',
+  publicationYear: '',
+  quantity: 0,
+  pageCount: null,
+  fontType: '',
+  bindingType: '',
+  format: '',
+  isbn: '',
+  files: []
+})
+
+// Podaci iz baze
+const uniqueCategories = ref([])
+const uniqueGenres = ref([])
+const uniqueAuthors = ref([])
+const uniquePublishers = ref([])
+const years = ref([])
+
+const supabase = useSupabaseClient()
+
+// Učitavanje podataka iz tabele knjige
+async function fetchBookData() {
+  try {
+    const { data: books, error } = await supabase
+      .from('knjige')
+      .select('kategorija, zanr, autor, izdavac, godina_izdavanja')
+    
+    if (error) throw error
+
+    uniqueCategories.value = [...new Set(books.map(b => b.kategorija).filter(Boolean))]
+    uniqueGenres.value = [...new Set(books.map(b => b.zanr).filter(Boolean))]
+    uniqueAuthors.value = [...new Set(books.map(b => b.autor).filter(Boolean))]
+    uniquePublishers.value = [...new Set(books.map(b => b.izdavac).filter(Boolean))]
+
+    const currentYear = new Date().getFullYear()
+    years.value = Array.from({ length: 100 }, (_, i) => currentYear - i)
+  } catch (error) {
+    console.error('Greška pri učitavanju podataka:', error)
   }
+}
+
+onMounted(() => {
+  fetchBookData()
+})
+
+function handleDrop(e) {
+  e.preventDefault()
+  book.files.push(...Array.from(e.dataTransfer.files))
+}
+
+function handleFileSelect(e) {
+  book.files.push(...Array.from(e.target.files))
+  e.target.value = ''
+}
+
+function removeFile(index) {
+  book.files.splice(index, 1)
+}
+
+async function saveBook() {
+  isSaving.value = true
+  try {
+    console.log('Sačuvana knjiga:', JSON.parse(JSON.stringify(book)))
+    await new Promise(resolve => setTimeout(resolve, 1000))
+  } finally {
+    isSaving.value = false
+  }
+}
+
+function cancel() {
+  Object.assign(book, {
+    title: '',
+    summary: '',
+    categories: [],
+    genres: [],
+    authors: [],
+    publisher: '',
+    publicationYear: '',
+    quantity: 0,
+    pageCount: null,
+    fontType: '',
+    bindingType: '',
+    format: '',
+    isbn: '',
+    files: []
+  })
 }
 </script>
 
 <style scoped>
-
 .header {
-  margin-bottom: 32px;
+  margin-bottom: 16px;
 }
 
-.header h1 {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #212121;
-}
 .breadcrumbs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #757575;
+  font-size: 0.9rem;
+  color: #666;
 }
+
 .breadcrumbs a {
-  color: #3392EA;
+  color: #1976d2;
   text-decoration: none;
+  margin-right: 6px;
 }
-.breadcrumbs a:hover {
-  text-decoration: underline;
+
+.form-card {
+  width: 724px;
+  min-height: 856px;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.tabs {
+  margin-bottom: 16px; /* Smanjena margina ispod tabova */
+}
+
+.tab-content {
+  overflow-y: auto;
+}
+
+.tab-one {
+  height: 600px; /* Smanjena visina prvog taba */
+  padding-top: 8px; /* Dodatni padding na vrhu */
+}
+
+.tab-two {
+  height: 384px;
+}
+
+.tab-three {
+  height: 286px;
 }
 
 .form-field {
-  margin-bottom: 16px;
+  height: 48px;
+  margin-bottom: 12px; /* Smanjena margina između polja */
 }
+
+.textarea-field {
+  height: 160px !important;
+  margin-bottom: 12px; /* Smanjena margina ispod textarea */
+}
+
 .drop-zone {
-  border: 2px dashed #ccc;
-  border-radius: 4px;
+  border: 2px dashed #bbb;
   cursor: pointer;
-  transition: border-color 0.3s;
-  min-height: 200px;
+  user-select: none;
+  height: 160px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-}
-.drop-zone:hover {
-  border-color: #1976d2;
-}
-.text-transform-none {
-  text-transform: none;
+  color: #999;
 }
 </style>
