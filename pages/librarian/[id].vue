@@ -4,7 +4,7 @@
       <div>
         <h1 class="student-title">{{ librarian?.ime_i_prezime }}</h1>
         <p class="student-subtitle">
-          <span class="link" @click="router.push('/librarians')">Svi bibliotekari</span> / ID: {{ route.params.id }}
+          <span class="link" @click="router.push('/Thelibrarian')">Svi bibliotekari</span> / ID: {{ route.params.id }}
         </p>
       </div>
 

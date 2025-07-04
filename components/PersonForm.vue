@@ -1,219 +1,230 @@
 <template>
-    <div class="form-wrapper">
-  <div class="photo-section">
-    <div class="photo-upload-box" @click="triggerFileInput">
-      <v-icon v-if="!imageUrl" size="large" color="#757575">mdi-image</v-icon>
-      <input type="file" ref="fileInput" accept="image/*" @change="handleFileUpload" style="display: none">
-      <div v-if="!imageUrl" class="upload-text">Add photo</div>
-      <v-img v-if="imageUrl" :src="imageUrl" class="image-preview"></v-img>
+  <div class="form-wrapper">
+    <div class="photo-section">
+      <div class="photo-upload-box" @click="pokreniFileInput">
+        <v-icon v-if="!slikaUrl" size="large" color="#757575">mdi-image</v-icon>
+        <input type="file" ref="fileInput" accept="image/*" @change="obradiUploadSlike" style="display: none">
+        <div v-if="!slikaUrl" class="upload-text">Dodajte fotografiju</div>
+        <v-img v-if="slikaUrl" :src="slikaUrl" class="image-preview"></v-img>
+      </div>
     </div>
-  </div>
 
-  <div class="form-container">
-    <v-text-field
-      v-model="firstName"
-      label="Unesite Ime..."
-      variant="outlined"
-      hide-details
-      class="form-field"
-    ></v-text-field>
-    <div v-if="errors.firstName" class="error-message">{{ errors.firstName }}</div>
+    <div class="form-container">
+      <v-text-field
+        v-model="ime"
+        label="Unesite ime..."
+        variant="outlined"
+        hide-details
+        class="form-field"
+      ></v-text-field>
+      <div v-if="greske.ime" class="error-message">{{ greske.ime }}</div>
 
-    <v-text-field
-      v-model="lastName"
-      label="Unesite Prezime..."
-      variant="outlined"
-      hide-details
-      class="form-field"
-    ></v-text-field>
-    <div v-if="errors.lastName" class="error-message">{{ errors.lastName }}</div>
+      <v-text-field
+        v-model="prezime"
+        label="Unesite prezime..."
+        variant="outlined"
+        hide-details
+        class="form-field"
+      ></v-text-field>
+      <div v-if="greske.prezime" class="error-message">{{ greske.prezime }}</div>
 
-    <v-text-field
-      v-model="jmbg"
-      label="Unesite JMBG..."
-      variant="outlined"
-      hide-details
-      class="form-field"
-      type="number"
-      @keypress="isNumber($event)"
-    ></v-text-field>
-    <div v-if="errors.jmbg" class="error-message">{{ errors.jmbg }}</div>
+      <v-text-field
+        v-model="jmbg"
+        label="Unesite JMBG..."
+        variant="outlined"
+        hide-details
+        class="form-field"
+        type="number"
+        @keypress="samoBrojevi($event)"
+      ></v-text-field>
+      <div v-if="greske.jmbg" class="error-message">{{ greske.jmbg }}</div>
 
-    <v-text-field
-      v-model="email"
-      label="Unesite E-mail..."
-      variant="outlined"
-      hide-details
-      class="form-field"
-      type="email"
-    ></v-text-field>
-    <div v-if="errors.email" class="error-message">{{ errors.email }}</div>
+      <v-text-field
+        v-model="email"
+        label="Unesite e-mail..."
+        variant="outlined"
+        hide-details
+        class="form-field"
+        type="email"
+      ></v-text-field>
+      <div v-if="greske.email" class="error-message">{{ greske.email }}</div>
 
-    <v-text-field
-      v-model="username"
-      label="Unesite korisničko ime..."
-      variant="outlined"
-      hide-details
-      class="form-field"
-    ></v-text-field>
-    <div v-if="errors.username" class="error-message">{{ errors.username }}</div>
+      <v-text-field
+        v-model="korisnickoIme"
+        label="Unesite korisničko ime..."
+        variant="outlined"
+        hide-details
+        class="form-field"
+      ></v-text-field>
+      <div v-if="greske.korisnickoIme" class="error-message">{{ greske.korisnickoIme }}</div>
 
-    <v-text-field
-      v-model="password"
-      label="Unesite željenu šifru..."
-      variant="outlined"
-      :type="visible ? 'text' : 'password'"
-      :append-inner-icon="visible ? 'mdi-eye-off' : 'mdi-eye'"
-      @click:append-inner="visible = !visible"
-      hide-details
-      class="form-field"
-    ></v-text-field>
-    <div v-if="errors.password" class="error-message">{{ errors.password }}</div>
+      <v-text-field
+        v-model="lozinka"
+        label="Unesite željenu šifru..."
+        variant="outlined"
+        :type="vidljivo ? 'text' : 'password'"
+        :append-inner-icon="vidljivo ? 'mdi-eye-off' : 'mdi-eye'"
+        @click:append-inner="vidljivo = !vidljivo"
+        hide-details
+        class="form-field"
+      ></v-text-field>
+      <div v-if="greske.lozinka" class="error-message">{{ greske.lozinka }}</div>
 
-    <v-text-field
-      v-model="repeatPassword"
-      label="Ponovo unesite šifru..."
-      variant="outlined"
-      :type="visible ? 'text' : 'password'"
-      hide-details
-      class="form-field"
-    ></v-text-field>
-    <div v-if="errors.repeatPassword" class="error-message">{{ errors.repeatPassword }}</div>
+      <v-text-field
+        v-model="ponoviLozinku"
+        label="Ponovo unesite šifru..."
+        variant="outlined"
+        :type="vidljivo ? 'text' : 'password'"
+        hide-details
+        class="form-field"
+      ></v-text-field>
+      <div v-if="greske.ponoviLozinku" class="error-message">{{ greske.ponoviLozinku }}</div>
 
-    <ActionButtons 
-      @save="savePerson" 
-      @cancel="cancel"
-      :loading="isSaving"
-      container-class="mt-4"
-    />
-  </div>
+      <ActionButtons 
+        @save="sacuvajOsobu" 
+        @cancel="ponisti"
+        :loading="cuvaSe"
+        container-class="mt-4"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, defineProps } from 'vue'
+import { ref } from 'vue'
 import ActionButtons from '@/components/ActionButtons.vue'
-import { createClient } from '@supabase/supabase-js'
+import { useSupabaseClient } from '#imports'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({
-  collection: {
+  kolekcija: {
     type: String,
-    required: true
+    required: true,
+    validator: (value) => ['ucenici', 'bibliotekari'].includes(value)
   }
 })
 
-const supabase = createClient('https://your-supabase-url.supabase.co', 'your-anon-key')
+const supabase = useSupabaseClient()
+const router = useRouter()
 
-const photo = ref(null)
-const imageUrl = ref('')
-const firstName = ref('')
-const lastName = ref('')
+const fotografija = ref(null)
+const slikaUrl = ref('')
+const ime = ref('')
+const prezime = ref('')
 const jmbg = ref('')
 const email = ref('')
-const username = ref('')
-const password = ref('')
-const repeatPassword = ref('')
+const korisnickoIme = ref('')
+const lozinka = ref('')
+const ponoviLozinku = ref('')
 const fileInput = ref(null)
-const visible = ref(false)
-const isSaving = ref(false)
+const vidljivo = ref(false)
+const cuvaSe = ref(false)
 
-const errors = ref({
-  firstName: '',
-  lastName: '',
+const greske = ref({
+  ime: '',
+  prezime: '',
   jmbg: '',
   email: '',
-  username: '',
-  password: '',
-  repeatPassword: ''
+  korisnickoIme: '',
+  lozinka: '',
+  ponoviLozinku: ''
 })
 
-const isNumber = (evt) => {
-  evt = evt || window.event
+const samoBrojevi = (evt) => {
   const charCode = evt.which ? evt.which : evt.keyCode
   if (charCode > 31 && (charCode < 48 || charCode > 57)) {
     evt.preventDefault()
   }
 }
 
-const triggerFileInput = () => fileInput.value.click()
+const pokreniFileInput = () => fileInput.value.click()
 
-const handleFileUpload = (e) => {
+const obradiUploadSlike = (e) => {
   const file = e.target.files[0]
   if (file) {
-    photo.value = file
-    imageUrl.value = URL.createObjectURL(file)
+    fotografija.value = file
+    slikaUrl.value = URL.createObjectURL(file)
   }
 }
 
-const savePerson = async () => {
-  errors.value = {
-    firstName: '',
-    lastName: '',
+const sacuvajOsobu = async () => {
+  greske.value = {
+    ime: '',
+    prezime: '',
     jmbg: '',
     email: '',
-    username: '',
-    password: '',
-    repeatPassword: ''
+    korisnickoIme: '',
+    lozinka: '',
+    ponoviLozinku: ''
   }
 
-  let hasErrors = false
-
-  if (!firstName.value) { errors.value.firstName = 'Morate unijeti ime!'; hasErrors = true }
-  if (!lastName.value) { errors.value.lastName = 'Morate unijeti prezime!'; hasErrors = true }
-  if (!jmbg.value) { errors.value.jmbg = 'Morate unijeti JMBG!'; hasErrors = true }
-  if (!email.value) { errors.value.email = 'Morate unijeti e-mail!'; hasErrors = true }
-  if (!username.value) { errors.value.username = 'Morate unijeti korisničko ime!'; hasErrors = true }
-  if (!password.value) { errors.value.password = 'Morate unijeti šifru!'; hasErrors = true }
-  if (!repeatPassword.value) { errors.value.repeatPassword = 'Morate ponoviti unos šifre!'; hasErrors = true }
-  if (password.value && repeatPassword.value && password.value !== repeatPassword.value) {
-    errors.value.repeatPassword = 'Šifre se ne poklapaju!'; hasErrors = true
+  let imaGresaka = false
+  if (!ime.value) { greske.value.ime = 'Morate uneti ime!'; imaGresaka = true }
+  if (!prezime.value) { greske.value.prezime = 'Morate uneti prezime!'; imaGresaka = true }
+  if (!jmbg.value) { greske.value.jmbg = 'Morate uneti JMBG!'; imaGresaka = true }
+  if (!email.value) { greske.value.email = 'Morate uneti e-mail!'; imaGresaka = true }
+  if (!korisnickoIme.value) { greske.value.korisnickoIme = 'Morate uneti korisničko ime!'; imaGresaka = true }
+  if (!lozinka.value) { greske.value.lozinka = 'Morate uneti šifru!'; imaGresaka = true }
+  if (!ponoviLozinku.value) { greske.value.ponoviLozinku = 'Morate ponoviti šifru!'; imaGresaka = true }
+  if (lozinka.value !== ponoviLozinku.value) {
+    greske.value.ponoviLozinku = 'Šifre se ne poklapaju!'; imaGresaka = true
   }
 
-  if (!hasErrors) {
-    isSaving.value = true
-    try {
-      const { error } = await supabase
-        .from(props.collection)
-        .insert([{
-          first_name: firstName.value,
-          last_name: lastName.value,
-          jmbg: jmbg.value,
-          email: email.value,
-          username: username.value,
-          password: password.value
-        }])
+  if (imaGresaka) return
 
-      if (error) {
-        console.error('Greška prilikom čuvanja:', error)
-      } else {
-        console.log('Podaci uspješno sačuvani!')
-        cancel()
-      }
-    } finally {
-      isSaving.value = false
+  cuvaSe.value = true
+  try {
+    const podaciZaCuvanje = {
+      ime_i_prezime: `${ime.value} ${prezime.value}`,
+      jmbg: jmbg.value,
+      email: email.value,
+      tip_korisnika: props.kolekcija === 'ucenici' ? 'Učenik' : 'Bibliotekar',
+      korisnicko_ime: korisnickoIme.value,
+      lozinka: lozinka.value,
+      broj_logovanja: 0,
+      zadnji_pristup_sistemu: new Date().toISOString()
     }
+
+    if (slikaUrl.value) {
+      podaciZaCuvanje.avatar = slikaUrl.value
+    }
+
+    // Dodajemo { data } da dobijemo novi red i njegov id
+    const { data, error } = await supabase
+      .from(props.kolekcija)
+      .insert(podaciZaCuvanje)
+      .select('id') // Pretpostavljamo da tabela ima kolonu 'id'
+      .single()
+
+    if (error) throw error
+
+    ponisti()
+
+    // Preusmjeri na odgovarajuću stranicu sa ID-em
+    if (props.kolekcija === 'ucenici') {
+      router.push(`/student/${data.id}`)
+    } else {
+      router.push(`/librarian/${data.id}`)
+    }
+
+  } catch (error) {
+    console.error('Greška pri čuvanju:', error)
+    greske.value.opsta = error.message || 'Došlo je do greške pri čuvanju podataka.'
+  } finally {
+    cuvaSe.value = false
   }
 }
 
-const cancel = () => {
-  photo.value = null
-  imageUrl.value = ''
-  firstName.value = ''
-  lastName.value = ''
+const ponisti = () => {
+  fotografija.value = null
+  slikaUrl.value = ''
+  ime.value = ''
+  prezime.value = ''
   jmbg.value = ''
   email.value = ''
-  username.value = ''
-  password.value = ''
-  repeatPassword.value = ''
-  errors.value = {
-    firstName: '',
-    lastName: '',
-    jmbg: '',
-    email: '',
-    username: '',
-    password: '',
-    repeatPassword: ''
-  }
+  korisnickoIme.value = ''
+  lozinka.value = ''
+  ponoviLozinku.value = ''
 }
 </script>
 
@@ -251,17 +262,14 @@ const cancel = () => {
   top: 0;
   left: 0;
 }
-
 .form-container {
   width: 724px;
 }
-
 .form-field {
   width: 100%;
   height: 48px;
   margin-bottom: 16px;
 }
-
 .error-message {
   color: #ff5252;
   font-size: 12px;
@@ -273,7 +281,5 @@ const cancel = () => {
   height: 734px;
   flex-direction: column;
   padding: 16px;
- 
 }
-
 </style>
