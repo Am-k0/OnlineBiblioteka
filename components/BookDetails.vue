@@ -3,9 +3,10 @@
     <div class="book-info-section">
       <div class="book-cover-container">
         <img 
-          :src="book.slika_knjige || 'https://via.placeholder.com/123x202'" 
+          :src="bookCoverUrl" 
           alt="Book cover" 
           class="book-cover" 
+          @error="handleImageError"
         />
       </div>
 
@@ -36,7 +37,7 @@
           </div>
           <div class="info-group">
             <div class="info-label">Godina izdavanja</div>
-            <div class="info-value">{{ book.godina_izdavanja || 'Nepoznato' }}</div>
+            <div class="info-value">{{ formattedDate }}</div>
           </div>
         </div>
       </div>
@@ -85,10 +86,23 @@ const truncatedDescription = computed(() => {
   const words = (props.book?.kratak_sadrzaj || '').split(' ')
   return words.slice(0, wordLimit).join(' ') + '...'
 })
+
+const formattedDate = computed(() => {
+  if (!props.book?.godina_izdavanja) return 'Nepoznato'
+  const date = new Date(props.book.godina_izdavanja)
+  return date.getFullYear()
+})
+
+const bookCoverUrl = computed(() => {
+  return props.book?.slika_knjige || 'https://via.placeholder.com/123x202'
+})
+
+const handleImageError = (e) => {
+  e.target.src = 'https://via.placeholder.com/123x202'
+}
 </script>
 
 <style scoped>
-/* Stilovi ostaju isti kao u originalnom fajlu, možeš ih eventualno izdvojiti u globalni CSS fajl */
 .book-detail-content {
   background: white;
   border: 1px solid #e0e0e0;
@@ -97,14 +111,17 @@ const truncatedDescription = computed(() => {
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   width: fit-content;
 }
+
 .book-info-section {
   display: flex;
   gap: 24px;
   margin-bottom: 16px;
 }
+
 .book-cover-container {
   flex-shrink: 0;
 }
+
 .book-cover {
   width: 123px;
   height: 202px;
@@ -112,44 +129,53 @@ const truncatedDescription = computed(() => {
   border-radius: 4px;
   border: 1px solid #ccc;
 }
+
 .book-info-columns {
   display: flex;
   flex: 1;
   gap: 40px;
 }
+
 .book-info-left, .book-info-right {
   flex: 1;
 }
+
 .info-group {
   margin-bottom: 16px;
 }
+
 .info-label {
   font-weight: 500;
   color: #555;
   font-size: 14px;
   margin-bottom: 4px;
 }
+
 .info-value {
   color: #333;
   font-size: 16px;
 }
+
 .storyline-section {
   border-top: 1px solid #eee;
   padding-top: 16px;
   width: 716px;
 }
+
 .section-title {
   font-size: 16px;
   font-weight: 600;
   color: #333;
   margin-bottom: 12px;
 }
+
 .storyline-content {
   line-height: 1.6;
   color: #444;
   height: 141px;
   overflow: hidden;
 }
+
 .show-more {
   color: #1976d2;
   cursor: pointer;
