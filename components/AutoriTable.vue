@@ -14,7 +14,6 @@
       class="no-border-table"
       :item-class="itemClass"
     >
-      <!-- Avatar + naziv autora -->
       <template v-slot:item.naziv="{ item }">
         <div class="cell-naziv d-flex align-center">
           <v-avatar size="36" class="mr-2">
@@ -24,12 +23,11 @@
         </div>
       </template>
 
-      <!-- Opis autora -->
       <template v-slot:item.opis="{ item }">
         <span class="opis-text">{{ item.opis }}</span>
       </template>
 
-      <!-- Akcije -->
+
       <template v-slot:item.actions="{ item }">
         <div class="cell-actions">
           <ActionMenu 
@@ -44,7 +42,6 @@
       </template>
     </v-data-table>
 
-    <!-- Pagination ispod tabele -->
     <PaginationFooter
       v-model:itemsPerPage="itemsPerPage"
       v-model:currentPage="currentPage"
@@ -52,7 +49,6 @@
       class="pagination-footer mt-4"
     />
 
-    <!-- Greška -->
     <v-alert v-if="error" type="error" class="mt-4">
       {{ error }}
       <div class="mt-2">

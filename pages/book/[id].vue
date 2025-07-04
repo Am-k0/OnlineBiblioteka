@@ -10,7 +10,6 @@
           </p>
         </div>
         
-        <!-- Premestili smo BookStatistics ovde -->
         <div class="stats-container">
           <BookStatistics :book-id="book.id" />
         </div>
@@ -31,7 +30,6 @@
       </v-tabs>
 
       <v-card-text>
-        <!-- Dodali smo ActionMenu ovde -->
         <div class="action-menu-container">
           <ActionMenu 
             :item="book"
@@ -58,7 +56,30 @@
           </v-window-item>
 
           <v-window-item value="media">
-            <div class="under-construction">MULTIMEDIJA - U izradi</div>
+            <div class="media-tab-content">
+              <div class="current-image">
+                <img 
+                  :src="book.slika_knjige || 'https://via.placeholder.com/300x450'" 
+                  alt="Book cover"
+                  class="book-image"
+                />
+              </div>
+              <div class="upload-section">
+                <v-btn 
+                  color="primary"
+                  @click="triggerFileInput"
+                >
+                  Promijeni sliku
+                </v-btn>
+                <input 
+                  type="file" 
+                  ref="fileInput" 
+                  style="display: none" 
+                  accept="image/*"
+                  @change="handleImageChange"
+                />
+              </div>
+            </div>
           </v-window-item>
         </v-window>
       </v-card-text>
@@ -83,6 +104,7 @@ const supabase = useSupabaseClient()
 const tab = ref('details')
 const book = ref(null)
 const error = ref(null)
+const fileInput = ref(null)
 
 const fetchBook = async () => {
   try {
@@ -97,6 +119,33 @@ const fetchBook = async () => {
     book.value = data
   } catch (err) {
     error.value = `Došlo je do greške: ${err.message}`
+  }
+}
+
+const triggerFileInput = () => {
+  fileInput.value.click()
+}
+
+const handleImageChange = async (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  
+  try {
+    // Simulacija uploada - u produkciji bi ovo bio pravi upload na server
+    const imageUrl = URL.createObjectURL(file)
+    
+    // Ažurirajte knjigu u bazi
+    const { error } = await supabase
+      .from('knjige')
+      .update({ slika_knjige: imageUrl })
+      .eq('id', book.value.id)
+    
+    if (error) throw error
+    
+    // Osvežite podatke
+    await fetchBook()
+  } catch (error) {
+    console.error('Greška pri promjeni slike:', error)
   }
 }
 
@@ -128,14 +177,14 @@ onMounted(fetchBook)
   position: absolute;
   top: 0;
   right: 0;
-  width: 400px; /* Prilagodite širinu po potrebi */
+  width: 400px;
 }
 
 .action-menu-container {
   position: absolute;
   top: 24px;
   right: 24px;
-  z-index: 2; /* Da bude iznad sadržaja */
+  z-index: 2;
 }
 
 .book-header {
@@ -196,5 +245,23 @@ onMounted(fetchBook)
 
 .v-tabs-slider {
   background-color: #3392EA !important;
+}
+
+.media-tab-content {
+  padding: 20px;
+  text-align: center;
+}
+
+.book-image {
+  max-width: 300px;
+  max-height: 450px;
+  object-fit: contain;
+  margin-bottom: 20px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.upload-section {
+  margin-top: 20px;
 }
 </style>

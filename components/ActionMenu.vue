@@ -8,7 +8,6 @@
       </template>
 
       <v-list class="dropdown-menu">
-        <!-- Opcija "Pogledaj detalje" se prikazuje samo ako nismo na detaljnoj stranici -->
         <v-list-item 
           v-if="!hideViewOption"
           @click="handleView" 
@@ -20,7 +19,7 @@
           <v-list-item-title class="dropdown-text">Pogledaj detalje</v-list-item-title>
         </v-list-item>
 
-        <!-- Opcija "Izmijeni" -->
+        
         <v-list-item @click="handleEdit" class="dropdown-item edit-item">
           <template v-slot:prepend>
             <v-icon size="24" class="dropdown-icon">mdi-pencil-outline</v-icon>
@@ -28,9 +27,9 @@
           <v-list-item-title class="dropdown-text">Izmijeni {{ entityName }}</v-list-item-title>
         </v-list-item>
 
-        <!-- Opcije specifične za knjige -->
+     
         <template v-if="entityName === 'knjigu'">
-          <!-- Prikaz u jednom redu sa ikonicama i tekstom -->
+         
           <div v-if="inlineLayout" class="horizontal-actions">
             <v-list-item 
               @click="handleOtpisi" 
@@ -73,7 +72,7 @@
             </v-list-item>
           </div>
 
-          <!-- Standardni prikaz jedna ispod druge ako nije inlineLayout -->
+        
           <template v-else>
             <v-list-item @click="handleOtpisi" class="dropdown-item otpisi-item">
               <template v-slot:prepend>
@@ -105,7 +104,7 @@
           </template>
         </template>
 
-        <!-- Opcija za brisanje -->
+      
         <v-list-item @click="handleDelete" class="dropdown-item delete-item">
           <template v-slot:prepend>
             <v-icon size="24" class="dropdown-icon">mdi-delete-outline</v-icon>
@@ -255,7 +254,6 @@ const confirmDelete = () => {
   line-height: 1.2;
 }
 
-/* Povećaj padding između akcija */
 .action-item:not(:last-child) {
   margin-right: 4px;
 }
