@@ -8,7 +8,7 @@
       </div>
     </div>
 
-    <PersonForm collection="students" />
+    <PersonForm :kolekcija="'ucenici'" />
   </div>
 </template>
 
@@ -23,14 +23,23 @@ export default {
 </script>
 
 <style scoped>
+.header {
+  margin-bottom: 24px;
+}
+.header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
 .breadcrumbs {
   display: flex;
   align-items: center;
   gap: 8px;
   color: #757575;
+  font-size: 14px;
 }
 .breadcrumbs a {
-  color: #3392EA;
+  color: #1976d2;
   text-decoration: none;
 }
 .breadcrumbs a:hover {
