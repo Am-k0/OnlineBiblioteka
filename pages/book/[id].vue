@@ -51,9 +51,11 @@
             <BookSpecifications :book="book" />
           </v-window-item>
 
-          <v-window-item value="records">
-            <div class="under-construction">EVIDENCIJA IZNAJMLJIVANJA - U izradi</div>
-          </v-window-item>
+ <v-window-item value="records">
+  <div class="student-books-wrapper">
+    <studentBooks />
+  </div>
+</v-window-item>
 
           <v-window-item value="media">
             <div class="media-tab-content">
@@ -95,6 +97,7 @@ import { useSupabaseClient } from '#imports'
 import BookDetail from '@/components/BookDetails.vue'
 import BookSpecifications from '~/components/BookSpecifications.vue'
 import ActionMenu from '@/components/ActionMenu.vue'
+import studentBooks from '~/components/studentBooks.vue'
 import BookStatistics from '@/components/BookStatistics.vue'
 
 const route = useRoute()
@@ -264,4 +267,8 @@ onMounted(fetchBook)
 .upload-section {
   margin-top: 20px;
 }
+.student-books-wrapper >>> table {
+  width: 672px;
+}
+
 </style>

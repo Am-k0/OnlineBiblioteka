@@ -15,6 +15,7 @@
     <v-card-text>
       <v-window v-model="tab">
         <v-window-item value="one">
+          <!-- Osnovni detalji -->
           <div class="student-wrapper">
             <div class="student-header">
               <div>
@@ -24,7 +25,6 @@
                   / ID: {{ route.params.id }}
                 </p>
               </div>
-
               <ActionMenu
                 v-if="student"
                 :item="student"
@@ -36,72 +36,66 @@
                 @error="setError"
               />
             </div>
-
             <div v-if="student" class="student-card">
-              <img
-                :src="student.avatar || 'https://randomuser.me/api/portraits/men/1.jpg'"
-                alt="Avatar učenika"
-                class="student-avatar"
-              />
-
+              <img :src="student.avatar || 'https://randomuser.me/api/portraits/men/1.jpg'" alt="Avatar učenika" class="student-avatar" />
               <div class="student-info">
-                <div v-if="editMode">
+                <template v-if="editMode">
                   <label class="label">Ime i Prezime:</label>
                   <input v-model="form.ime_i_prezime" type="text" class="student-input" />
-
                   <label class="label">JMBG:</label>
                   <input v-model="form.jmbg" type="text" class="student-input" />
-
                   <label class="label">Email:</label>
                   <input v-model="form.email" type="email" class="student-input" />
-
                   <label class="label">Korisničko ime:</label>
                   <input v-model="form.korisnicko_ime" type="text" class="student-input" />
-
                   <label class="label">Broj logovanja:</label>
                   <input v-model.number="form.broj_logovanja" type="number" class="student-input" />
-
                   <label class="label">Avatar URL:</label>
                   <input v-model="form.avatar" type="text" class="student-input" />
-
                   <Buttons @save="saveStudent" @cancel="() => (editMode = false)" />
-                </div>
-
-                <div v-else>
-                  <div class="student-field">
-                    <span class="student-label">Ime i Prezime</span>
-                    <div class="student-value">{{ student.ime_i_prezime }}</div>
+                </template>
+                <template v-else>
+                  <div class="student-field" v-for="(value, label) in displayFields" :key="label">
+                    <span class="student-label">{{ label }}</span>
+                    <div class="student-value">{{ value }}</div>
                   </div>
-                  <div class="student-field">
-                    <span class="student-label">JMBG</span>
-                    <div class="student-value">{{ student.jmbg }}</div>
-                  </div>
-                  <div class="student-field">
-                    <span class="student-label">Email</span>
-                    <div class="student-value email-link">{{ student.email }}</div>
-                  </div>
-                  <div class="student-field">
-                    <span class="student-label">Korisničko ime</span>
-                    <div class="student-value">{{ student.korisnicko_ime }}</div>
-                  </div>
-                  <div class="student-field">
-                    <span class="student-label">Broj logovanja</span>
-                    <div class="student-value">{{ student.broj_logovanja }}</div>
-                  </div>
-                  <div class="student-field">
-                    <span class="student-label">Poslednji put logovan/a</span>
-                    <div class="student-value">{{ formatDate(student.zadnji_pristup_sistemu) }}</div>
-                  </div>
-                </div>
+                </template>
               </div>
             </div>
-
             <p v-if="error" class="error-message">{{ error }}</p>
           </div>
         </v-window-item>
 
         <v-window-item value="two">
-          <div class="under-construction">OVAJ TAB JE U IZRADI</div>
+          <!-- Evidencija iznajmljivanja -->
+          <div class="iznajmljivanje-layout">
+            <nav class="side-menu">
+              <v-list nav dense class="pa-0">
+                <v-list-item
+                  v-for="(item, i) in stavke"
+                  :key="i"
+                  :active="menuTab === i"
+                  @click="selectMenuItem(i)"
+                  class="side-menu-item"
+                >
+                  <div class="side-menu-row">
+                    <v-list-item-icon>
+                      <v-icon :color="menuTab === i ? 'primary' : 'grey'" size="24">{{ item.icon }}</v-icon>
+                    </v-list-item-icon>
+                    <v-list-item-title :class="['side-menu-text', menuTab === i ? 'font-weight-bold blue--text' : '']">
+                      {{ item.label }}
+                    </v-list-item-title>
+                  </div>
+                </v-list-item>
+                <div class="menu-divider-wrap">
+                  <v-divider class="custom-divider" />
+                </div>
+              </v-list>
+            </nav>
+            <div class="main-content">
+              <component :is="getComponent" :student-id="studentId" />
+            </div>
+          </div>
         </v-window-item>
       </v-window>
     </v-card-text>
@@ -109,11 +103,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSupabaseClient } from '#imports'
 import ActionMenu from '~/components/ActionMenu.vue'
 import Buttons from '~/components/ActionButtons.vue'
+
+import IzdateKnjige from '@/components/IzdateKnjige.vue'
+import VracanjeKnjige from '@/components/VracanjeKnjige.vue'
+import KnjigeUPrekoracenju from '@/components/KnjigeUPrekoracenju.vue'
+import AktivneRezervacije from '@/components/AktivneRezervacije.vue'
+import ArhiviraneRezervacije from '@/components/ArhiviraneRezervacije.vue'
 
 interface Student {
   id: number
@@ -143,14 +143,20 @@ const tab = ref('one')
 const student = ref<Student | null>(null)
 const error = ref<string | null>(null)
 const editMode = ref(false)
-const form = ref<FormData>({
-  ime_i_prezime: '',
-  jmbg: '',
-  email: '',
-  korisnicko_ime: '',
-  broj_logovanja: 0,
-  avatar: ''
-})
+const form = ref<FormData>({ ime_i_prezime: '', jmbg: '', email: '', korisnicko_ime: '', broj_logovanja: 0, avatar: '' })
+
+const menuTab = ref(0)
+const stavke = [
+  { label: 'Izdate knjige', icon: 'mdi-file-document-outline', component: IzdateKnjige },
+  { label: 'Vraćanje knjige', icon: 'mdi-file-restore-outline', component: VracanjeKnjige },
+  { label: 'Knjige u prekoračenju', icon: 'mdi-alert-outline', component: KnjigeUPrekoracenju },
+  { label: 'Aktivne rezervacije', icon: 'mdi-calendar-clock', component: AktivneRezervacije },
+  { label: 'Arhivirane rezervacije', icon: 'mdi-archive-outline', component: ArhiviraneRezervacije }
+]
+
+const studentId = computed(() => Array.isArray(route.params.id) ? route.params.id[0] : route.params.id)
+const getComponent = computed(() => stavke[menuTab.value].component)
+const selectMenuItem = (index: number) => { menuTab.value = index }
 
 const formatDate = (dateString: string | null) => {
   if (!dateString) return 'Nije pristupao'
@@ -158,17 +164,23 @@ const formatDate = (dateString: string | null) => {
   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
 }
 
+const displayFields = computed(() => student.value ? {
+  'Ime i Prezime': student.value.ime_i_prezime,
+  'JMBG': student.value.jmbg,
+  'Email': student.value.email,
+  'Korisničko ime': student.value.korisnicko_ime,
+  'Broj logovanja': student.value.broj_logovanja,
+  'Poslednji put logovan/a': formatDate(student.value.zadnji_pristup_sistemu)
+} : {})
+
 onMounted(async () => {
   await loadStudent()
-  if (route.query.edit === 'true') {
-    editMode.value = true
-  }
+  if (route.query.edit === 'true') editMode.value = true
 })
 
 const loadStudent = async () => {
   try {
-    const { data, error: supabaseError } = await supabase
-      .from('ucenici')
+    const { data, error: supabaseError } = await supabase.from('ucenici')
       .select('id, ime_i_prezime, jmbg, email, korisnicko_ime, broj_logovanja, zadnji_pristup_sistemu, avatar')
       .eq('id', route.params.id)
       .single()
@@ -177,14 +189,7 @@ const loadStudent = async () => {
 
     if (data) {
       student.value = data
-      form.value = {
-        ime_i_prezime: data.ime_i_prezime,
-        jmbg: data.jmbg,
-        email: data.email,
-        korisnicko_ime: data.korisnicko_ime,
-        broj_logovanja: data.broj_logovanja,
-        avatar: data.avatar || ''
-      }
+      form.value = { ...data, avatar: data.avatar || '' }
     }
   } catch (err) {
     error.value = `Greška pri učitavanju učenika: ${err instanceof Error ? err.message : 'Nepoznata greška'}`
@@ -193,22 +198,10 @@ const loadStudent = async () => {
 
 const saveStudent = async () => {
   if (!student.value) return
-
   try {
-    const { error: updateError } = await supabase
-      .from('ucenici')
-      .update({
-        ime_i_prezime: form.value.ime_i_prezime,
-        jmbg: form.value.jmbg,
-        email: form.value.email,
-        korisnicko_ime: form.value.korisnicko_ime,
-        broj_logovanja: form.value.broj_logovanja,
-        avatar: form.value.avatar || null
-      })
-      .eq('id', student.value.id)
-
+    const { error: updateError } = await supabase.from('ucenici')
+      .update(form.value).eq('id', student.value.id)
     if (updateError) throw updateError
-
     editMode.value = false
     await loadStudent()
   } catch (err) {
@@ -216,28 +209,14 @@ const saveStudent = async () => {
   }
 }
 
-const setError = (msg: string) => {
-  error.value = msg
-}
-
-const handleEdit = ({ item: editedStudent, mode }: { item: Student; mode: 'edit' | 'view' }) => {
-  if (mode === 'edit') {
-    editMode.value = true
-  }
-}
-
+const setError = (msg: string) => { error.value = msg }
+const handleEdit = ({ mode }: { item: Student; mode: 'edit' | 'view' }) => { if (mode === 'edit') editMode.value = true }
 const handleDelete = async (deletedStudent: Student) => {
   const confirmed = confirm('Da li ste sigurni da želite da obrišete učenika?')
   if (!confirmed) return
-
   try {
-    const { error: deleteError } = await supabase
-      .from('ucenici')
-      .delete()
-      .eq('id', deletedStudent.id)
-
+    const { error: deleteError } = await supabase.from('ucenici').delete().eq('id', deletedStudent.id)
     if (deleteError) throw deleteError
-
     router.push('/students')
   } catch (err) {
     setError(`Greška pri brisanju: ${err instanceof Error ? err.message : 'Nepoznata greška'}`)
@@ -245,7 +224,10 @@ const handleDelete = async (deletedStudent: Student) => {
 }
 </script>
 
+
+
 <style scoped>
+/* Postojeći stilovi... */
 .student-wrapper {
   max-width: 800px;
   margin: 0;
@@ -356,4 +338,100 @@ const handleDelete = async (deletedStudent: Student) => {
   background-color: #3392EA !important;
 }
 
+/* Stilovi za evidenciju iznajmljivanja */
+.iznajmljivanje-layout {
+  display: flex;
+  background: #fff;
+  width: 100%;
+  height: 600px;
+  overflow: hidden;
+}
+
+.side-menu {
+  width: 247px;
+  min-width: 247px;
+  max-width: 247px;
+  height: 281px;
+  min-height: 281px;
+  max-height: 281px;
+  background: #fafbfc;
+  padding-top: 12px;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #e0e0e0;
+}
+
+.side-menu-item {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  padding: 0 8px 0 8px;
+  cursor: pointer;
+  border-radius: 0;
+  background: transparent;
+  margin-bottom: 0;
+}
+
+.side-menu-row {
+  display: flex;
+  align-items: center;
+  width: 231px;
+  height: 40px;
+  min-width: 231px;
+  max-width: 231px;
+}
+
+.v-list-item-icon {
+  min-width: 24px !important;
+  width: 24px !important;
+  height: 24px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.side-menu-text {
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 100%;
+  letter-spacing: 0.5px;
+  color: #222;
+  margin-left: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.side-menu-item.v-list-item--active,
+.side-menu-item.v-list-item--active .v-icon {
+  background: #e3f2fd !important;
+  color: #1976d2 !important;
+}
+
+.menu-divider-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 12px 0 16px 0;
+}
+
+.custom-divider {
+  width: 200px;
+  height: 1px;
+  background: #e0e0e0;
+  margin: 0;
+}
+
+.main-content {
+  flex: 1;
+  padding: 24px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
 </style>

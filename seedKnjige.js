@@ -13,7 +13,6 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
-// Pomoćne konstante za generisanje realističkih podataka
 const kategorije = [
   'Roman', 'Poezija', 'Drama', 'Fantastika', 'Naučna fantastika',
   'Triler', 'Horor', 'Biografija', 'Istorija', 'Nauka',
@@ -31,24 +30,36 @@ const zanrovi = [
   'Psihološki', 'Politički', 'Epski', 'Satira', 'Komedija'
 ]
 
+const statusi = ['rezervisano', 'odbijeno', '✅', '❌', 'izdato', 'rezervacija istekla', 'rezervacija otkazana'] 
 const pisma = ['ćirilica', 'latinica', 'ostalo']
 const povez = ['tvrdi povez', 'meki povez']
-const formati = ['A3', 'A4', 'A5', '21x29cm', '15x21cm',]
-const jezici = ['crnogorski', 'engleski',  'ostalo']
+const formati = ['A3', 'A4', 'A5', '21x29cm', '15x21cm']
+const jezici = ['crnogorski', 'engleski', 'ostalo']
 
-// Funkcija za generisanje "lažnog" ISBN-a
-const generateFakeISBN = () => {
-  return faker.string.numeric(13)
+const generateFakeISBN = () => faker.string.numeric(13)
+
+const generateTrajanjeZadrzavanja = () => {
+  const mjeseci = faker.number.int({ min: 0, max: 3 })
+  const nedelje = faker.number.int({ min: 0, max: 4 })
+  const dani = faker.number.int({ min: 0, max: 30 })
+
+  let delovi = []
+
+  if (mjeseci > 0) delovi.push(`${mjeseci} mjesec${mjeseci > 1 ? 'a' : ''}`)
+  if (nedelje > 0) delovi.push(`${nedelje} nedelj${nedelje > 1 ? 'a' : 'a'}`)
+  if (dani > 0) delovi.push(`${dani} dan${dani > 1 ? 'a' : ''}`)
+
+  if (delovi.length === 0) return '0 dana'
+  return delovi.join(' i ')
 }
 
-// Funkcija za generisanje nasumičnih knjiga
 const generateFakeKnjige = async (count) => {
-  const { data: autori, error } = await supabase
+  const { data: autori, error: errAutori } = await supabase
     .from('autori')
     .select('naziv')
 
-  if (error) {
-    console.error('Greška pri dobavljanju autora:', error)
+  if (errAutori) {
+    console.error('Greška pri dobavljanju autora:', errAutori)
     process.exit(1)
   }
 
@@ -57,27 +68,36 @@ const generateFakeKnjige = async (count) => {
     process.exit(1)
   }
 
+  const { data: bibliotekari, error: errBibliotekari } = await supabase
+    .from('bibliotekari')
+    .select('ime_i_prezime')
+
+  if (errBibliotekari) {
+    console.error('Greška pri dobavljanju bibliotekara:', errBibliotekari)
+    process.exit(1)
+  }
+
+  if (!bibliotekari || bibliotekari.length === 0) {
+    console.error('Nema bibliotekara u bazi. Prvo ubacite bibliotekare.')
+    process.exit(1)
+  }
+
   const knjige = []
   for (let i = 0; i < count; i++) {
     const ukupnaKolicina = faker.number.int({ min: 1, max: 20 })
-    
-    const maxNaRaspolaganju = ukupnaKolicina
-    const naRaspolaganju = faker.number.int({ min: 0, max: maxNaRaspolaganju })
-    
-    const maxRezervisano = ukupnaKolicina - naRaspolaganju
-    const rezervisano = faker.number.int({ min: 0, max: maxRezervisano })
-    
-    const maxIzdato = ukupnaKolicina - naRaspolaganju - rezervisano
-    const izdato = faker.number.int({ min: 0, max: maxIzdato })
-    
-    const maxPrekoracenju = ukupnaKolicina - naRaspolaganju - rezervisano - izdato
-    const uPrekoracenju = faker.number.int({ min: 0, max: maxPrekoracenju })
+    const naRaspolaganju = faker.number.int({ min: 0, max: ukupnaKolicina })
+    const rezervisano = faker.number.int({ min: 0, max: ukupnaKolicina - naRaspolaganju })
+    const izdato = faker.number.int({ min: 0, max: ukupnaKolicina - naRaspolaganju - rezervisano })
+    const uPrekoracenju = faker.number.int({ min: 0, max: ukupnaKolicina - naRaspolaganju - rezervisano - izdato })
 
-    // Generisanje datuma izdavanja između 1900 i danas
-    const GodinaIzdavanja = faker.date.between({
-      from: '1900-01-01',
-      to: new Date()
-    }).toISOString().split('T')[0]
+    const datumIzdavanja = faker.date.between({ from: '2025-01-01', to: '2025-12-31' }).toISOString().split('T')[0]
+    const datumVracanja = faker.date.between({ from: datumIzdavanja, to: '2025-12-31' }).toISOString().split('T')[0]
+    const datumRezervacije = faker.date.between({ from: '2024-01-01', to: datumIzdavanja }).toISOString().split('T')[0]
+    const rezervacijaIstice = faker.date.between({ from: datumRezervacije, to: '2025-12-31' }).toISOString().split('T')[0]
+    
+    const prekoracenjeUDanima = faker.number.int({ min: 0, max: 30 })
+    const izdao = faker.helpers.arrayElement(bibliotekari).ime_i_prezime
+    const primio = faker.helpers.arrayElement(bibliotekari).ime_i_prezime
 
     knjige.push({
       naziv_knjige: faker.lorem.words(faker.number.int({ min: 1, max: 5 })),
@@ -91,20 +111,31 @@ const generateFakeKnjige = async (count) => {
       ukupna_kolicina: ukupnaKolicina,
       izdavac: faker.helpers.arrayElement(izdavaci),
       zanr: faker.helpers.arrayElement(zanrovi),
-      godina_izdavanja: GodinaIzdavanja, 
+      godina_izdavanja: faker.date.between({ from: '1900-01-01', to: '2023-12-31' }).toISOString().split('T')[0], // Ispravljeno u datum
       pismo: faker.helpers.arrayElement(pisma),
       broj_stranica: faker.number.int({ min: 50, max: 1000 }),
       povez: faker.helpers.arrayElement(povez),
       format: faker.helpers.arrayElement(formati),
       jezik: faker.helpers.arrayElement(jezici),
       isbn: generateFakeISBN(),
-      slika_knjige: faker.image.urlLoremFlickr({ category: 'book' })
+      slika_knjige: faker.image.urlLoremFlickr({ category: 'book' }),
+      
+      // Nove kolone
+      datum_vracanja: datumVracanja,
+      zadrzavanje_knjige: generateTrajanjeZadrzavanja(),
+      knjigu_primio: primio,
+      prekoracenje_u_danima: prekoracenjeUDanima,
+      datum_rezervacije: datumRezervacije,
+      rezervacija_istice: rezervacijaIstice,
+      status: faker.helpers.arrayElement(statusi),
+      datum_izdavanja: datumIzdavanja,
+      trenutno_zadrzavanje: generateTrajanjeZadrzavanja(),
+      knjigu_izdao: izdao
     })
   }
   return knjige
 }
 
-// Glavna funkcija za seedovanje
 const seedKnjige = async () => {
   const fakeKnjige = await generateFakeKnjige(25)
   const { error } = await supabase
@@ -115,7 +146,7 @@ const seedKnjige = async () => {
     console.error('Greška pri ubacivanju knjiga:', error)
     process.exit(1)
   } else {
-    console.log('Uspešno dodato 50 knjiga!')
+    console.log('Uspešno dodato 25 knjiga sa svim novim kolonama!')
     process.exit(0)
   }
 }

@@ -1,0 +1,200 @@
+<template>
+  <div class="vracene-knjige-layout">
+    <v-data-table
+      :headers="visibleHeaders"
+      :items="filteredKnjige"
+      :loading="loading"
+      loading-text="Učitavam podatke..."
+      item-value="id"
+      :items-per-page="itemsPerPage"
+      :page="currentPage"
+      hide-default-footer
+      hover
+      show-select
+      class="no-border-table"
+      :item-class="itemClass"
+      fixed-header
+      height="680"
+    >
+      <template v-slot:item.naziv_knjige="{ item }">
+        <div class="cell-naziv d-flex align-center">
+          <!-- Vraćeno na originalni način prikaza slika -->
+          <div class="book-cover-wrapper mr-2">
+            <img :src="item.slika_knjige || defaultBookCover" alt="Slika knjige" />
+          </div>
+          <span class="naziv-text">{{ item.naziv_knjige }}</span>
+        </div>
+      </template>
+      <template v-slot:item.datum_izdavanja="{ item }">
+        <span class="datum-text">{{ formatDate(item.datum_izdavanja) }}</span>
+      </template>
+      <template v-slot:item.datum_vracanja="{ item }">
+        <span class="datum-text">{{ formatDate(item.datum_vracanja) }}</span>
+      </template>
+      <template v-slot:item.trenutno_zadrzavanje="{ item }">
+        <span class="zadrzavanje-text">{{ item.trenutno_zadrzavanje || 'N/A' }}</span>
+      </template>
+      <template v-slot:item.knjigu_primio="{ item }">
+        <span class="izdao-text">{{ item.knjigu_primio || 'N/A' }}</span>
+      </template>
+      <template v-slot:item.actions="{ item }">
+        <div class="cell-actions">
+          <ActionMenu
+            :item="item"
+            entity-name="knjige"
+            title-property="naziv_knjige"
+            @edit="handleEdit"
+            @delete="handleDelete"
+            @error="setError"
+          />
+        </div>
+      </template>
+    </v-data-table>
+
+    <div class="pagination-footer-wrap">
+      <PaginationFooter
+        v-model:itemsPerPage="itemsPerPage"
+        v-model:currentPage="currentPage"
+        :total-items="filteredKnjige.length"
+        class="pagination-footer mt-4"
+      />
+    </div>
+
+    <v-alert v-if="error" type="error" class="mt-4">
+      {{ error }}
+      <div class="mt-2">
+        <v-btn @click="fetchKnjige" color="white" small>Pokušaj ponovo</v-btn>
+      </div>
+    </v-alert>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useSupabaseClient } from '#imports'
+import ActionMenu from './ActionMenu.vue'
+import PaginationFooter from './PaginationFooter.vue'
+
+interface Knjiga {
+  id: number
+  naziv_knjige: string
+  slika_knjige: string | null
+  datum_izdavanja: string | null
+  datum_vracanja: string | null
+  trenutno_zadrzavanje: string | null
+  knjigu_primio: string | null
+}
+
+const router = useRouter()
+const supabase = useSupabaseClient()
+
+const knjige = ref<Knjiga[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+const defaultBookCover = 'https://via.placeholder.com/150?text=Knjiga'
+const itemsPerPage = ref(20)
+const currentPage = ref(1)
+
+const visibleHeaders = ref([
+  { title: 'Naziv knjige', key: 'naziv_knjige', align: 'start' as const, sortable: true, width: '250px' },
+  { title: 'Datum izdavanja', key: 'datum_izdavanja', align: 'center' as const, sortable: true, width: '130px' },
+  { title: 'Datum vraćanja', key: 'datum_vracanja', align: 'center' as const, sortable: true, width: '130px' },
+  { title: 'Zadržavanje knjige', key: 'trenutno_zadrzavanje', align: 'center' as const, sortable: false, width: '160px' },
+  { title: 'Knjigu primio', key: 'knjigu_primio', align: 'center' as const, sortable: true, width: '120px' },
+  { title: '', key: 'actions', align: 'end' as const, sortable: false }
+])
+
+const fetchKnjige = async () => {
+  try {
+    loading.value = true
+    error.value = null
+    const { data, error: supabaseError } = await supabase
+      .from('knjige')
+      .select('id, naziv_knjige, slika_knjige, datum_izdavanja, datum_vracanja, trenutno_zadrzavanje, knjigu_primio')
+      .not('datum_vracanja', 'is', null) // Filtrira samo knjige sa datumom vraćanja
+      .order('datum_vracanja', { ascending: false })
+
+    if (supabaseError) throw supabaseError
+
+    knjige.value = (data || []).map((k: Record<string, any>) => ({
+      id: k.id,
+      naziv_knjige: k.naziv_knjige,
+      slika_knjige: k.slika_knjige || defaultBookCover,
+      datum_izdavanja: k.datum_izdavanja,
+      datum_vracanja: k.datum_vracanja,
+      trenutno_zadrzavanje: k.trenutno_zadrzavanje,
+      knjigu_primio: k.knjigu_primio
+    })) as Knjiga[]
+  } catch (err: any) {
+    setError(`Došlo je do greške: ${err.message}`)
+  } finally {
+    loading.value = false
+  }
+}
+
+const setError = (msg: string) => { error.value = msg }
+const filteredKnjige = computed(() => knjige.value)
+const itemClass = () => 'table-row'
+const formatDate = (d: string | null) => {
+  if (!d) return 'N/A'
+  const date = new Date(d)
+  return date.toLocaleDateString('sr-RS')
+}
+
+const handleEdit = ({ item, mode }: { item: Knjiga; mode: 'view' | 'edit' }) => {
+  if (mode === 'view') router.push(`/returned-book/${item.id}`)
+  else router.push(`/returned-book/${item.id}?edit=true`)
+}
+
+const handleDelete = async (item: Knjiga) => {
+  try {
+    const { error } = await supabase.from('knjige').delete().eq('id', item.id)
+    if (error) throw error
+    await fetchKnjige()
+  } catch (err: any) {
+    setError(`Došlo je do greške pri brisanju: ${err.message}`)
+  }
+}
+
+onMounted(fetchKnjige)
+</script>
+
+<style scoped>
+.vracene-knjige-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.no-border-table {
+  border: none;
+  box-shadow: none;
+  flex: 1 1 auto;
+}
+.table-row { height: 68px !important; }
+.cell-naziv { display: flex; align-items: center; width: 250px; }
+.book-cover-wrapper {
+  width: 32px;
+  height: 52px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.book-cover-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.naziv-text { 
+  font-size: 14px; 
+  max-width: 200px; 
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+}
+.datum-text { font-size: 14px; }
+.zadrzavanje-text, .izdao-text { font-size: 14px; }
+.cell-actions { display: flex; justify-content: flex-end; }
+.pagination-footer-wrap { margin-top: 16px; }
+</style>
