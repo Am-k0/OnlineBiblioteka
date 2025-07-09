@@ -11,32 +11,36 @@
       hide-default-footer
       hover
       show-select
-      class="no-border-table"
+      class="custom-table"
       :item-class="itemClass"
       fixed-header
       height="680"
     >
       <template v-slot:item.naziv_knjige="{ item }">
         <div class="cell-naziv d-flex align-center">
-          <!-- Vraćeno na originalni način prikaza slika -->
           <div class="book-cover-wrapper mr-2">
             <img :src="item.slika_knjige || defaultBookCover" alt="Slika knjige" />
           </div>
-          <span class="naziv-text">{{ item.naziv_knjige }}</span>
+          <span class="naziv-text text-truncate">{{ item.naziv_knjige }}</span>
         </div>
       </template>
+
       <template v-slot:item.datum_izdavanja="{ item }">
-        <span class="datum-text">{{ formatDate(item.datum_izdavanja) }}</span>
+        <span class="datum-text text-truncate">{{ formatDate(item.datum_izdavanja) }}</span>
       </template>
+
       <template v-slot:item.datum_vracanja="{ item }">
-        <span class="datum-text">{{ formatDate(item.datum_vracanja) }}</span>
+        <span class="datum-text text-truncate">{{ formatDate(item.datum_vracanja) }}</span>
       </template>
+
       <template v-slot:item.trenutno_zadrzavanje="{ item }">
-        <span class="zadrzavanje-text">{{ item.trenutno_zadrzavanje || 'N/A' }}</span>
+        <span class="zadrzavanje-text text-truncate">{{ item.trenutno_zadrzavanje || 'N/A' }}</span>
       </template>
+
       <template v-slot:item.knjigu_primio="{ item }">
-        <span class="izdao-text">{{ item.knjigu_primio || 'N/A' }}</span>
+        <span class="izdao-text text-truncate">{{ item.knjigu_primio || 'N/A' }}</span>
       </template>
+
       <template v-slot:item.actions="{ item }">
         <div class="cell-actions">
           <ActionMenu
@@ -93,15 +97,15 @@ const knjige = ref<Knjiga[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const defaultBookCover = 'https://via.placeholder.com/150?text=Knjiga'
-const itemsPerPage = ref(20)
+const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
 const visibleHeaders = ref([
-  { title: 'Naziv knjige', key: 'naziv_knjige', align: 'start' as const, sortable: true, width: '250px' },
-  { title: 'Datum izdavanja', key: 'datum_izdavanja', align: 'center' as const, sortable: true, width: '130px' },
-  { title: 'Datum vraćanja', key: 'datum_vracanja', align: 'center' as const, sortable: true, width: '130px' },
-  { title: 'Zadržavanje knjige', key: 'trenutno_zadrzavanje', align: 'center' as const, sortable: false, width: '160px' },
-  { title: 'Knjigu primio', key: 'knjigu_primio', align: 'center' as const, sortable: true, width: '120px' },
+  { title: 'Naziv knjige', key: 'naziv_knjige', align: 'start' as const, sortable: true, width: '254px' },
+  { title: 'Datum izdavanja', key: 'datum_izdavanja', align: 'start' as const, sortable: true, width: '133px' },
+  { title: 'Datum vraćanja', key: 'datum_vracanja', align: 'start' as const, sortable: true, width: '129px' },
+  { title: 'Zadržavanje knjige', key: 'trenutno_zadrzavanje', align: 'start' as const, sortable: false, width: '147px' },
+  { title: 'Knjigu primio', key: 'knjigu_primio', align: 'start' as const, sortable: true, width: '122px' },
   { title: '', key: 'actions', align: 'end' as const, sortable: false }
 ])
 
@@ -112,7 +116,7 @@ const fetchKnjige = async () => {
     const { data, error: supabaseError } = await supabase
       .from('knjige')
       .select('id, naziv_knjige, slika_knjige, datum_izdavanja, datum_vracanja, trenutno_zadrzavanje, knjigu_primio')
-      .not('datum_vracanja', 'is', null) // Filtrira samo knjige sa datumom vraćanja
+      .not('datum_vracanja', 'is', null)
       .order('datum_vracanja', { ascending: false })
 
     if (supabaseError) throw supabaseError
@@ -162,39 +166,103 @@ onMounted(fetchKnjige)
 
 <style scoped>
 .vracene-knjige-layout {
-  display: flex;
-  flex-direction: column;
   width: 100%;
 }
-.no-border-table {
+
+.custom-table {
   border: none;
   box-shadow: none;
   flex: 1 1 auto;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+  font-weight: 400;
 }
-.table-row { height: 68px !important; }
-.cell-naziv { display: flex; align-items: center; width: 250px; }
+
+/* Redovi */
+.table-row {
+  height: 68px !important;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+  text-align: left !important;
+  font-weight: 400;
+}
+
+/* Zaglavlja */
+::v-deep(.v-data-table thead th) {
+  height: 56px !important;
+  font-size: 14px !important;
+  line-height: 100% !important;
+  letter-spacing: 0.25px !important;
+  text-align: left !important;
+  font-weight: 400 !important;
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Naziv knjige */
+.cell-naziv {
+  display: flex;
+  align-items: center;
+  width: 254px;
+}
+
 .book-cover-wrapper {
   width: 32px;
   height: 52px;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-shrink: 0;
 }
+
 .book-cover-wrapper img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-.naziv-text { 
-  font-size: 14px; 
-  max-width: 200px; 
-  white-space: nowrap; 
-  overflow: hidden; 
-  text-overflow: ellipsis; 
+
+/* Opšti stil za tekst sa tri tačkice */
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
-.datum-text { font-size: 14px; }
-.zadrzavanje-text, .izdao-text { font-size: 14px; }
-.cell-actions { display: flex; justify-content: flex-end; }
-.pagination-footer-wrap { margin-top: 16px; }
+
+.naziv-text {
+  max-width: 210px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+  font-weight: 400;
+}
+
+/* Ostale kolone */
+.datum-text {
+  width: 133px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+  font-weight: 400;
+}
+
+.zadrzavanje-text {
+  width: 147px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+}
+
+.izdao-text {
+  width: 122px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+}
+
+.cell-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pagination-footer-wrap {
+  margin-top: 16px;
+}
 </style>

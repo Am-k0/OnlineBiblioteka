@@ -11,13 +11,13 @@
       hide-default-footer
       hover
       show-select
-      class="no-border-table"
+      class="custom-table"
       :item-class="itemClass"
       fixed-header
       height="680"
     >
       <template v-slot:item.naziv_knjige="{ item }">
-        <div class="cell-naziv d-flex align-center">
+        <div class="cell-naziv d-flex align-center"> 
           <div class="book-cover-wrapper mr-2">
             <img :src="item.slika_knjige || defaultBookCover" alt="Slika knjige" />
           </div>
@@ -84,23 +84,21 @@ interface Knjiga {
 const router = useRouter()
 const supabase = useSupabaseClient()
 
-// Podaci i stanje
 const knjige = ref<Knjiga[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const defaultBookCover = 'https://via.placeholder.com/150?text=Knjiga'
-const itemsPerPage = ref(20)
+const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
 const visibleHeaders = ref([
-  { title: 'Naziv knjige', key: 'naziv_knjige', align: 'start' as const, sortable: true, width: '265px' },
-  { title: 'Datum izdavanja', key: 'datum_izdavanja', align: 'center' as const, sortable: true, width: '135px' },
-  { title: 'Trenutno zadrzavanje knjige', key: 'trenutno_zadrzavanje', align: 'center' as const, sortable: false, width: '206px' },
-  { title: 'Knjigu izdao', key: 'knjigu_izdao', align: 'center' as const, sortable: true, width: '124px' },
+  { title: 'Naziv knjige', key: 'naziv_knjige', align: 'start' as const, sortable: true, width: '256px' },
+  { title: 'Datum izdavanja', key: 'datum_izdavanja', align: 'start' as const, sortable: true, width: '135px' },
+  { title: 'Trenutno zadrzavanje knjige', key: 'trenutno_zadrzavanje', align: 'start' as const, sortable: false, width: '209px' },
+  { title: 'Knjigu izdao', key: 'knjigu_izdao', align: 'start' as const, sortable: true, width: '125px' },
   { title: '', key: 'actions', align: 'end' as const, sortable: false }
 ])
 
-// Učitavanje podataka
 const fetchKnjige = async () => {
   try {
     loading.value = true
@@ -123,7 +121,6 @@ const fetchKnjige = async () => {
   }
 }
 
-// Pomoćne funkcije
 const setError = (msg: string) => { error.value = msg }
 const filteredKnjige = computed(() => knjige.value)
 const itemClass = () => 'table-row'
@@ -133,8 +130,7 @@ const formatDate = (d: string | null) => {
   return date.toLocaleDateString('sr-RS')
 }
 
-// Akcije iz menija
-const handleEdit = ({ item, mode }: { item: Knjiga; mode: 'view'|'edit' }) => {
+const handleEdit = ({ item, mode }: { item: Knjiga; mode: 'view' | 'edit' }) => {
   if (mode === 'view') router.push(`/book/${item.id}`)
   else router.push(`/book/${item.id}?edit=true`)
 }
@@ -149,29 +145,115 @@ const handleDelete = async (item: Knjiga) => {
   }
 }
 
-// Inicijalizacija
 onMounted(fetchKnjige)
 </script>
 
 <style scoped>
 .izdate-knjige-layout {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
+  
+ 
+  width: 1581px;
 }
-.no-border-table {
+
+.custom-table {
   border: none;
   box-shadow: none;
   flex: 1 1 auto;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+  font-weight: 400;
 }
-.table-row { height: 68px !important; }
-.cell-naziv { display: flex; align-items: center; width: 265px; }
-.book-cover-wrapper { width: 32px; height: 52px; overflow: hidden; }
-.book-cover-wrapper img { width: 32px; height: 52px; object-fit: cover; }
-.naziv-text { font-size: 14px; max-width: 210px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.datum-text { width: 135px; font-size: 14px; }
-.zadrzavanje-text { width: 206px; font-size: 14px; }
-.izdao-text { width: 124px; font-size: 14px; }
-.cell-actions { display: flex; justify-content: flex-end; }
-.pagination-footer-wrap { margin-top: 16px; }
+
+/* Redovi */
+.table-row {
+  height: 68px !important;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+  text-align: left !important;
+  font-weight: 400;
+}
+/* Zaglavlja */
+::v-deep(.v-data-table thead th) {
+  height: 56px !important;
+  font-size: 14px !important;
+  line-height: 100% !important;
+  letter-spacing: 0.25px !important;
+  text-align: left !important;
+  font-weight: 400 !important;
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Naziv knjige */
+.cell-naziv {
+  display: flex;
+  align-items: center;
+  width: 256px;
+}
+
+.book-cover-wrapper {
+  width: 32px;
+  height: 52px;
+  overflow: hidden;
+}
+
+.book-cover-wrapper img {
+  width: 32px;
+  height: 52px;
+  object-fit: cover;
+}
+
+.naziv-text {
+  font-size: 14px;
+  max-width: 210px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+  font-weight: 400;
+}
+
+/* Ostale kolone */
+.datum-text {
+  width: 135px;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+  text-align: left;
+  font-weight: 400;
+}
+
+.zadrzavanje-text {
+  width: 209px;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+  text-align: left;
+}
+
+.izdao-text {
+  width: 125px;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+  text-align: left;
+}
+
+.cell-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pagination-footer-wrap {
+  margin-top: 16px;
+}
+.izdate-knjige-layout {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
 </style>

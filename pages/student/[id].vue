@@ -341,10 +341,6 @@ const handleDelete = async (deletedStudent: Student) => {
 /* Stilovi za evidenciju iznajmljivanja */
 .iznajmljivanje-layout {
   display: flex;
-  background: #fff;
-  width: 100%;
-  height: 600px;
-  overflow: hidden;
 }
 
 .side-menu {
@@ -359,7 +355,7 @@ const handleDelete = async (deletedStudent: Student) => {
   padding-bottom: 0;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #e0e0e0;
+  
 }
 
 .side-menu-item {
@@ -370,7 +366,7 @@ const handleDelete = async (deletedStudent: Student) => {
   max-height: 40px;
   padding: 0 8px 0 8px;
   cursor: pointer;
-  border-radius: 0;
+ 
   background: transparent;
   margin-bottom: 0;
 }
@@ -380,8 +376,7 @@ const handleDelete = async (deletedStudent: Student) => {
   align-items: center;
   width: 231px;
   height: 40px;
-  min-width: 231px;
-  max-width: 231px;
+
 }
 
 .v-list-item-icon {
@@ -434,4 +429,5 @@ const handleDelete = async (deletedStudent: Student) => {
   flex-direction: column;
   overflow-y: auto;
 }
+
 </style>

@@ -140,11 +140,5 @@ onMounted(fetchRezervacije)
 </script>
 
 <style scoped>
-.arhivirane-rezervacije-layout { display: flex; flex-direction: column; width: 100%; }
-.no-border-table { border: none; box-shadow: none; flex: 1 1 auto; }
-.table-row { height: 68px !important; }
-.cell-naziv { display: flex; align-items: center; width: 250px; }
-.naziv-text { font-size: 14px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.status-text, .datum-text { font-size: 14px; }
-.cell-actions { display: flex; justify-content: flex-end; }
+
 </style>

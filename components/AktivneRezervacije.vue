@@ -19,15 +19,15 @@ const supabase = useSupabaseClient()
 const rezervacije = ref<KnjigaRezervacija[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
-const defaultBookCover = 'https://via.placeholder.com/150?text=Knjiga'
+const defaultBookCover = 'https://via.placeholder.com/32x52?text=Knjiga'
 const itemsPerPage = ref(20)
 const currentPage = ref(1)
 
 const visibleHeaders = ref([
-  { title: 'Naziv knjige', key: 'naziv_knjige', align: 'start' as const, sortable: true },
-  { title: 'Datum rezervacije', key: 'datum_rezervacije', align: 'center' as const, sortable: true },
-  { title: 'Ističe', key: 'rezervacija_istice', align: 'center' as const, sortable: true },
-  { title: 'Status', key: 'status', align: 'center' as const, sortable: true },
+  { title: 'Naziv knjige', key: 'naziv_knjige', align: 'start' as const, sortable: true, width: '231px' },
+  { title: 'Datum rezervacije', key: 'datum_rezervacije', align: 'start' as const, sortable: true, width: '146px' },
+  { title: 'Rezervacija ističe', key: 'rezervacija_istice', align: 'start' as const, sortable: true, width: '143px' },
+  { title: 'Status', key: 'status', align: 'start' as const, sortable: true, width: '181px' },
   { title: '', key: 'actions', align: 'end' as const, sortable: false }
 ])
 
@@ -35,10 +35,10 @@ const fetchRezervacije = async () => {
   try {
     loading.value = true
     error.value = null
-    // Pretpostavljamo da tabela 'knjige' ima potrebna polja, ili da je napravljen view ili upit koji vraća ovo
     const { data, error: supabaseError } = await supabase
       .from('knjige')
-      .select('id, naziv_knjige, slika_knjige, datum_rezervacije, rezervacija_istice, status') as { data: KnjigaRezervacija[] | null, error: any }
+      .select('id, naziv_knjige, slika_knjige, datum_rezervacije, rezervacija_istice, status')
+      .in('status', ['rezervisano', 'odbijeno']) as { data: KnjigaRezervacija[] | null, error: any }
 
     if (supabaseError) throw supabaseError
 
@@ -88,27 +88,27 @@ onMounted(fetchRezervacije)
       hide-default-footer
       hover
       show-select
-      class="no-border-table"
+      class="custom-table"
       :item-class="itemClass"
       fixed-header
       height="680"
     >
       <template v-slot:item.naziv_knjige="{ item }">
-        <div class="cell-naziv d-flex align-center">
-          <v-avatar class="mr-2" size="32">
+        <div class="cell-naziv">
+          <div class="book-avatar">
             <img :src="item.slika_knjige || defaultBookCover" alt="Slika knjige" />
-          </v-avatar>
-          <span class="naziv-text">{{ item.naziv_knjige }}</span>
+          </div>
+          <span class="text-truncate">{{ item.naziv_knjige }}</span>
         </div>
       </template>
       <template v-slot:item.datum_rezervacije="{ item }">
-        <span class="datum-text">{{ formatDate(item.datum_rezervacije) }}</span>
+        <span class="cell-text">{{ formatDate(item.datum_rezervacije) }}</span>
       </template>
       <template v-slot:item.rezervacija_istice="{ item }">
-        <span class="datum-text">{{ formatDate(item.rezervacija_istice) }}</span>
+        <span class="cell-text">{{ formatDate(item.rezervacija_istice) }}</span>
       </template>
       <template v-slot:item.status="{ item }">
-        <span class="status-text">{{ item.status }}</span>
+        <span class="cell-text">{{ item.status }}</span>
       </template>
       <template v-slot:item.actions="{ item }">
         <div class="cell-actions">
@@ -141,12 +141,80 @@ onMounted(fetchRezervacije)
 </template>
 
 <style scoped>
-.aktivne-rezervacije-layout { display: flex; flex-direction: column; width: 100%; }
-.no-border-table { border: none; box-shadow: none; flex: 1 1 auto; }
-.table-row { height: 68px !important; }
-.cell-naziv { display: flex; align-items: center; width: 250px; }
-.naziv-text { font-size: 14px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.status-text, .datum-text { font-size: 14px; }
-.cell-actions { display: flex; justify-content: flex-end; }
-.pagination-footer { margin-top: 16px; }
+.aktivne-rezervacije-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.custom-table {
+  border: none;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* Ukloni razmak između kolona */
+::v-deep(.v-data-table__wrapper table) {
+  border-spacing: 0 !important;
+}
+
+/* Redovi */
+.table-row {
+  height: 68px !important;
+}
+
+/* Naziv knjige + avatar */
+.cell-naziv {
+  display: flex;
+  align-items: center;
+  width: 231px;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+}
+
+.book-avatar {
+  width: 32px;
+  height: 52px;
+  margin-right: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.book-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Tekst */
+.text-truncate {
+  max-width: 180px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+}
+
+.cell-text {
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cell-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pagination-footer {
+  margin-top: 16px;
+}
 </style>
