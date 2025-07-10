@@ -93,7 +93,6 @@
 <script setup>
 import { ref } from 'vue'
 import ActionButtons from '@/components/ActionButtons.vue'
-import { useSupabaseClient } from '#imports'
 import { useRouter } from 'vue-router'
 
 const props = defineProps({
@@ -104,7 +103,6 @@ const props = defineProps({
   }
 })
 
-const supabase = useSupabaseClient()
 const router = useRouter()
 
 const fotografija = ref(null)
@@ -189,23 +187,18 @@ const sacuvajOsobu = async () => {
       podaciZaCuvanje.avatar = slikaUrl.value
     }
 
-    // Dodajemo { data } da dobijemo novi red i njegov id
-    const { data, error } = await supabase
-      .from(props.kolekcija)
-      .insert(podaciZaCuvanje)
-      .select('id') // Pretpostavljamo da tabela ima kolonu 'id'
-      .single()
-
-    if (error) throw error
-
-    ponisti()
-
-    // Preusmjeri na odgovarajuću stranicu sa ID-em
-    if (props.kolekcija === 'ucenici') {
-      router.push(`/student/${data.id}`)
-    } else {
-      router.push(`/librarian/${data.id}`)
-    }
+    // TODO: Zamijeni sa svojim backend API pozivom za insert
+    // const response = await api.post(`/api/${props.kolekcija}`, podaciZaCuvanje)
+    // if (response.data && response.data.id) {
+    //   ponisti()
+    //   if (props.kolekcija === 'ucenici') {
+    //     router.push(`/student/${response.data.id}`)
+    //   } else {
+    //     router.push(`/librarian/${response.data.id}`)
+    //   }
+    // } else {
+    //   throw new Error('Nije moguće dobiti ID novog korisnika')
+    // }
 
   } catch (error) {
     console.error('Greška pri čuvanju:', error)
@@ -227,6 +220,7 @@ const ponisti = () => {
   ponoviLozinku.value = ''
 }
 </script>
+
 
 <style scoped>
 .photo-section {

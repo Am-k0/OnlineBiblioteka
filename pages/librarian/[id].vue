@@ -86,7 +86,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
 import ActionMenu from '~/components/ActionMenu.vue'
 import Buttons from '~/components/ActionButtons.vue'
 
@@ -112,7 +111,6 @@ interface FormData {
 
 const route = useRoute()
 const router = useRouter()
-const supabase = useSupabaseClient<{ bibliotekari: Librarian }>()
 
 const librarian = ref<Librarian | null>(null)
 const error = ref<string | null>(null)
@@ -141,28 +139,17 @@ onMounted(async () => {
 
 const loadLibrarian = async () => {
   try {
-    const { data, error: supabaseError } = await supabase
-      .from('bibliotekari')
-      .select('id, ime_i_prezime, jmbg, email, korisnicko_ime, broj_logovanja, zadnji_pristup_sistemu, avatar')
-      .eq('id', route.params.id)
-      .single()
-
-    if (supabaseError) throw supabaseError
-
-    if (data) {
-      librarian.value = {
-        ...data,
-        avatar: data.avatar || null
-      }
-      form.value = {
-        ime_i_prezime: data.ime_i_prezime,
-        jmbg: data.jmbg,
-        email: data.email,
-        korisnicko_ime: data.korisnicko_ime,
-        broj_logovanja: data.broj_logovanja,
-        avatar: data.avatar || ''
-      }
-    }
+    // TODO: Zamijeni sa svojim backend pozivom za dohvat bibliotekara
+    // const data = await fetchLibrarianById(route.params.id)
+    // librarian.value = data
+    // form.value = {
+    //   ime_i_prezime: data.ime_i_prezime,
+    //   jmbg: data.jmbg,
+    //   email: data.email,
+    //   korisnicko_ime: data.korisnicko_ime,
+    //   broj_logovanja: data.broj_logovanja,
+    //   avatar: data.avatar || ''
+    // }
   } catch (err) {
     error.value = `Greška pri učitavanju bibliotekara: ${err instanceof Error ? err.message : 'Nepoznata greška'}`
   }
@@ -170,22 +157,9 @@ const loadLibrarian = async () => {
 
 const saveLibrarian = async () => {
   if (!librarian.value) return
-  
   try {
-    const { error: updateError } = await supabase
-      .from('bibliotekari')
-      .update({
-        ime_i_prezime: form.value.ime_i_prezime,
-        jmbg: form.value.jmbg,
-        email: form.value.email,
-        korisnicko_ime: form.value.korisnicko_ime,
-        broj_logovanja: form.value.broj_logovanja,
-        avatar: form.value.avatar || null
-      })
-      .eq('id', librarian.value.id)
-
-    if (updateError) throw updateError
-
+    // TODO: Zamijeni sa svojim backend pozivom za update bibliotekara
+    // await updateLibrarian(librarian.value.id, form.value)
     editMode.value = false
     await loadLibrarian()
   } catch (err) {
@@ -208,13 +182,8 @@ const handleDelete = async (deletedLibrarian: Librarian) => {
   if (!confirmed) return
 
   try {
-    const { error: deleteError } = await supabase
-      .from('bibliotekari')
-      .delete()
-      .eq('id', deletedLibrarian.id)
-
-    if (deleteError) throw deleteError
-
+    // TODO: Zamijeni sa svojim backend pozivom za brisanje bibliotekara
+    // await deleteLibrarian(deletedLibrarian.id)
     router.push('/librarians')
   } catch (err) {
     setError(`Greška pri brisanju: ${err instanceof Error ? err.message : 'Nepoznata greška'}`)

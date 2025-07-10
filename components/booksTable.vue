@@ -14,7 +14,6 @@
       class="no-border-table"
       :item-class="itemClass"
     >
-      <!-- Naziv knjige -->
       <template v-slot:item.naziv_knjige="{ item }">
         <div class="cell-naziv d-flex align-center">
           <div class="book-cover-wrapper mr-2">
@@ -23,43 +22,27 @@
           <span class="naziv-text">{{ item.naziv_knjige }}</span>
         </div>
       </template>
-
-      <!-- Autor -->
       <template v-slot:item.autor="{ item }">
         <span class="opis-text">{{ item.autor }}</span>
       </template>
-
-      <!-- Kategorija -->
       <template v-slot:item.kategorija="{ item }">
         <span class="opis-text">{{ item.kategorija }}</span>
       </template>
-
-      <!-- Na raspolaganju -->
       <template v-slot:item.na_raspolaganju="{ item }">
         <span class="opis-text">{{ item.na_raspolaganju }}</span>
       </template>
-
-      <!-- Rezervisano -->
       <template v-slot:item.rezervisano="{ item }">
         <span class="opis-text">{{ item.rezervisano }}</span>
       </template>
-
-      <!-- Izdato -->
       <template v-slot:item.izdato="{ item }">
         <span class="opis-text">{{ item.izdato }}</span>
       </template>
-
-      <!-- U prekoračenju -->
       <template v-slot:item.u_prekoracenju="{ item }">
         <span class="opis-text">{{ item.u_prekoracenju }}</span>
       </template>
-
-      <!-- Ukupna količina -->
       <template v-slot:item.ukupna_kolicina="{ item }">
         <span class="opis-text">{{ item.ukupna_kolicina }}</span>
       </template>
-
-      <!-- Akcije -->
       <template v-slot:item.actions="{ item }">
         <div class="cell-actions">
           <ActionMenu 
@@ -77,34 +60,27 @@
         </div>
       </template>
     </v-data-table>
-
     <PaginationFooter
       v-model:itemsPerPage="itemsPerPage"
       v-model:currentPage="currentPage"
       :total-items="filteredKnjige.length"
       class="pagination-footer mt-4"
     />
-
     <v-alert v-if="error" type="error" class="mt-4">
       {{ error }}
-      <div class="mt-2">
-        <v-btn @click="fetchKnjige" color="white" small>Pokušaj ponovo</v-btn>
-      </div>
     </v-alert>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
 import ActionMenu from './ActionMenu.vue'
 import PaginationFooter from './PaginationFooter.vue'
 
 const router = useRouter()
-const supabase = useSupabaseClient()
 
-const knjige = ref([])
+const knjige = ref([]) // Popuniš iz svog backend-a
 const loading = ref(false)
 const error = ref(null)
 const defaultBookCover = 'https://via.placeholder.com/150?text=Knjiga'
@@ -130,27 +106,6 @@ const props = defineProps({
   },
 })
 
-const fetchKnjige = async () => {
-  try {
-    loading.value = true
-    error.value = null
-    const { data, error: supabaseError } = await supabase
-      .from('knjige')
-      .select('id, naziv_knjige, autor, kategorija, na_raspolaganju, rezervisano, izdato, u_prekoracenju, ukupna_kolicina, slika_knjige')
-
-    if (supabaseError) throw supabaseError
-
-    knjige.value = (data || []).map(k => ({
-      ...k,
-      slika_knjige: k.slika_knjige || defaultBookCover,
-    }))
-  } catch (err) {
-    setError(`Došlo je do greške: ${err.message}`)
-  } finally {
-    loading.value = false
-  }
-}
-
 const setError = (err) => {
   error.value = err
 }
@@ -158,9 +113,9 @@ const setError = (err) => {
 const filteredKnjige = computed(() => {
   if (!props.search) return knjige.value
   return knjige.value.filter(k => 
-    k.naziv_knjige.toLowerCase().includes(props.search.toLowerCase()) ||
-    k.autor.toLowerCase().includes(props.search.toLowerCase()) ||
-    k.kategorija.toLowerCase().includes(props.search.toLowerCase())
+    k.naziv_knjige?.toLowerCase().includes(props.search.toLowerCase()) ||
+    k.autor?.toLowerCase().includes(props.search.toLowerCase()) ||
+    k.kategorija?.toLowerCase().includes(props.search.toLowerCase())
   )
 })
 
@@ -175,126 +130,32 @@ const handleEdit = ({ item, mode }) => {
 }
 
 const handleDelete = async (item) => {
-  try {
-    const { error } = await supabase
-      .from('knjige')
-      .delete()
-      .eq('id', item.id)
-
-    if (error) throw error
-
-    await fetchKnjige()
-  } catch (err) {
-    setError(`Došlo je do greške pri brisanju: ${err.message}`)
-  }
+  // Dodaj svoju logiku za brisanje ovde
 }
-
 const handleOtpisi = async (item) => {
-  try {
-    const { error } = await supabase
-      .from('knjige')
-      .update({ ukupna_kolicina: item.ukupna_kolicina - 1 })
-      .eq('id', item.id)
-
-    if (error) throw error
-
-    await fetchKnjige()
-  } catch (err) {
-    setError(`Došlo je do greške pri otpisivanju: ${err.message}`)
-  }
+  // Dodaj svoju logiku za otpis ovde
 }
-
 const handleIzdaj = async (item) => {
-  try {
-    const { error } = await supabase
-      .from('knjige')
-      .update({ izdato: item.izdato + 1, na_raspolaganju: item.na_raspolaganju - 1 })
-      .eq('id', item.id)
-
-    if (error) throw error
-
-    await fetchKnjige()
-  } catch (err) {
-    setError(`Došlo je do greške pri izdavanju: ${err.message}`)
-  }
+  // Dodaj svoju logiku za izdavanje ovde
 }
-
 const handleVrati = async (item) => {
-  try {
-    const { error } = await supabase
-      .from('knjige')
-      .update({ izdato: item.izdato - 1, na_raspolaganju: item.na_raspolaganju + 1 })
-      .eq('id', item.id)
-
-    if (error) throw error
-
-    await fetchKnjige()
-  } catch (err) {
-    setError(`Došlo je do greške pri vraćanju: ${err.message}`)
-  }
+  // Dodaj svoju logiku za vraćanje ovde
 }
-
 const handleRezervisi = async (item) => {
-  try {
-    const { error } = await supabase
-      .from('knjige')
-      .update({ rezervisano: item.rezervisano + 1, na_raspolaganju: item.na_raspolaganju - 1 })
-      .eq('id', item.id)
-
-    if (error) throw error
-
-    await fetchKnjige()
-  } catch (err) {
-    setError(`Došlo je do greške pri rezervaciji: ${err.message}`)
-  }
+  // Dodaj svoju logiku za rezervaciju ovde
 }
-
-onMounted(fetchKnjige)
 </script>
 
 <style scoped>
-.no-border-table {
-  border: none;
-  box-shadow: none;
-}
-
-.table-row {
-  height: 56px;
-}
-
-.cell-naziv {
-  width: 100%;
-  overflow: hidden;
-}
-
-.book-cover-wrapper {
-  width: 32px;
-  height: 52px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.book-cover-wrapper img {
-  width: 32px;
-  height: 52px;
-  object-fit: cover;
-  display: block;
-}
-
-.naziv-text {
+.no-border-table { border: none; box-shadow: none; }
+.table-row { height: 56px; }
+.cell-naziv { width: 100%; overflow: hidden; }
+.book-cover-wrapper { width: 32px; height: 52px; overflow: hidden; flex-shrink: 0; }
+.book-cover-wrapper img { width: 32px; height: 52px; object-fit: cover; display: block; }
+.naziv-text, .opis-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-.opis-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cell-actions {
-  display: flex;
-  justify-content: flex-end;
-}
+.cell-actions { display: flex; justify-content: flex-end; }
 </style>

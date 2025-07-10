@@ -8,7 +8,7 @@
         </p>
       </div>
 
-     <ActionMenu 
+      <ActionMenu 
         v-if="author"
         :item="author"
         entity-name="autora"
@@ -57,7 +57,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
 import ActionMenu from '~/components/ActionMenu.vue'
 
 interface Author {
@@ -77,14 +76,6 @@ type EditMode = 'edit' | 'view'
 
 const route = useRoute()
 const router = useRouter()
-interface AutoriTable {
-  id: number
-  naziv: string
-  opis: string
-  avatar: string | null
-}
-
-const supabase = useSupabaseClient<{ autori: AutoriTable }>()
 
 const author = ref<Author | null>(null)
 const error = ref<string | null>(null)
@@ -104,25 +95,10 @@ onMounted(async () => {
 
 const loadAuthor = async () => {
   try {
-    const { data, error: supabaseError } = await supabase
-      .from('autori')
-      .select('id, naziv, opis, avatar')
-      .eq('id', route.params.id)
-      .single()
-
-    if (supabaseError) throw supabaseError
-
-    if (data) {
-      author.value = {
-        ...data,
-        avatar: data.avatar || null
-      }
-      form.value = {
-        naziv: data.naziv,
-        opis: data.opis,
-        avatar: data.avatar || ''
-      }
-    }
+    // TODO: Zamijeni sa svojim backend pozivom
+    // const data = await fetchAuthorById(route.params.id)
+    // author.value = data
+    // form.value = { naziv: data.naziv, opis: data.opis, avatar: data.avatar || '' }
   } catch (err) {
     error.value = `Greška pri učitavanju autora: ${err instanceof Error ? err.message : 'Nepoznata greška'}`
   }
@@ -130,19 +106,9 @@ const loadAuthor = async () => {
 
 const saveAuthor = async () => {
   if (!author.value) return
-  
   try {
-    const { error: updateError } = await supabase
-      .from('autori')
-      .update({
-        naziv: form.value.naziv,
-        opis: form.value.opis,
-        avatar: form.value.avatar || null
-      })
-      .eq('id', author.value.id)
-
-    if (updateError) throw updateError
-
+    // TODO: Zamijeni sa svojim backend pozivom za update autora
+    // await updateAuthor(author.value.id, form.value)
     editMode.value = false
     await loadAuthor()
   } catch (err) {
@@ -165,13 +131,8 @@ const handleDelete = async (deletedAuthor: Author) => {
   if (!confirmed) return
 
   try {
-    const { error: deleteError } = await supabase
-      .from('autori')
-      .delete()
-      .eq('id', deletedAuthor.id)
-
-    if (deleteError) throw deleteError
-
+    // TODO: Zamijeni sa svojim backend pozivom za brisanje autora
+    // await deleteAuthor(deletedAuthor.id)
     router.push('/authors')
   } catch (err) {
     setError(`Greška pri brisanju: ${err instanceof Error ? err.message : 'Nepoznata greška'}`)

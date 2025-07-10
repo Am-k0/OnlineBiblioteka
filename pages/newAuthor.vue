@@ -86,9 +86,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
 
-const supabase = useSupabaseClient()
 const router = useRouter()
 
 const photo = ref(null)
@@ -130,26 +128,16 @@ const saveAuthor = async () => {
     loading.value = true
     
     const naziv = `${firstName.value} ${lastName.value}`.trim()
-    
-    // Ako korisnik nije izabrao sliku, koristite placeholder
     const avatarUrl = imageUrl.value ? imageUrl.value : '/placeholder-author.png'
     
-    const { data, error } = await supabase
-      .from('autori')
-      .insert({
-        naziv: naziv,
-        opis: description.value,
-        avatar: avatarUrl
-      })
-      .select()
+    // TODO: Zamijeni sa svojim backend API pozivom
+    // const response = await api.post('/autori', { naziv, opis: description.value, avatar: avatarUrl });
+    // if (response.data && response.data.id) {
+    //   router.push(`/author/${response.data.id}`)
+    // } else {
+    //   throw new Error('Nije moguće dobiti ID novog autora')
+    // }
     
-    if (error) throw error
-    
-    if (data && data[0]?.id) {
-      router.push(`/author/${data[0].id}`)
-    } else {
-      throw new Error('Nije moguće dobiti ID novog autora')
-    }
   } catch (error) {
     console.error('Greška pri čuvanju autora:', error)
     alert('Došlo je do greške pri čuvanju autora: ' + error.message)
@@ -170,6 +158,7 @@ const cancel = () => {
   }
 }
 </script>
+
 <style scoped>
 .form-container {
   max-width: 724px;

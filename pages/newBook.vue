@@ -254,7 +254,6 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useSupabaseClient } from '#imports'
 import { useRouter } from 'vue-router'
 import ActionButtons from '@/components/ActionButtons.vue'
 
@@ -290,24 +289,18 @@ const uniqueGenres = ref([])
 const uniqueAuthors = ref([])
 const uniquePublishers = ref([])
 
-const supabase = useSupabaseClient()
-
 onMounted(() => {
   fetchBookData()
 })
 
 async function fetchBookData() {
   try {
-    const { data: books, error } = await supabase
-      .from('knjige')
-      .select('kategorija, zanr, autor, izdavac')
-
-    if (error) throw error
-
-    uniqueCategories.value = [...new Set(books.map(b => b.kategorija).filter(Boolean))]
-    uniqueGenres.value = [...new Set(books.map(b => b.zanr).filter(Boolean))]
-    uniqueAuthors.value = [...new Set(books.map(b => b.autor).filter(Boolean))]
-    uniquePublishers.value = [...new Set(books.map(b => b.izdavac).filter(Boolean))]
+    // TODO: Zamijeni sa svojim backend pozivom za sve knjige
+    // const books = await api.get('/knjige')
+    // uniqueCategories.value = [...new Set(books.map(b => b.kategorija).filter(Boolean))]
+    // uniqueGenres.value = [...new Set(books.map(b => b.zanr).filter(Boolean))]
+    // uniqueAuthors.value = [...new Set(books.map(b => b.autor).filter(Boolean))]
+    // uniquePublishers.value = [...new Set(books.map(b => b.izdavac).filter(Boolean))]
   } catch (error) {
     globalError.value = 'Greška pri učitavanju podataka!'
     console.error('Greška pri učitavanju podataka:', error)
@@ -377,25 +370,17 @@ async function saveBook() {
       slika_knjige: imageUrl.value || ''
     }
 
-    const { data, error } = await supabase
-      .from('knjige')
-      .insert(bookData)
-      .select()
-      .single()
+    // TODO: Zamijeni sa svojim backend API pozivom za insert knjige
+    // const response = await api.post('/knjige', bookData)
+    // if (response.data && response.data.id) {
+    //   router.push(`/book/${response.data.id}`)
+    // } else {
+    //   throw new Error('Nije moguće dobiti ID nove knjige')
+    // }
 
-    if (error) {
-      if (error.code === '23505' || error.message?.includes('duplicate key')) {
-        globalError.value = 'Knjiga sa ovim ISBN-om već postoji!'
-      } else if (error.message?.includes('row-level security')) {
-        globalError.value = 'Nemate dozvolu za upis u bazu! Proverite RLS policy u Supabase-u.'
-      } else {
-        globalError.value = error.message || 'Greška pri čuvanju knjige.'
-      }
-      throw error
-    }
-
-    router.push(`/book/${data.id}`)
   } catch (error) {
+    // TODO: Prilagodi error handling svom backendu
+    globalError.value = error.message || 'Greška pri čuvanju knjige.'
     console.error('Greška pri čuvanju knjige:', error)
   } finally {
     isSaving.value = false

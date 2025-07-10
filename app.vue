@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <!-- Sakrij AppBar i SideBar ako je ruta /login -->
+    
     <AppBar v-if="showLayout" />
     <SideBar v-if="showLayout" />
 

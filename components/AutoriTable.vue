@@ -22,12 +22,9 @@
           <span class="naziv-text">{{ item.naziv }}</span>
         </div>
       </template>
-
       <template v-slot:item.opis="{ item }">
         <span class="opis-text">{{ item.opis }}</span>
       </template>
-
-
       <template v-slot:item.actions="{ item }">
         <div class="cell-actions">
           <ActionMenu 
@@ -41,34 +38,27 @@
         </div>
       </template>
     </v-data-table>
-
     <PaginationFooter
       v-model:itemsPerPage="itemsPerPage"
       v-model:currentPage="currentPage"
       :total-items="filteredAutori.length"
       class="pagination-footer mt-4"
     />
-
     <v-alert v-if="error" type="error" class="mt-4">
       {{ error }}
-      <div class="mt-2">
-        <v-btn @click="fetchAutori" color="white" small>Pokušaj ponovo</v-btn>
-      </div>
     </v-alert>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
 import ActionMenu from './ActionMenu.vue'
 import PaginationFooter from './PaginationFooter.vue'
 
 const router = useRouter()
-const supabase = useSupabaseClient()
 
-const autori = ref([])
+const autori = ref([]) // Popuniš iz svog backend-a
 const loading = ref(false)
 const error = ref(null)
 const defaultAvatar = 'https://randomuser.me/api/portraits/men/1.jpg'
@@ -88,27 +78,6 @@ const props = defineProps({
   },
 })
 
-const fetchAutori = async () => {
-  try {
-    loading.value = true
-    error.value = null
-    const { data, error: supabaseError } = await supabase
-      .from('autori')
-      .select('id, naziv, opis, avatar')
-
-    if (supabaseError) throw supabaseError
-
-    autori.value = (data || []).map(a => ({
-      ...a,
-      avatar: a.avatar || defaultAvatar,
-    }))
-  } catch (err) {
-    setError(`Došlo je do greške: ${err.message}`)
-  } finally {
-    loading.value = false
-  }
-}
-
 const setError = (err) => {
   error.value = err
 }
@@ -116,8 +85,8 @@ const setError = (err) => {
 const filteredAutori = computed(() => {
   if (!props.search) return autori.value
   return autori.value.filter(a =>
-    a.naziv.toLowerCase().includes(props.search.toLowerCase()) ||
-    a.opis.toLowerCase().includes(props.search.toLowerCase())
+    a.naziv?.toLowerCase().includes(props.search.toLowerCase()) ||
+    a.opis?.toLowerCase().includes(props.search.toLowerCase())
   )
 })
 
@@ -132,28 +101,12 @@ const handleEdit = ({ item, mode }) => {
 }
 
 const handleDelete = async (item) => {
-  try {
-    const { error } = await supabase
-      .from('autori')
-      .delete()
-      .eq('id', item.id)
-
-    if (error) throw error
-
-    await fetchAutori()
-  } catch (err) {
-    setError(`Došlo je do greške pri brisanju: ${err.message}`)
-  }
+  // Dodaj svoju logiku za brisanje ovde
 }
-
-onMounted(fetchAutori)
 </script>
 
 <style scoped>
-.table-row {
-  height: 56px;
-}
-
+.table-row { height: 56px; }
 .cell-naziv {
   width: 130px;
   height: 40px;
@@ -161,19 +114,7 @@ onMounted(fetchAutori)
   align-items: center;
   overflow: hidden;
 }
-
-.naziv-text {
-  font-family: Roboto, sans-serif;
-  font-weight: 400;
-  font-size: 14px;
-  line-height: 14px;
-  letter-spacing: 0.25px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.opis-text {
+.naziv-text, .opis-text {
   font-family: Roboto, sans-serif;
   font-weight: 400;
   font-size: 14px;

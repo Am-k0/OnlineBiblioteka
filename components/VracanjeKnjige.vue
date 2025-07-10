@@ -24,23 +24,18 @@
           <span class="naziv-text text-truncate">{{ item.naziv_knjige }}</span>
         </div>
       </template>
-
       <template v-slot:item.datum_izdavanja="{ item }">
         <span class="datum-text text-truncate">{{ formatDate(item.datum_izdavanja) }}</span>
       </template>
-
       <template v-slot:item.datum_vracanja="{ item }">
         <span class="datum-text text-truncate">{{ formatDate(item.datum_vracanja) }}</span>
       </template>
-
       <template v-slot:item.trenutno_zadrzavanje="{ item }">
         <span class="zadrzavanje-text text-truncate">{{ item.trenutno_zadrzavanje || 'N/A' }}</span>
       </template>
-
       <template v-slot:item.knjigu_primio="{ item }">
         <span class="izdao-text text-truncate">{{ item.knjigu_primio || 'N/A' }}</span>
       </template>
-
       <template v-slot:item.actions="{ item }">
         <div class="cell-actions">
           <ActionMenu
@@ -54,7 +49,6 @@
         </div>
       </template>
     </v-data-table>
-
     <div class="pagination-footer-wrap">
       <PaginationFooter
         v-model:itemsPerPage="itemsPerPage"
@@ -63,20 +57,15 @@
         class="pagination-footer mt-4"
       />
     </div>
-
     <v-alert v-if="error" type="error" class="mt-4">
       {{ error }}
-      <div class="mt-2">
-        <v-btn @click="fetchKnjige" color="white" small>Pokušaj ponovo</v-btn>
-      </div>
     </v-alert>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
 import ActionMenu from './ActionMenu.vue'
 import PaginationFooter from './PaginationFooter.vue'
 
@@ -91,51 +80,32 @@ interface Knjiga {
 }
 
 const router = useRouter()
-const supabase = useSupabaseClient()
 
-const knjige = ref<Knjiga[]>([])
+const knjige = ref<Knjiga[]>([]) // Popuniš iz svog backend-a
 const loading = ref(false)
 const error = ref<string | null>(null)
 const defaultBookCover = 'https://via.placeholder.com/150?text=Knjiga'
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
-const visibleHeaders = ref([
-  { title: 'Naziv knjige', key: 'naziv_knjige', align: 'start' as const, sortable: true, width: '254px' },
-  { title: 'Datum izdavanja', key: 'datum_izdavanja', align: 'start' as const, sortable: true, width: '133px' },
-  { title: 'Datum vraćanja', key: 'datum_vracanja', align: 'start' as const, sortable: true, width: '129px' },
-  { title: 'Zadržavanje knjige', key: 'trenutno_zadrzavanje', align: 'start' as const, sortable: false, width: '147px' },
-  { title: 'Knjigu primio', key: 'knjigu_primio', align: 'start' as const, sortable: true, width: '122px' },
-  { title: '', key: 'actions', align: 'end' as const, sortable: false }
-])
+type HeaderAlign = 'start' | 'end' | 'center' | undefined
 
-const fetchKnjige = async () => {
-  try {
-    loading.value = true
-    error.value = null
-    const { data, error: supabaseError } = await supabase
-      .from('knjige')
-      .select('id, naziv_knjige, slika_knjige, datum_izdavanja, datum_vracanja, trenutno_zadrzavanje, knjigu_primio')
-      .not('datum_vracanja', 'is', null)
-      .order('datum_vracanja', { ascending: false })
-
-    if (supabaseError) throw supabaseError
-
-    knjige.value = (data || []).map((k: Record<string, any>) => ({
-      id: k.id,
-      naziv_knjige: k.naziv_knjige,
-      slika_knjige: k.slika_knjige || defaultBookCover,
-      datum_izdavanja: k.datum_izdavanja,
-      datum_vracanja: k.datum_vracanja,
-      trenutno_zadrzavanje: k.trenutno_zadrzavanje,
-      knjigu_primio: k.knjigu_primio
-    })) as Knjiga[]
-  } catch (err: any) {
-    setError(`Došlo je do greške: ${err.message}`)
-  } finally {
-    loading.value = false
-  }
+interface VisibleHeader {
+  title: string
+  key: string
+  align?: HeaderAlign
+  sortable: boolean
+  width?: string
 }
+
+const visibleHeaders = ref<VisibleHeader[]>([
+  { title: 'Naziv knjige', key: 'naziv_knjige', align: 'start', sortable: true, width: '254px' },
+  { title: 'Datum izdavanja', key: 'datum_izdavanja', align: 'start', sortable: true, width: '133px' },
+  { title: 'Datum vraćanja', key: 'datum_vracanja', align: 'start', sortable: true, width: '129px' },
+  { title: 'Zadržavanje knjige', key: 'trenutno_zadrzavanje', align: 'start', sortable: false, width: '147px' },
+  { title: 'Knjigu primio', key: 'knjigu_primio', align: 'start', sortable: true, width: '122px' },
+  { title: '', key: 'actions', align: 'end', sortable: false }
+])
 
 const setError = (msg: string) => { error.value = msg }
 const filteredKnjige = computed(() => knjige.value)
@@ -152,17 +122,10 @@ const handleEdit = ({ item, mode }: { item: Knjiga; mode: 'view' | 'edit' }) => 
 }
 
 const handleDelete = async (item: Knjiga) => {
-  try {
-    const { error } = await supabase.from('knjige').delete().eq('id', item.id)
-    if (error) throw error
-    await fetchKnjige()
-  } catch (err: any) {
-    setError(`Došlo je do greške pri brisanju: ${err.message}`)
-  }
+  // Dodaj svoju logiku za brisanje ovde
 }
-
-onMounted(fetchKnjige)
 </script>
+
 
 <style scoped>
 .vracene-knjige-layout {
