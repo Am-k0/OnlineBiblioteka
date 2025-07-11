@@ -9,7 +9,6 @@
             <span>KNJIGA-{{ book.id }}</span>
           </p>
         </div>
-        
         <div class="stats-container">
           <BookStatistics :book-id="book.id" />
         </div>
@@ -46,17 +45,14 @@
           <v-window-item value="details">
             <BookDetail :book="book" />
           </v-window-item>
-
           <v-window-item value="spec">
             <BookSpecifications :book="book" />
           </v-window-item>
-
- <v-window-item value="records">
-  <div class="student-books-wrapper">
-    <studentBooks />
-  </div>
-</v-window-item>
-
+          <v-window-item value="records">
+            <div class="student-books-wrapper">
+              <studentBooks />
+            </div>
+          </v-window-item>
           <v-window-item value="media">
             <div class="media-tab-content">
               <div class="current-image">
@@ -93,7 +89,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
 import BookDetail from '@/components/BookDetails.vue'
 import BookSpecifications from '~/components/BookSpecifications.vue'
 import ActionMenu from '@/components/ActionMenu.vue'
@@ -102,7 +97,6 @@ import BookStatistics from '@/components/BookStatistics.vue'
 
 const route = useRoute()
 const router = useRouter()
-const supabase = useSupabaseClient()
 
 const tab = ref('details')
 const book = ref(null)
@@ -111,17 +105,11 @@ const fileInput = ref(null)
 
 const fetchBook = async () => {
   try {
-    const { data, error: supabaseError } = await supabase
-      .from('knjige')
-      .select('*')
-      .eq('id', route.params.id)
-      .single()
-
-    if (supabaseError) throw supabaseError
-
-    book.value = data
+    // TODO: Zamijeni sa svojim backend pozivom
+    // const data = await fetchBookById(route.params.id)
+    // book.value = data
   } catch (err) {
-    error.value = `Došlo je do greške: ${err.message}`
+    error.value = `Došlo je do greške: ${err instanceof Error ? err.message : 'Nepoznata greška'}`
   }
 }
 
@@ -134,19 +122,10 @@ const handleImageChange = async (e) => {
   if (!file) return
   
   try {
-    // Simulacija uploada - u produkciji bi ovo bio pravi upload na server
-    const imageUrl = URL.createObjectURL(file)
-    
-    // Ažurirajte knjigu u bazi
-    const { error } = await supabase
-      .from('knjige')
-      .update({ slika_knjige: imageUrl })
-      .eq('id', book.value.id)
-    
-    if (error) throw error
-    
-    // Osvežite podatke
-    await fetchBook()
+    // TODO: Zamijeni sa svojim upload endpointom
+    // const imageUrl = await uploadBookImage(file, book.value.id)
+    // book.value.slika_knjige = imageUrl
+    // await fetchBook()
   } catch (error) {
     console.error('Greška pri promjeni slike:', error)
   }
@@ -270,5 +249,4 @@ onMounted(fetchBook)
 .student-books-wrapper >>> table {
   width: 672px;
 }
-
 </style>

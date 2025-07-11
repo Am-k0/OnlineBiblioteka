@@ -34,7 +34,7 @@
         <span class="opis-text">Student</span>
       </template>
 
-     <!-- Zadnji pristup -->
+      <!-- Zadnji pristup -->
       <template v-slot:item.zadnji_pristup_sistemu="{ item }">
         <span class="opis-text">{{ formatDate(item.zadnji_pristup_sistemu) }}</span>
       </template>
@@ -71,16 +71,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
 import ActionMenu from './ActionMenu.vue'
 import PaginationFooter from './PaginationFooter.vue'
 
 const router = useRouter()
-const supabase = useSupabaseClient()
 
-const studenti = ref([])
+const studenti = ref([]) // Popuni iz svog backend-a
 const loading = ref(false)
 const error = ref(null)
 const defaultAvatar = 'https://randomuser.me/api/portraits/men/1.jpg'
@@ -109,24 +107,11 @@ const formatDate = (dateString) => {
 }
 
 const fetchStudenti = async () => {
-  try {
-    loading.value = true
-    error.value = null
-    const { data, error: supabaseError } = await supabase
-      .from('ucenici')
-      .select('id, ime_i_prezime, email, zadnji_pristup_sistemu, avatar')
-
-    if (supabaseError) throw supabaseError
-
-    studenti.value = (data || []).map(s => ({
-      ...s,
-      avatar: s.avatar || defaultAvatar,
-    }))
-  } catch (err) {
-    setError(`Došlo je do greške: ${err.message}`)
-  } finally {
-    loading.value = false
-  }
+  loading.value = true
+  error.value = null
+  // TODO: Ovdje dodaj svoj backend poziv za studente
+  // studenti.value = await tvojBackendPoziv()
+  loading.value = false
 }
 
 const setError = (err) => {
@@ -152,21 +137,10 @@ const handleEdit = ({ item, mode }) => {
 }
 
 const handleDelete = async (item) => {
-  try {
-    const { error } = await supabase
-      .from('ucenici')
-      .delete()
-      .eq('id', item.id)
-
-    if (error) throw error
-
-    await fetchStudenti()
-  } catch (err) {
-    setError(`Došlo je do greške pri brisanju: ${err.message}`)
-  }
+  // TODO: Ovdje dodaj logiku za brisanje studenta preko svog backend-a
+  // await tvojBackendDelete(item.id)
+  // await fetchStudenti()
 }
-
-onMounted(fetchStudenti)
 </script>
 
 <style scoped>

@@ -11,7 +11,7 @@
           class="d-flex align-center"
           style="cursor: pointer;"
         >
-          <span class="mr-1">{{ itemsPerPage === -1 ? 'All' : itemsPerPage }}</span>
+          <span class="mr-1">{{ itemsPerPage === -1 ? '100' : itemsPerPage }}</span>
           <v-icon size="18">mdi-chevron-down</v-icon>
         </div>
       </template>
@@ -74,9 +74,9 @@ const props = defineProps({
 const emit = defineEmits(['update:itemsPerPage', 'update:currentPage'])
 
 const itemsPerPageOptions = [
-  { title: '10', value: 10 },
   { title: '20', value: 20 },
-  { title: 'All', value: -1 }
+  { title: '50', value: 50 },
+  { title: '100', value: 100 }
 ]
 
 const pageCount = computed(() => {

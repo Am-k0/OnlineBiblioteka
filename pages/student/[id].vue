@@ -105,7 +105,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
 import ActionMenu from '~/components/ActionMenu.vue'
 import Buttons from '~/components/ActionButtons.vue'
 
@@ -137,7 +136,6 @@ interface FormData {
 
 const route = useRoute()
 const router = useRouter()
-const supabase = useSupabaseClient<{ ucenici: Student }>()
 
 const tab = ref('one')
 const student = ref<Student | null>(null)
@@ -180,17 +178,10 @@ onMounted(async () => {
 
 const loadStudent = async () => {
   try {
-    const { data, error: supabaseError } = await supabase.from('ucenici')
-      .select('id, ime_i_prezime, jmbg, email, korisnicko_ime, broj_logovanja, zadnji_pristup_sistemu, avatar')
-      .eq('id', route.params.id)
-      .single()
-
-    if (supabaseError) throw supabaseError
-
-    if (data) {
-      student.value = data
-      form.value = { ...data, avatar: data.avatar || '' }
-    }
+    // TODO: Zamijeni sa svojim backend pozivom za dohvat učenika
+    // const data = await fetchStudentById(route.params.id)
+    // student.value = data
+    // form.value = { ...data, avatar: data.avatar || '' }
   } catch (err) {
     error.value = `Greška pri učitavanju učenika: ${err instanceof Error ? err.message : 'Nepoznata greška'}`
   }
@@ -199,9 +190,8 @@ const loadStudent = async () => {
 const saveStudent = async () => {
   if (!student.value) return
   try {
-    const { error: updateError } = await supabase.from('ucenici')
-      .update(form.value).eq('id', student.value.id)
-    if (updateError) throw updateError
+    // TODO: Zamijeni sa svojim backend pozivom za update učenika
+    // await updateStudent(student.value.id, form.value)
     editMode.value = false
     await loadStudent()
   } catch (err) {
@@ -215,15 +205,14 @@ const handleDelete = async (deletedStudent: Student) => {
   const confirmed = confirm('Da li ste sigurni da želite da obrišete učenika?')
   if (!confirmed) return
   try {
-    const { error: deleteError } = await supabase.from('ucenici').delete().eq('id', deletedStudent.id)
-    if (deleteError) throw deleteError
+    // TODO: Zamijeni sa svojim backend pozivom za brisanje učenika
+    // await deleteStudent(deletedStudent.id)
     router.push('/students')
   } catch (err) {
     setError(`Greška pri brisanju: ${err instanceof Error ? err.message : 'Nepoznata greška'}`)
   }
 }
 </script>
-
 
 
 <style scoped>

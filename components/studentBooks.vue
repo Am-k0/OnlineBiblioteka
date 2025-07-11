@@ -44,7 +44,6 @@
             fixed-header
             height="680"
           >
-  
             <template v-slot:item.naziv_knjige="{ item }">
               <div class="cell-naziv d-flex align-center">
                 <div class="book-cover-wrapper mr-2">
@@ -96,15 +95,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
 import ActionMenu from './ActionMenu.vue'
 import PaginationFooter from './PaginationFooter.vue'
 
-
 const router = useRouter()
-const supabase = useSupabaseClient()
 
 const tab = ref(0)
 const stavke = [
@@ -115,7 +111,7 @@ const stavke = [
   { label: 'Arhivirane rezervacije', icon: 'mdi-archive-outline' }
 ]
 
-const knjige = ref([])
+const knjige = ref([]) // Popuni iz svog backend-a
 const loading = ref(false)
 const error = ref(null)
 const defaultBookCover = 'https://via.placeholder.com/150?text=Knjiga'
@@ -131,25 +127,11 @@ const visibleHeaders = ref([
 ])
 
 const fetchKnjige = async () => {
-  try {
-    loading.value = true
-    error.value = null
-    const { data, error: supabaseError } = await supabase
-      .from('knjige')
-      .select('id, naziv_knjige, slika_knjige, datum_izdavanja, trenutno_zadrzavanje, knjigu_izdao')
-      .order('datum_izdavanja', { ascending: false })
-
-    if (supabaseError) throw supabaseError
-
-    knjige.value = (data || []).map(k => ({
-      ...k,
-      slika_knjige: k.slika_knjige || defaultBookCover,
-    }))
-  } catch (err) {
-    setError(`Došlo je do greške: ${err.message}`)
-  } finally {
-    loading.value = false
-  }
+  loading.value = true
+  error.value = null
+  // TODO: Ovdje dodaj svoj backend poziv za knjige
+  // knjige.value = await tvojBackendPoziv()
+  loading.value = false
 }
 
 const setError = (err) => {
@@ -175,21 +157,10 @@ const handleEdit = ({ item, mode }) => {
 }
 
 const handleDelete = async (item) => {
-  try {
-    const { error } = await supabase
-      .from('knjige')
-      .delete()
-      .eq('id', item.id)
-
-    if (error) throw error
-
-    await fetchKnjige()
-  } catch (err) {
-    setError(`Došlo je do greške pri brisanju: ${err.message}`)
-  }
+  // TODO: Ovdje dodaj logiku za brisanje knjige preko svog backend-a
+  // await tvojBackendDelete(item.id)
+  // await fetchKnjige()
 }
-
-onMounted(fetchKnjige)
 </script>
 
 <style scoped>

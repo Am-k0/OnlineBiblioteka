@@ -1,74 +1,58 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
-import ActionMenu from './ActionMenu.vue'
-import PaginationFooter from './PaginationFooter.vue'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRuntimeConfig } from '#imports'
 
 interface KnjigaRezervacija {
   id: number
   naziv_knjige: string
   slika_knjige: string | null
-  datum_rezervacije: string | null
-  rezervacija_istice: string | null
-  status: 'rezervisano' | 'odbijeno' | string
+  datum_rezervacije: string
+  rezervacija_istice: string
+  status: 'rezervisano' | 'odbijeno'
 }
 
 const router = useRouter()
-const supabase = useSupabaseClient()
+const config = useRuntimeConfig()
+
 const rezervacije = ref<KnjigaRezervacija[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const defaultBookCover = 'https://via.placeholder.com/32x52?text=Knjiga'
-const itemsPerPage = ref(20)
-const currentPage = ref(1)
-
-const visibleHeaders = ref([
-  { title: 'Naziv knjige', key: 'naziv_knjige', align: 'start' as const, sortable: true, width: '231px' },
-  { title: 'Datum rezervacije', key: 'datum_rezervacije', align: 'start' as const, sortable: true, width: '146px' },
-  { title: 'Rezervacija ističe', key: 'rezervacija_istice', align: 'start' as const, sortable: true, width: '143px' },
-  { title: 'Status', key: 'status', align: 'start' as const, sortable: true, width: '181px' },
-  { title: '', key: 'actions', align: 'end' as const, sortable: false }
-])
 
 const fetchRezervacije = async () => {
   try {
     loading.value = true
     error.value = null
-    const { data, error: supabaseError } = await supabase
-      .from('knjige')
-      .select('id, naziv_knjige, slika_knjige, datum_rezervacije, rezervacija_istice, status')
-      .in('status', ['rezervisano', 'odbijeno']) as { data: KnjigaRezervacija[] | null, error: any }
-
-    if (supabaseError) throw supabaseError
-
-    rezervacije.value = (data || []).map(r => ({
+    // TODO: Zamijeni endpoint po potrebi
+    const data = await $fetch('/api/active-reservations', {
+      baseURL: config.public.apiBase,
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      }
+    })
+    rezervacije.value = (data as KnjigaRezervacija[]).map(r => ({
       ...r,
       slika_knjige: r.slika_knjige || defaultBookCover
     }))
-  } catch (err: any) {
-    setError(`Greška: ${err.message}`)
+  } catch (err) {
+    error.value = 'Greška pri učitavanju rezervacija'
   } finally {
     loading.value = false
   }
 }
 
-const setError = (msg: string) => { error.value = msg }
-const filteredRezervacije = computed(() => rezervacije.value)
-const itemClass = () => 'table-row'
-const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('sr-RS') : ''
-
-const handleEdit = ({ item, mode }: { item: KnjigaRezervacija; mode: 'view' | 'edit' }) => {
-  router.push(`/reservation/${item.id}${mode === 'edit' ? '?edit=true' : ''}`)
-}
-
-const handleDelete = async (item: KnjigaRezervacija) => {
+const handleDelete = async (id: number) => {
   try {
-    const { error } = await supabase.from('knjige').delete().eq('id', item.id)
-    if (error) throw error
+    await $fetch(`/api/reservations/${id}`, {
+      method: 'DELETE',
+      baseURL: config.public.apiBase,
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      }
+    })
     await fetchRezervacije()
-  } catch (err: any) {
-    setError(`Greška pri brisanju: ${err.message}`)
+  } catch (err) {
+    error.value = 'Greška pri brisanju rezervacije'
   }
 }
 
@@ -76,145 +60,60 @@ onMounted(fetchRezervacije)
 </script>
 
 <template>
-  <div class="aktivne-rezervacije-layout">
-    <v-data-table
-      :headers="visibleHeaders"
-      :items="filteredRezervacije"
-      :loading="loading"
-      loading-text="Učitavam rezervacije..."
-      item-value="id"
-      :items-per-page="itemsPerPage"
-      :page="currentPage"
-      hide-default-footer
-      hover
-      show-select
-      class="custom-table"
-      :item-class="itemClass"
-      fixed-header
-      height="680"
-    >
-      <template v-slot:item.naziv_knjige="{ item }">
-        <div class="cell-naziv">
-          <div class="book-avatar">
-            <img :src="item.slika_knjige || defaultBookCover" alt="Slika knjige" />
-          </div>
-          <span class="text-truncate">{{ item.naziv_knjige }}</span>
-        </div>
-      </template>
-      <template v-slot:item.datum_rezervacije="{ item }">
-        <span class="cell-text">{{ formatDate(item.datum_rezervacije) }}</span>
-      </template>
-      <template v-slot:item.rezervacija_istice="{ item }">
-        <span class="cell-text">{{ formatDate(item.rezervacija_istice) }}</span>
-      </template>
-      <template v-slot:item.status="{ item }">
-        <span class="cell-text">{{ item.status }}</span>
-      </template>
-      <template v-slot:item.actions="{ item }">
-        <div class="cell-actions">
-          <ActionMenu
-            :item="item"
-            entity-name="knjige"
-            title-property="naziv_knjige"
-            @edit="handleEdit"
-            @delete="handleDelete"
-            @error="setError"
-          />
-        </div>
-      </template>
-    </v-data-table>
-
-    <PaginationFooter
-      v-model:itemsPerPage="itemsPerPage"
-      v-model:currentPage="currentPage"
-      :total-items="filteredRezervacije.length"
-      class="pagination-footer mt-4"
-    />
-
-    <v-alert v-if="error" type="error" class="mt-4">
-      {{ error }}
-      <div class="mt-2">
-        <v-btn @click="fetchRezervacije" color="white" small>Pokušaj ponovo</v-btn>
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-6">Aktivne rezervacije</h1>
+    
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Knjiga</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum rezervacije</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ističe</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Akcije</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr v-for="item in rezervacije" :key="item.id" class="hover:bg-gray-50">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                  <img class="h-10 w-10 rounded" :src="item.slika_knjige ?? defaultBookCover" :alt="item.naziv_knjige">
+                  <div class="ml-4">
+                    <div class="text-sm font-medium text-gray-900">{{ item.naziv_knjige }}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {{ new Date(item.datum_rezervacije).toLocaleDateString() }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {{ new Date(item.rezervacija_istice).toLocaleDateString() }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" 
+                  :class="{
+                    'bg-green-100 text-green-800': item.status === 'rezervisano',
+                    'bg-red-100 text-red-800': item.status === 'odbijeno'
+                  }">
+                  {{ item.status }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button @click="router.push(`/reservation/${item.id}`)" class="text-blue-600 hover:text-blue-900 mr-3">
+                  Pregled
+                </button>
+                <button @click="handleDelete(item.id)" class="text-red-600 hover:text-red-900">
+                  Obriši
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="error" class="text-red-600 text-center py-4">{{ error }}</div>
+        <div v-if="loading" class="text-center py-4">Učitavanje...</div>
       </div>
-    </v-alert>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.aktivne-rezervacije-layout {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
-
-.custom-table {
-  border: none;
-  box-shadow: none;
-  font-size: 14px;
-  font-weight: 400;
-}
-
-/* Ukloni razmak između kolona */
-::v-deep(.v-data-table__wrapper table) {
-  border-spacing: 0 !important;
-}
-
-/* Redovi */
-.table-row {
-  height: 68px !important;
-}
-
-/* Naziv knjige + avatar */
-.cell-naziv {
-  display: flex;
-  align-items: center;
-  width: 231px;
-  font-size: 14px;
-  line-height: 100%;
-  letter-spacing: 0.25px;
-}
-
-.book-avatar {
-  width: 32px;
-  height: 52px;
-  margin-right: 8px;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.book-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* Tekst */
-.text-truncate {
-  max-width: 180px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 14px;
-  line-height: 100%;
-  letter-spacing: 0.25px;
-}
-
-.cell-text {
-  font-size: 14px;
-  line-height: 100%;
-  letter-spacing: 0.25px;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cell-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.pagination-footer {
-  margin-top: 16px;
-}
-</style>

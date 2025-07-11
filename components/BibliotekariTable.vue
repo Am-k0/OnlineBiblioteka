@@ -14,7 +14,6 @@
       class="no-border-table"
       :item-class="itemClass"
     >
-      <!-- Avatar + naziv bibliotekara -->
       <template v-slot:item.ime_i_prezime="{ item }">
         <div class="cell-naziv d-flex align-center">
           <v-avatar size="36" class="mr-2">
@@ -23,23 +22,15 @@
           <span class="naziv-text">{{ item.ime_i_prezime }}</span>
         </div>
       </template>
-
-      <!-- Email -->
       <template v-slot:item.email="{ item }">
         <span class="opis-text">{{ item.email }}</span>
       </template>
-
-      <!-- Tip korisnika -->
       <template v-slot:item.tip_korisnika="{ item }">
         <span class="opis-text">{{ item.tip_korisnika }}</span>
       </template>
-
-      <!-- Zadnji pristup -->
       <template v-slot:item.zadnji_pristup_sistemu="{ item }">
         <span class="opis-text">{{ formatDate(item.zadnji_pristup_sistemu) }}</span>
       </template>
-
-      <!-- Akcije -->
       <template v-slot:item.actions="{ item }">
         <div class="cell-actions">
           <ActionMenu 
@@ -53,34 +44,27 @@
         </div>
       </template>
     </v-data-table>
-
     <PaginationFooter
       v-model:itemsPerPage="itemsPerPage"
       v-model:currentPage="currentPage"
       :total-items="filteredBibliotekari.length"
       class="pagination-footer mt-4"
     />
-
     <v-alert v-if="error" type="error" class="mt-4">
       {{ error }}
-      <div class="mt-2">
-        <v-btn @click="fetchBibliotekari" color="white" small>Pokušaj ponovo</v-btn>
-      </div>
     </v-alert>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
 import ActionMenu from './ActionMenu.vue'
 import PaginationFooter from './PaginationFooter.vue'
 
 const router = useRouter()
-const supabase = useSupabaseClient()
 
-const bibliotekari = ref([])
+const bibliotekari = ref([]) // Popuniš iz svog backend-a
 const loading = ref(false)
 const error = ref(null)
 const defaultAvatar = 'https://randomuser.me/api/portraits/men/1.jpg'
@@ -108,27 +92,6 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
 }
 
-const fetchBibliotekari = async () => {
-  try {
-    loading.value = true
-    error.value = null
-    const { data, error: supabaseError } = await supabase
-      .from('bibliotekari')
-      .select('id, ime_i_prezime, email, tip_korisnika, zadnji_pristup_sistemu, avatar')
-
-    if (supabaseError) throw supabaseError
-
-    bibliotekari.value = (data || []).map(b => ({
-      ...b,
-      avatar: b.avatar || defaultAvatar,
-    }))
-  } catch (err) {
-    setError(`Došlo je do greške: ${err.message}`)
-  } finally {
-    loading.value = false
-  }
-}
-
 const setError = (err) => {
   error.value = err
 }
@@ -136,9 +99,9 @@ const setError = (err) => {
 const filteredBibliotekari = computed(() => {
   if (!props.search) return bibliotekari.value
   return bibliotekari.value.filter(b => 
-    b.ime_i_prezime.toLowerCase().includes(props.search.toLowerCase()) ||
-    b.email.toLowerCase().includes(props.search.toLowerCase()) ||
-    b.tip_korisnika.toLowerCase().includes(props.search.toLowerCase())
+    b.ime_i_prezime?.toLowerCase().includes(props.search.toLowerCase()) ||
+    b.email?.toLowerCase().includes(props.search.toLowerCase()) ||
+    b.tip_korisnika?.toLowerCase().includes(props.search.toLowerCase())
   )
 })
 
@@ -153,21 +116,8 @@ const handleEdit = ({ item, mode }) => {
 }
 
 const handleDelete = async (item) => {
-  try {
-    const { error } = await supabase
-      .from('bibliotekari')
-      .delete()
-      .eq('id', item.id)
-
-    if (error) throw error
-
-    await fetchBibliotekari()
-  } catch (err) {
-    setError(`Došlo je do greške pri brisanju: ${err.message}`)
-  }
+  // Dodaj svoju logiku za brisanje ovde
 }
-
-onMounted(fetchBibliotekari)
 </script>
 
 <style scoped>
@@ -175,28 +125,13 @@ onMounted(fetchBibliotekari)
   border: none;
   box-shadow: none;
 }
-
-.table-row {
-  height: 56px;
-}
-
-.cell-naziv {
-  width: 100%;
-  overflow: hidden;
-}
-
-.naziv-text {
+.table-row { height: 56px; }
+.cell-naziv { width: 100%; overflow: hidden; }
+.naziv-text, .opis-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-.opis-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .cell-actions {
   display: flex;
   justify-content: flex-end;

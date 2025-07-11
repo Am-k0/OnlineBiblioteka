@@ -3,12 +3,7 @@
     <div class="page-header">
       <h1 class="page-title">Autori</h1>
       <div class="header-actions">
-        <v-btn
-          color="primary"
-          class="add-button"
-          @click="onAddAutor"
-          prepend-icon="mdi-plus"
-        >
+        <v-btn color="primary" class="add-button" @click="onAddAutor" prepend-icon="mdi-plus">
           NOVI AUTOR
         </v-btn>
         <div class="search-wrapper">
@@ -22,11 +17,11 @@
             rounded
             class="search-field"
             append-inner-icon="mdi-magnify"
+            @keyup.enter="onSearch"
           />
         </div>
       </div>
     </div>
-
     <AutoriTable :search="search" />
   </div>
 </template>
@@ -38,11 +33,11 @@ import AutoriTable from '@/components/AutoriTable.vue'
 
 const search = ref('')
 const router = useRouter()
-
-const onAddAutor = () => {
-  router.push('/newauthor')
-}
+const onAddAutor = () => router.push('/newauthor')
+const onSearch = () => {} // pretraga je reaktivna, nije potreban poseban handler
 </script>
+
+
 
 <style scoped>
 .page-container {

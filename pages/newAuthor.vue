@@ -10,24 +10,15 @@
 
     <div class="photo-section">
       <div class="photo-upload-box" @click="triggerFileInput">
-        <v-icon 
-          v-if="!imageUrl" 
-          size="large" 
-          color="#757575"
-        >
-          mdi-image
-        </v-icon>
-        
-        <input 
-          type="file" 
-          ref="fileInput" 
-          accept="image/*" 
-          @change="handleFileUpload" 
+        <v-icon v-if="!imageUrl" size="large" color="#757575">mdi-image</v-icon>
+        <input
+          type="file"
+          ref="fileInput"
+          accept="image/*"
+          @change="handleFileUpload"
           style="display: none"
         >
-        
         <div v-if="!imageUrl" class="upload-text">Add photo</div>
-        
         <v-img
           v-if="imageUrl"
           :src="imageUrl"
@@ -86,9 +77,8 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useSupabaseClient } from '#imports'
+import axios from 'axios'
 
-const supabase = useSupabaseClient()
 const router = useRouter()
 
 const photo = ref(null)
@@ -120,39 +110,50 @@ const saveAuthor = async () => {
     firstName: '',
     lastName: ''
   }
-  
+
   if (!firstName.value) errors.value.firstName = 'Morate unijeti ime!'
   if (!lastName.value) errors.value.lastName = 'Morate unijeti prezime!'
-  
+
   if (!firstName.value || !lastName.value) return
-  
+
   try {
     loading.value = true
-    
-    const naziv = `${firstName.value} ${lastName.value}`.trim()
-    
-    // Ako korisnik nije izabrao sliku, koristite placeholder
-    const avatarUrl = imageUrl.value ? imageUrl.value : '/placeholder-author.png'
-    
-    const { data, error } = await supabase
-      .from('autori')
-      .insert({
-        naziv: naziv,
-        opis: description.value,
-        avatar: avatarUrl
-      })
-      .select()
-    
-    if (error) throw error
-    
-    if (data && data[0]?.id) {
-      router.push(`/author/${data[0].id}`)
+
+    const formData = new FormData()
+    formData.append('first_name', firstName.value)
+    formData.append('last_name', lastName.value)
+    formData.append('biography', description.value)
+    if (photo.value) {
+      formData.append('picture', photo.value)
+    }
+
+    // Dodaj token ako je potreban za autentifikaciju
+    const token = localStorage.getItem('auth_token')
+
+    const response = await axios.post(
+      'http://localhost/api/authors/create',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(token && { Authorization: `Bearer ${token}` })
+        }
+      }
+    )
+
+    // Backend vraća "author": {...}
+    if (response.data && response.data.author && response.data.author.id) {
+      router.push(`/author/${response.data.author.id}`)
     } else {
-      throw new Error('Nije moguće dobiti ID novog autora')
+      throw new Error('Server nije vratio ID novog autora.')
     }
   } catch (error) {
     console.error('Greška pri čuvanju autora:', error)
-    alert('Došlo je do greške pri čuvanju autora: ' + error.message)
+    const errorMessage =
+      error.response?.data?.error
+        ? Object.values(error.response.data.error).flat().join(' ')
+        : error.response?.data?.message || error.message
+    alert('Došlo je do greške pri čuvanju autora: ' + errorMessage)
   } finally {
     loading.value = false
   }
@@ -170,44 +171,38 @@ const cancel = () => {
   }
 }
 </script>
+
 <style scoped>
 .form-container {
   max-width: 724px;
   padding: 24px;
   margin: 0;
 }
-
 .header {
   margin-bottom: 32px;
 }
-
 .header h1 {
   font-size: 24px;
   font-weight: bold;
   margin-bottom: 8px;
   color: #212121;
 }
-
 .breadcrumbs {
   display: flex;
   align-items: center;
   gap: 8px;
   color: #757575;
 }
-
 .breadcrumbs a {
   color: #3392EA;
   text-decoration: none;
 }
-
 .breadcrumbs a:hover {
   text-decoration: underline;
 }
-
 .photo-section {
   margin-bottom: 24px;
 }
-
 .photo-upload-box {
   width: 200px;
   height: 160px;
@@ -222,17 +217,14 @@ const cancel = () => {
   position: relative;
   overflow: hidden;
 }
-
 .photo-upload-box:hover {
   border-color: #3392EA;
 }
-
 .upload-text {
   margin-top: 8px;
   color: #757575;
   font-size: 14px;
 }
-
 .image-preview {
   width: 100%;
   height: 100%;
@@ -241,32 +233,27 @@ const cancel = () => {
   top: 0;
   left: 0;
 }
-
 .form-field {
   margin-bottom: 16px;
   max-width: 463px;
 }
-
 .error-message {
   color: #ff5252;
   font-size: 12px;
   margin-top: -10px;
   margin-bottom: 16px;
 }
-
 .buttons {
   display: flex;
   justify-content: flex-start;
   gap: 16px;
   margin-top: 24px;
 }
-
 .cancel-btn {
   border: 1px solid #3392EA;
   color: #3392EA;
   width: 120px;
 }
-
 .save-btn {
   width: 120px;
 }
