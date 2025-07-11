@@ -2,12 +2,14 @@
   <div>
     <v-menu location="bottom end" offset-y>
       <template v-slot:activator="{ props }">
-        <v-btn icon variant="text" v-bind="props">
+        <v-btn icon v-bind="props" variant="text">
           <v-icon>mdi-dots-vertical</v-icon>
         </v-btn>
       </template>
 
       <v-list class="dropdown-menu">
+
+        <!-- Pogledaj detalje -->
         <v-list-item 
           v-if="!hideViewOption"
           @click="handleView" 
@@ -19,7 +21,7 @@
           <v-list-item-title class="dropdown-text">Pogledaj detalje</v-list-item-title>
         </v-list-item>
 
-        
+        <!-- Izmijeni entitet -->
         <v-list-item @click="handleEdit" class="dropdown-item edit-item">
           <template v-slot:prepend>
             <v-icon size="24" class="dropdown-icon">mdi-pencil-outline</v-icon>
@@ -27,44 +29,33 @@
           <v-list-item-title class="dropdown-text">Izmijeni {{ entityName }}</v-list-item-title>
         </v-list-item>
 
-     
+        <!-- Akcije za knjigu -->
         <template v-if="entityName === 'knjigu'">
-         
+          <v-divider class="my-1"></v-divider>
+
           <div v-if="inlineLayout" class="horizontal-actions">
-            <v-list-item 
-              @click="handleOtpisi" 
-              class="action-item otpisi-item"
-            >
+            <v-list-item @click="handleOtpisi" class="action-item otpisi-item">
               <template v-slot:prepend>
                 <v-icon size="24" class="action-icon">mdi-cancel</v-icon>
               </template>
               <v-list-item-title class="action-text">Otpiši knjigu</v-list-item-title>
             </v-list-item>
 
-            <v-list-item 
-              @click="handleIzdaj" 
-              class="action-item izdaj-item"
-            >
+            <v-list-item @click="handleIzdaj" class="action-item izdaj-item">
               <template v-slot:prepend>
                 <v-icon size="24" class="action-icon">mdi-book-arrow-right</v-icon>
               </template>
               <v-list-item-title class="action-text">Izdaj knjigu</v-list-item-title>
             </v-list-item>
 
-            <v-list-item 
-              @click="handleVrati" 
-              class="action-item vrati-item"
-            >
+            <v-list-item @click="handleVrati" class="action-item vrati-item">
               <template v-slot:prepend>
                 <v-icon size="24" class="action-icon">mdi-book-arrow-left</v-icon>
               </template>
               <v-list-item-title class="action-text">Vrati knjigu</v-list-item-title>
             </v-list-item>
 
-            <v-list-item 
-              @click="handleRezervisi" 
-              class="action-item rezervisi-item"
-            >
+            <v-list-item @click="handleRezervisi" class="action-item rezervisi-item">
               <template v-slot:prepend>
                 <v-icon size="24" class="action-icon">mdi-bookmark-outline</v-icon>
               </template>
@@ -72,7 +63,6 @@
             </v-list-item>
           </div>
 
-        
           <template v-else>
             <v-list-item @click="handleOtpisi" class="dropdown-item otpisi-item">
               <template v-slot:prepend>
@@ -104,7 +94,9 @@
           </template>
         </template>
 
-      
+        <v-divider class="my-1" />
+
+        <!-- Izbriši entitet -->
         <v-list-item @click="handleDelete" class="dropdown-item delete-item">
           <template v-slot:prepend>
             <v-icon size="24" class="dropdown-icon">mdi-delete-outline</v-icon>
@@ -114,6 +106,7 @@
       </v-list>
     </v-menu>
 
+    <!-- Dijalog za potvrdu brisanja -->
     <v-dialog v-model="deleteDialog" max-width="400">
       <v-card>
         <v-card-title class="text-h5">Potvrdite brisanje</v-card-title>
@@ -121,9 +114,9 @@
           Da li ste sigurni da želite obrisati {{ entityName }} "{{ entityTitle }}"?
         </v-card-text>
         <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="grey-darken-1" text @click="deleteDialog = false">Otkaži</v-btn>
-          <v-btn color="red darken-1" text @click="confirmDelete">Obriši</v-btn>
+          <v-spacer />
+          <v-btn color="grey-darken-1" variant="text" @click="deleteDialog = false">Otkaži</v-btn>
+          <v-btn color="red-darken-1" variant="text" @click="confirmDelete">Obriši</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -134,33 +127,28 @@
 import { ref, computed } from 'vue'
 
 const props = defineProps({
-  item: {
-    type: Object,
-    required: true
-  },
-  entityName: {
-    type: String,
-    default: 'knjigu'
-  },
-  titleProperty: {
-    type: String,
-    default: 'naziv_knjige'
-  },
-  hideViewOption: {
-    type: Boolean,
-    default: false
-  },
-  inlineLayout: {
-    type: Boolean,
-    default: false
-  }
+  item: { type: Object, required: true },
+  entityName: { type: String, default: 'knjigu' },
+  titleProperty: { type: String, default: 'naziv_knjige' },
+  hideViewOption: { type: Boolean, default: false },
+  inlineLayout: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['edit', 'delete', 'otpisi', 'izdaj', 'vrati', 'rezervisi', 'error'])
+const emit = defineEmits([
+  'edit',
+  'delete',
+  'otpisi',
+  'izdaj',
+  'vrati',
+  'rezervisi',
+  'error'
+])
 
 const deleteDialog = ref(false)
 
-const entityTitle = computed(() => props.item[props.titleProperty] || props.item.id)
+const entityTitle = computed(() =>
+  props.item[props.titleProperty] || props.item.id
+)
 
 const handleView = () => {
   emit('edit', { item: props.item, mode: 'view' })
@@ -198,63 +186,38 @@ const confirmDelete = () => {
 
 <style scoped>
 .dropdown-menu {
-  width: 320px;
-  padding: 0;
-  overflow: hidden;
+  min-width: 250px;
 }
 
 .dropdown-item {
-  width: 320px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
+  cursor: pointer;
 }
 
 .dropdown-icon {
-  color: rgba(0, 0, 0, 0.6);
+  margin-right: 8px;
 }
 
 .dropdown-text {
-  font-family: 'Roboto', sans-serif;
   font-size: 14px;
-  color: rgba(0, 0, 0, 0.6);
-  margin-left: 4px;
-}
-
-/* Stilovi za horizontalne akcije */
-.horizontal-actions {
-  display: flex;
-  flex-wrap: wrap;
-  padding: 8px 0;
-  border-top: 1px solid #eee;
-  border-bottom: 1px solid #eee;
-  margin: 8px 0;
 }
 
 .action-item {
-  flex: 1;
-  min-width: 120px;
-  height: auto;
-  padding: 8px 4px;
-  flex-direction: column;
-  text-align: center;
+  display: inline-block;
+  width: auto;
 }
 
 .action-icon {
-  margin-bottom: 4px;
-  color: rgba(0, 0, 0, 0.6);
+  margin-right: 8px;
 }
 
 .action-text {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
-  white-space: normal;
-  text-align: center;
-  line-height: 1.2;
+  font-size: 14px;
 }
 
-.action-item:not(:last-child) {
-  margin-right: 4px;
+.horizontal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
 }
 </style>

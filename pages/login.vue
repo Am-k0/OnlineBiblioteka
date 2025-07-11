@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from '#imports'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 
 const router = useRouter()
@@ -27,20 +27,60 @@ async function signIn() {
   errorMsg.value = null
 
   try {
+    // Ispravljen endpoint prema tvom Postman screenshotu
     const response = await axios.post('http://localhost:80/api/login', {
       email: credentials.value.email,
       password: credentials.value.password,
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
     })
 
-    const token = response.data.token
-    localStorage.setItem('auth_token', token)
+    console.log('Full response:', response) // Debug log
 
+    // Prilagodjeno prema tvom Postman odgovoru gdje token dolazi kao "status_token"
+    const token = response.data?.status_token || 
+                 response.data?.token ||
+                 response.data?.access_token
+
+    if (!token) {
+      throw new Error('Token not found in response. Check backend response structure.')
+    }
+
+    // Sačuvaj token
+    localStorage.setItem('auth_token', token)
+    
+    // Postavi Axios defaultni header za sve buduće zahteve
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    
+    // Provera da li je token uspješno sačuvan
+    const storedToken = localStorage.getItem('auth_token')
+    console.log('Stored token:', storedToken) // Debug log
+    
+    if (!storedToken) {
+      throw new Error('Failed to save token to localStorage')
+    }
+
+    // Redirekcija nakon uspješnog logina
     router.push('/')
+
   } catch (error: any) {
-    if (error.response?.data?.message) {
-      errorMsg.value = error.response.data.message
+    console.error('Login error:', error)
+    
+    // Detaljnija obrada grešaka
+    if (error.response) {
+      // Server responded with error status
+      errorMsg.value = error.response.data?.message || 
+                      error.response.data?.error ||
+                      'Login failed. Please check your credentials.'
+    } else if (error.request) {
+      // Request was made but no response received
+      errorMsg.value = 'No response from server. Please try again later.'
     } else {
-      errorMsg.value = 'Login failed. Please try again.'
+      // Something happened in setting up the request
+      errorMsg.value = error.message || 'An unexpected error occurred'
     }
   } finally {
     loading.value = false
@@ -49,69 +89,67 @@ async function signIn() {
 </script>
 
 <template>
-    <client-only> 
+  <client-only>
+    <div class="login-bg">
+      <div class="login-wrapper">
+        <v-card class="login-card" elevation="8" rounded="lg">
+          <div class="login-title">Online biblioteka</div>
+          <div class="title-line" />
 
-   
-  <div class="login-bg">
-    <div class="login-wrapper">
-      <v-card class="login-card" elevation="8" rounded="lg">
-        <div class="login-title">Online biblioteka</div>
-        <div class="title-line" />
+          <v-form v-model="formIsValid" @submit.prevent="signIn" class="login-form">
+            <v-text-field
+              v-model="credentials.email"
+              label="Email"
+              placeholder="example@example.net"
+              variant="outlined"
+              density="comfortable"
+              class="input-field"
+              :rules="emailRules"
+              hide-details="auto"
+              color="#3392EA"
+            />
+            <v-text-field
+              v-model="credentials.password"
+              label="Password"
+              placeholder="Password"
+              :type="visible ? 'text' : 'password'"
+              variant="outlined"
+              density="comfortable"
+              :append-inner-icon="visible ? 'mdi-eye-off' : 'mdi-eye'"
+              @click:append-inner="visible = !visible"
+              class="input-field"
+              :rules="passwordRules"
+              hide-details="auto"
+              color="#3392EA"
+            />
 
-        <v-form v-model="formIsValid" @submit.prevent="signIn" class="login-form">
-          <v-text-field
-            v-model="credentials.email"
-            label="Email"
-            placeholder="example@example.net"
-            variant="outlined"
-            density="comfortable"
-            class="input-field"
-            :rules="emailRules"
-            hide-details="auto"
-            color="#3392EA"
-          />
-          <v-text-field
-            v-model="credentials.password"
-            label="Password"
-            placeholder="Password"
-            :type="visible ? 'text' : 'password'"
-            variant="outlined"
-            density="comfortable"
-            :append-inner-icon="visible ? 'mdi-eye-off' : 'mdi-eye'"
-            @click:append-inner="visible = !visible"
-            class="input-field"
-            :rules="passwordRules"
-            hide-details="auto"
-            color="#3392EA"
-          />
+            <v-btn
+              class="login-button"
+              color="#3392EA"
+              size="large"
+              block
+              type="submit"
+              :disabled="!formIsValid || loading"
+              :loading="loading"
+            >
+              LOG IN
+            </v-btn>
+          </v-form>
 
-          <v-btn
-            class="login-button"
-            color="#3392EA"
-            size="large"
-            block
-            type="submit"
-            :disabled="!formIsValid || loading"
-            :loading="loading"
-          >
-            LOG IN
-          </v-btn>
-        </v-form>
+          <div class="forgot-link">
+            <a href="#">Forgot password?</a>
+          </div>
 
-        <div class="forgot-link">
-          <a href="#">Forgot password?</a>
-        </div>
+          <div v-if="errorMsg" class="error-text">
+            {{ errorMsg }}
+          </div>
 
-        <div v-if="errorMsg" class="error-text">
-          {{ errorMsg }}
-        </div>
-
-        <div class="login-footer">
-          ©2021 ICT Cortex. All rights reserved.
-        </div>
-      </v-card>
+          <div class="login-footer">
+            ©2021 ICT Cortex. All rights reserved.
+          </div>
+        </v-card>
+      </div>
     </div>
-  </div> 
   </client-only>
 </template>
 
