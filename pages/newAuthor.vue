@@ -1,75 +1,80 @@
 <template>
-  <div class="form-container">
-    <div class="header">
-      <h1>Novi Autor</h1>
-      <div class="breadcrumbs">
-        <a href="/authors">Evidencija autora</a>
-        <span>/ Novi Autor</span>
+  <div class="page-container bg-white min-h-screen">
+    <header class="app-header">
+      <div>
+        <h1 class="page-title">Novi Autor</h1>
+        <p class="page-subtitle">
+          <span class="link" @click="router.push('/authors')">Evidencija autora</span> / Novi Autor
+        </p>
       </div>
-    </div>
+      </header>
 
-    <div class="photo-section">
-      <div class="photo-upload-box" @click="triggerFileInput">
-        <v-icon v-if="!imageUrl" size="large" color="#757575">mdi-image</v-icon>
-        <input
-          type="file"
-          ref="fileInput"
-          accept="image/*"
-          @change="handleFileUpload"
-          style="display: none"
-        >
-        <div v-if="!imageUrl" class="upload-text">Add photo</div>
-        <v-img
-          v-if="imageUrl"
-          :src="imageUrl"
-          class="image-preview"
-        ></v-img>
+    <div class="header-divider"></div>
+
+    <div class="page-content">
+      <div class="photo-section">
+        <div class="photo-upload-box" @click="triggerFileInput">
+          <v-icon v-if="!imageUrl" size="large" color="#757575">mdi-image</v-icon>
+          <input
+            type="file"
+            ref="fileInput"
+            accept="image/*"
+            @change="handleFileUpload"
+            style="display: none"
+          >
+          <div v-if="!imageUrl" class="upload-text">Add photo</div>
+          <v-img
+            v-if="imageUrl"
+            :src="imageUrl"
+            class="image-preview"
+          ></v-img>
+        </div>
       </div>
-    </div>
 
-    <v-text-field
-      v-model="firstName"
-      label="Unesite Ime..."
-      variant="outlined"
-      hide-details
-      class="form-field"
-    ></v-text-field>
-    <div v-if="errors.firstName" class="error-message">{{ errors.firstName }}</div>
-
-    <v-text-field
-      v-model="lastName"
-      label="Unesite Prezime..."
-      variant="outlined"
-      hide-details
-      class="form-field"
-    ></v-text-field>
-    <div v-if="errors.lastName" class="error-message">{{ errors.lastName }}</div>
-
-    <v-textarea
-      v-model="description"
-      label="Unesite Opis..."
-      variant="outlined"
-      hide-details
-      class="form-field"
-    ></v-textarea>
-
-    <div class="buttons">
-      <v-btn
-        color="primary"
-        class="save-btn"
-        @click="saveAuthor"
-        :loading="loading"
-      >
-        Sačuvaj
-      </v-btn>
-
-      <v-btn
+      <v-text-field
+        v-model="firstName"
+        label="Unesite Ime..."
         variant="outlined"
-        class="cancel-btn"
-        @click="cancel"
-      >
-        Poništi
-      </v-btn>
+        hide-details
+        class="form-field"
+      ></v-text-field>
+      <div v-if="errors.firstName" class="error-message">{{ errors.firstName }}</div>
+
+      <v-text-field
+        v-model="lastName"
+        label="Unesite Prezime..."
+        variant="outlined"
+        hide-details
+        class="form-field"
+      ></v-text-field>
+      <div v-if="errors.lastName" class="error-message">{{ errors.lastName }}</div>
+
+      <v-textarea
+        v-model="description"
+        label="Unesite Opis..."
+        variant="outlined"
+        hide-details
+        class="form-field"
+      ></v-textarea>
+
+      <div class="buttons">
+        <v-btn
+          color="primary"
+          class="save-btn"
+          @click="saveAuthor"
+          :loading="loading"
+        >
+          Sačuvaj
+        </v-btn>
+
+        <v-btn
+          variant="outlined"
+          class="cancel-btn"
+          @click="cancel"
+        >
+          Poništi
+        </v-btn>
+      </div>
     </div>
   </div>
 </template>
@@ -127,7 +132,6 @@ const saveAuthor = async () => {
       formData.append('picture', photo.value)
     }
 
-    // Dodaj token ako je potreban za autentifikaciju
     const token = localStorage.getItem('auth_token')
 
     const response = await axios.post(
@@ -141,7 +145,6 @@ const saveAuthor = async () => {
       }
     )
 
-    // Backend vraća "author": {...}
     if (response.data && response.data.author && response.data.author.id) {
       router.push(`/author/${response.data.author.id}`)
     } else {
@@ -173,33 +176,81 @@ const cancel = () => {
 </script>
 
 <style scoped>
-.form-container {
-  max-width: 724px;
-  padding: 24px;
+/* Ovo je wrapper za celu stranicu */
+.page-container {
+  padding: 0; /* Ukloni padding, jer header i content sada imaju svoje */
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Koristimo min-h-screen od Tailwinda, ali je dobro imati fallback */
+  overflow: hidden; /* Glavni kontejner nema skrolovanje */
+}
+
+/* Stilovi preuzeti iz author/[id].vue za header */
+.app-header {
+  padding: 6px 24px 0 24px; /* Smanjen padding na vrhu i dnu */
+  display: flex;
+  justify-content: space-between; /* Da bi gurnuo ActionMenu desno, iako ga ovde nema */
+  align-items: center;
+}
+
+.page-title {
+  font-family: 'Roboto', sans-serif !important;
+  font-size: 20px;
+  font-weight: 500;
+  color: #222;
+  line-height: 100%;
+  letter-spacing: 0.15px;
+  vertical-align: middle;
   margin: 0;
 }
-.header {
-  margin-bottom: 32px;
+
+.page-subtitle {
+  font-size: 14px;
+  color: #777;
+  margin: 0;
+  margin-top: 2px; /* Smanjena margina između naslova i podnaslova */
 }
-.header h1 {
+
+.page-subtitle .link {
+  color: #1976d2;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.header-divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin-top: 15px; 
+  margin-bottom: 24px;
+}
+
+.page-content {
+  padding: 0 24px; 
+  flex-grow: 1; 
+}
+
+
+.header-old h1 {
   font-size: 24px;
   font-weight: bold;
   margin-bottom: 8px;
   color: #212121;
 }
-.breadcrumbs {
+.breadcrumbs-old { /* Stara breadcrumbs klasa, sada redundantna ili za uklanjanje */
   display: flex;
   align-items: center;
   gap: 8px;
   color: #757575;
 }
-.breadcrumbs a {
+.breadcrumbs-old a {
   color: #3392EA;
   text-decoration: none;
 }
-.breadcrumbs a:hover {
+.breadcrumbs-old a:hover {
   text-decoration: underline;
 }
+
 .photo-section {
   margin-bottom: 24px;
 }
@@ -235,7 +286,7 @@ const cancel = () => {
 }
 .form-field {
   margin-bottom: 16px;
-  max-width: 463px;
+  max-width: 463px; /* Zadržite ovu širinu polja */
 }
 .error-message {
   color: #ff5252;
