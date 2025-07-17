@@ -9,7 +9,6 @@
 
       <v-list class="dropdown-menu">
 
-        <!-- Pogledaj detalje -->
         <v-list-item 
           v-if="!hideViewOption"
           @click="handleView" 
@@ -21,7 +20,6 @@
           <v-list-item-title class="dropdown-text">Pogledaj detalje</v-list-item-title>
         </v-list-item>
 
-        <!-- Izmijeni entitet -->
         <v-list-item @click="handleEdit" class="dropdown-item edit-item">
           <template v-slot:prepend>
             <v-icon size="24" class="dropdown-icon">mdi-pencil-outline</v-icon>
@@ -29,7 +27,6 @@
           <v-list-item-title class="dropdown-text">Izmijeni {{ entityName }}</v-list-item-title>
         </v-list-item>
 
-        <!-- Akcije za knjigu -->
         <template v-if="entityName === 'knjigu'">
           <v-divider class="my-1"></v-divider>
 
@@ -96,7 +93,6 @@
 
         <v-divider class="my-1" />
 
-        <!-- Izbriši entitet -->
         <v-list-item @click="handleDelete" class="dropdown-item delete-item">
           <template v-slot:prepend>
             <v-icon size="24" class="dropdown-icon">mdi-delete-outline</v-icon>
@@ -106,7 +102,6 @@
       </v-list>
     </v-menu>
 
-    <!-- Dijalog za potvrdu brisanja -->
     <v-dialog v-model="deleteDialog" max-width="400">
       <v-card>
         <v-card-title class="text-h5">Potvrdite brisanje</v-card-title>
@@ -134,7 +129,9 @@ const props = defineProps({
   inlineLayout: { type: Boolean, default: false }
 })
 
+// MODIFIED: Added 'view' to the list of emitted events
 const emit = defineEmits([
+  'view',
   'edit',
   'delete',
   'otpisi',
@@ -150,12 +147,14 @@ const entityTitle = computed(() =>
   props.item[props.titleProperty] || props.item.id
 )
 
+// MODIFIED: Emits a dedicated 'view' event with the item
 const handleView = () => {
-  emit('edit', { item: props.item, mode: 'view' })
+  emit('view', props.item)
 }
 
+// MODIFIED: Emits a dedicated 'edit' event with the item
 const handleEdit = () => {
-  emit('edit', { item: props.item, mode: 'edit' })
+  emit('edit', props.item)
 }
 
 const handleOtpisi = () => {
@@ -185,6 +184,7 @@ const confirmDelete = () => {
 </script>
 
 <style scoped>
+/* Your existing styles remain unchanged */
 .dropdown-menu {
   min-width: 250px;
 }

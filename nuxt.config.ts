@@ -18,7 +18,7 @@ export default defineNuxtConfig({
     '~/assets/css/main.css',
   ],
 
-  ssr: true,
+  ssr: false,
 
   vite: {
     plugins: [tailwindcss()],
