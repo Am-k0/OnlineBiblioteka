@@ -16,183 +16,189 @@
       <v-card-text>
         <v-form ref="form">
           <v-window v-model="tab">
-            <!-- Prvi tab -->
             <v-window-item value="one">
-              <div class="tab-content form-content"
+              <div
+                class="tab-content form-content"
                 :class="{ 'form-content--error': showErrors && hasErrorsOnFirstTab }"
               >
-                <div v-if="globalError" class="custom-error" style="font-weight:bold;">{{ globalError }}</div>
+                <div v-if="globalError" class="custom-error" style="font-weight: bold">
+                  {{ globalError }}
+                </div>
                 <div class="field-wrapper">
                   <v-text-field
-                    v-model="book.naziv_knjige"
+                    v-model="book.name"
                     label="Unesite naziv knjige*"
                     variant="outlined"
                     :style="fieldStyle"
-                    :error="showErrors && !book.naziv_knjige"
+                    :error="showErrors && !book.name"
                     hide-details="auto"
                   />
-                  <div v-if="showErrors && !book.naziv_knjige" class="custom-error">Morate unijeti naziv knjige!</div>
+                  <div v-if="showErrors && !book.name" class="custom-error">
+                    Morate unijeti naziv knjige!
+                  </div>
                 </div>
                 <div class="field-wrapper">
                   <v-textarea
-                    v-model="book.kratak_sadrzaj"
-                    label="Unesite kratak sadržaj knjige"
+                    v-model="book.description"
+                    label="Unesite kratak sadržaj knjige*"
                     variant="outlined"
                     :style="textareaStyle"
                     rows="3"
+                    :error="showErrors && !book.description"
                     hide-details="auto"
                   />
+                  <div v-if="showErrors && !book.description" class="custom-error">
+                    Morate unijeti kratak sadržaj knjige!
+                  </div>
                 </div>
                 <div class="field-wrapper">
                   <v-autocomplete
-                    v-model="book.kategorija"
-                    label="Izaberite kategoriju*"
-                    :items="uniqueCategories"
+                    v-model="book.categories"
+                    label="Izaberite kategoriju"
+                    :items="uniqueCategories.data"
+                    item-title="name"
+                    item-value="id"
                     variant="outlined"
+                    multiple
+                    chips
                     :style="fieldStyle"
-                    :error="showErrors && !book.kategorija"
                     hide-details="auto"
                   />
-                  <div v-if="showErrors && !book.kategorija" class="custom-error">Morate izabrati kategoriju!</div>
                 </div>
                 <div class="field-wrapper">
                   <v-autocomplete
-                    v-model="book.zanr"
-                    label="Izaberite žanr*"
-                    :items="uniqueGenres"
+                    v-model="book.genres"
+                    label="Izaberite žanr"
+                    :items="uniqueGenres.data"
+                    item-title="name"
+                    item-value="id"
                     variant="outlined"
+                    multiple
+                    chips
                     :style="fieldStyle"
-                    :error="showErrors && !book.zanr"
                     hide-details="auto"
                   />
-                  <div v-if="showErrors && !book.zanr" class="custom-error">Morate izabrati žanr!</div>
                 </div>
                 <div class="field-wrapper">
                   <v-autocomplete
-                    v-model="book.autor"
+                    v-model="book.authors"
                     label="Izaberite autora*"
-                    :items="uniqueAuthors"
+                    :items="uniqueAuthors.data"
+                    item-title="name"
+                    item-value="id"
                     variant="outlined"
+                    multiple
+                    chips
                     :style="fieldStyle"
-                    :error="showErrors && !book.autor"
+                    :error="showErrors && book.authors.length === 0"
                     hide-details="auto"
                   />
-                  <div v-if="showErrors && !book.autor" class="custom-error">Morate izabrati autora!</div>
+                  <div v-if="showErrors && book.authors.length === 0" class="custom-error">
+                    Morate izabrati barem jednog autora!
+                  </div>
                 </div>
                 <div class="field-wrapper">
                   <v-autocomplete
-                    v-model="book.izdavac"
+                    v-model="book.publisher_id"
                     label="Izaberite izdavača*"
-                    :items="uniquePublishers"
+                    :items="uniquePublishers.data"
+                    item-title="name"
+                    item-value="id"
                     variant="outlined"
                     :style="fieldStyle"
-                    :error="showErrors && !book.izdavac"
+                    :error="showErrors && !book.publisher_id"
                     hide-details="auto"
                   />
-                  <div v-if="showErrors && !book.izdavac" class="custom-error">Morate izabrati izdavača!</div>
+                  <div v-if="showErrors && !book.publisher_id" class="custom-error">
+                    Morate izabrati izdavača!
+                  </div>
                 </div>
                 <div class="field-wrapper">
                   <v-text-field
-                    v-model="book.godina_izdavanja"
-                    label="Godina izdavanja*"
-                    type="date"
-                    variant="outlined"
-                    :style="fieldStyle"
-                    :error="showErrors && !book.godina_izdavanja"
-                    hide-details="auto"
-                  />
-                  <div v-if="showErrors && !book.godina_izdavanja" class="custom-error">Morate unijeti godinu izdavanja!</div>
-                </div>
-                <div class="field-wrapper">
-                  <v-text-field
-                    v-model="book.ukupna_kolicina"
+                    v-model="book.number_of_copies_available"
                     label="Ukupna količina*"
                     type="number"
                     variant="outlined"
                     :style="fieldStyle"
-                    :error="showErrors && (!book.ukupna_kolicina || book.ukupna_kolicina <= 0)"
+                    :error="showErrors && (!book.number_of_copies_available || book.number_of_copies_available <= 0)"
                     hide-details="auto"
                   />
-                  <div v-if="showErrors && (!book.ukupna_kolicina || book.ukupna_kolicina <= 0)" class="custom-error">Morate unijeti pozitivnu količinu!</div>
+                  <div
+                    v-if="showErrors && (!book.number_of_copies_available || book.number_of_copies_available <= 0)"
+                    class="custom-error"
+                  >
+                    Morate unijeti pozitivnu količinu!
+                  </div>
                 </div>
                 <div class="form-actions">
                   <ActionButtons @save="validateAndSave" @cancel="cancel" :loading="isSaving" />
                 </div>
               </div>
             </v-window-item>
-            <!-- Drugi tab -->
             <v-window-item value="two">
               <div class="tab-content form-content">
                 <div class="field-wrapper">
                   <v-text-field
-                    v-model="book.broj_stranica"
+                    v-model="book.number_of_pages"
                     label="Broj stranica*"
                     type="number"
                     variant="outlined"
                     :style="fieldStyle"
-                    :error="showErrors && (!book.broj_stranica || book.broj_stranica <= 0)"
+                    :error="showErrors && (!book.number_of_pages || book.number_of_pages <= 0)"
                     hide-details="auto"
                   />
-                  <div v-if="showErrors && (!book.broj_stranica || book.broj_stranica <= 0)" class="custom-error">Morate unijeti broj stranica!</div>
+                  <div
+                    v-if="showErrors && (!book.number_of_pages || book.number_of_pages <= 0)"
+                    class="custom-error"
+                  >
+                    Morate unijeti broj stranica!
+                  </div>
                 </div>
                 <div class="field-wrapper">
                   <v-select
-                    v-model="book.pismo"
-                    label="Vrsta pisma*"
-                    :items="[
-                      { title: 'Ćirilica', value: 'ćirilica' },
-                      { title: 'Latinica', value: 'latinica' },
-                      { title: 'Ostalo', value: 'ostalo' }
-                    ]"
+                    v-model="book.script"
+                    label="Vrsta pisma"
+                    :items="SCRIPT_OPTIONS"
+                    item-title="title"
+                    item-value="value"
                     variant="outlined"
                     :style="fieldStyle"
-                    :error="showErrors && !book.pismo"
                     hide-details="auto"
                   />
-                  <div v-if="showErrors && !book.pismo" class="custom-error">Morate izabrati vrstu pisma!</div>
                 </div>
                 <div class="field-wrapper">
                   <v-select
-                    v-model="book.povez"
-                    label="Vrsta poveza*"
-                    :items="[
-                      { title: 'Tvrdi povez', value: 'tvrdi povez' },
-                      { title: 'Meki povez', value: 'meki povez' }
-                    ]"
+                    v-model="book.binding"
+                    label="Vrsta poveza"
+                    :items="BINDING_OPTIONS"
+                    item-title="title"
+                    item-value="value"
                     variant="outlined"
                     :style="fieldStyle"
-                    :error="showErrors && !book.povez"
                     hide-details="auto"
                   />
-                  <div v-if="showErrors && !book.povez" class="custom-error">Morate izabrati vrstu poveza!</div>
                 </div>
                 <div class="field-wrapper">
                   <v-select
-                    v-model="book.format"
-                    label="Format*"
-                    :items="['A3', 'A4', 'A5', '21x29cm', '15x21cm']"
+                    v-model="book.dimensions"
+                    label="Format"
+                    :items="DIMENSIONS_OPTIONS"
                     variant="outlined"
                     :style="fieldStyle"
-                    :error="showErrors && !book.format"
                     hide-details="auto"
                   />
-                  <div v-if="showErrors && !book.format" class="custom-error">Morate izabrati format!</div>
                 </div>
                 <div class="field-wrapper">
                   <v-select
-                    v-model="book.jezik"
-                    label="Jezik*"
-                    :items="[
-                      { title: 'Crnogorski', value: 'crnogorski' },
-                      { title: 'Engleski', value: 'engleski' },
-                      { title: 'Ostalo', value: 'ostalo' }
-                    ]"
+                    v-model="book.language"
+                    label="Jezik"
+                    :items="LANGUAGE_OPTIONS"
+                    item-title="title"
+                    item-value="value"
                     variant="outlined"
                     :style="fieldStyle"
-                    :error="showErrors && !book.jezik"
                     hide-details="auto"
                   />
-                  <div v-if="showErrors && !book.jezik" class="custom-error">Morate izabrati jezik!</div>
                 </div>
                 <div class="field-wrapper">
                   <v-text-field
@@ -200,44 +206,35 @@
                     label="ISBN*"
                     variant="outlined"
                     :style="fieldStyle"
-                    :error="showErrors && !validIsbn"
+                    :error="showErrors && (!book.isbn || !validIsbn)"
                     hide-details="auto"
                   />
-                  <div v-if="showErrors && !book.isbn" class="custom-error">Morate unijeti ISBN!</div>
-                  <div v-else-if="showErrors && book.isbn && !validIsbn" class="custom-error">Nevažeći ISBN format!</div>
+                  <div v-if="showErrors && !book.isbn" class="custom-error">
+                    Morate unijeti ISBN!
+                  </div>
+                  <div v-else-if="showErrors && book.isbn && !validIsbn" class="custom-error">
+                    Nevažeći ISBN format!
+                  </div>
                 </div>
                 <div class="form-actions">
                   <ActionButtons @save="validateAndSave" @cancel="cancel" :loading="isSaving" />
                 </div>
               </div>
             </v-window-item>
-            <!-- Treći tab -->
             <v-window-item value="three">
               <div class="tab-content form-content">
                 <div class="field-wrapper">
-                  <div
-                    class="photo-upload-box"
-                    @click="triggerFileInput"
-                  >
-                    <v-icon 
-                      v-if="!imageUrl"
-                      size="large"
-                      color="#757575"
-                    >mdi-image</v-icon>
-                    <input 
+                  <div class="photo-upload-box" @click="triggerFileInput">
+                    <v-icon v-if="!imageUrl" size="large" color="#757575">mdi-image</v-icon>
+                    <input
                       type="file"
                       ref="fileInput"
                       accept="image/*"
                       @change="handleFileUpload"
                       style="display: none"
-                    >
-                    <div v-if="!imageUrl" class="upload-text">Dodaj sliku knjige</div>
-                    <img
-                      v-if="imageUrl"
-                      :src="imageUrl"
-                      class="image-preview"
-                      alt="Slika knjige"
                     />
+                    <div v-if="!imageUrl" class="upload-text">Dodaj sliku knjige</div>
+                    <img v-if="imageUrl" :src="imageUrl" class="image-preview" alt="Slika knjige" />
                   </div>
                 </div>
                 <div class="form-actions">
@@ -256,6 +253,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ActionButtons from '@/components/ActionButtons.vue'
+import axios from '@/axios'
 
 const tab = ref('one')
 const isSaving = ref(false)
@@ -263,48 +261,148 @@ const fileInput = ref(null)
 const router = useRouter()
 const form = ref(null)
 const imageUrl = ref('')
+const selectedFile = ref(null)
 
 const showErrors = ref(false)
 const globalError = ref('')
 
 const book = reactive({
-  naziv_knjige: '',
-  autor: '',
-  kategorija: '',
-  kratak_sadrzaj: '',
-  ukupna_kolicina: 0,
-  izdavac: '',
-  zanr: '',
-  godina_izdavanja: '',
-  pismo: '',
-  broj_stranica: null,
-  povez: '',
-  format: '',
-  jezik: '',
-  isbn: ''
+  name: '',
+  description: '',
+  number_of_copies_available: null,
+  number_of_pages: null,
+  script: '',
+  binding: '',
+  dimensions: '',
+  language: '',
+  isbn: '',
+  categories: [],
+  genres: [],
+  authors: [],
+  publisher_id: null
 })
 
-const uniqueCategories = ref([])
-const uniqueGenres = ref([])
-const uniqueAuthors = ref([])
-const uniquePublishers = ref([])
+
+const uniqueCategories = ref({ data: [] })
+const uniqueGenres = ref({ data: [] })
+const uniqueAuthors = ref({ data: [] })
+const uniquePublishers = ref({ data: [] })
+
+const SCRIPT_OPTIONS = [
+  { title: 'Ćirilica', value: 'cyrillic' },
+  { title: 'Latinica', value: 'latin' },
+  { title: 'Arapsko pismo', value: 'arabic' }
+]
+
+const BINDING_OPTIONS = [
+  { title: 'Tvrdi povez', value: 'hardcover' },
+  { title: 'Meki povez', value: 'paperback' },
+  { title: 'Spiralni povez', value: 'spiral-bound' }
+]
+
+const DIMENSIONS_OPTIONS = [
+  'A1', 'A2', 'A3', 'A4', 'A5', 'A6',
+  '21cm x 29.7cm',
+  '15cm x 21cm',
+  '29.7cm x 42cm',
+  '42cm x 59.4cm',
+  '59.4cm x 84.1cm'
+]
+
+const LANGUAGE_OPTIONS = [
+  { title: 'Crnogorski', value: 'crnogorski' },
+  { title: 'Engleski', value: 'engleski' },
+  { title: 'Srpski', value: 'srpski' },
+  { title: 'Hrvatski', value: 'hrvatski' },
+  { title: 'Bosanski', value: 'bosanski' },
+  { title: 'Ostalo', value: 'ostalo' }
+]
 
 onMounted(() => {
-  fetchBookData()
+  console.log('Komponenta NovaKnjiga je mounted. Pozivam fetchRelatedData().');
+  fetchRelatedData();
 })
 
-async function fetchBookData() {
+async function fetchRelatedData() {
+  console.log('Unutar fetchRelatedData() funkcije.');
   try {
-    // TODO: Zamijeni sa svojim backend pozivom za sve knjige
-    // const books = await api.get('/knjige')
-    // uniqueCategories.value = [...new Set(books.map(b => b.kategorija).filter(Boolean))]
-    // uniqueGenres.value = [...new Set(books.map(b => b.zanr).filter(Boolean))]
-    // uniqueAuthors.value = [...new Set(books.map(b => b.autor).filter(Boolean))]
-    // uniquePublishers.value = [...new Set(books.map(b => b.izdavac).filter(Boolean))]
+    debugger; 
+
+    console.log('Slanje zahteva za kategorije, žanrove, autore i izdavače...');
+    const [categoriesRes, genresRes, authorsRes, publishersRes] = await Promise.all([
+      axios.get('/categories').then(res => {
+        console.log('Kategorije odgovor:', res.data);
+        return res.data;
+      }),
+      axios.get('/genres').then(res => {
+        console.log('Žanrovi odgovor:', res.data);
+        return res.data;
+      }),
+      
+      axios.get('/authors?per_page=20').then(res => { 
+        console.log('Autori odgovor:', res.data);
+        return res.data;
+      }),
+      axios.get('/publishers?per_page=20').then(res => { 
+        console.log('Izdavači odgovor:', res.data);
+        return res.data;
+      })
+    ]);
+console.log(categoriesRes);
+
+    if (categoriesRes.data && Array.isArray(categoriesRes.data.categories)) {
+      uniqueCategories.value.data = categoriesRes.categories.data;
+    } else if (categoriesRes.data && Array.isArray(categoriesRes.data.data)) { 
+       uniqueCategories.value.data = categoriesRes.data.data;
+    } else {
+       console.warn('Podaci za kategorije nisu u očekivanom formatu (očekuje se .data.categories ili .data.data). Postavljanje na prazan niz.');
+       uniqueCategories.value.data = [];
+    }
+
+    // Za Žanrove: podaci su u res.data.genres
+    if (genresRes.data && Array.isArray(genresRes.data.genres)) {
+      uniqueGenres.value.data = genresRes.data.genres;
+    } else if (genresRes.data && Array.isArray(genresRes.data.data)) { 
+       uniqueGenres.value.data = genresRes.data.data;
+    } else {
+       console.warn('Podaci za žanrove nisu u očekivanom formatu (očekuje se .data.genres ili .data.data). Postavljanje na prazan niz.');
+       uniqueGenres.value.data = [];
+    }
+
+
+    if (authorsRes.data && Array.isArray(authorsRes.data.data)) {
+      uniqueAuthors.value.data = authorsRes.data.data.map(author => ({
+        ...author,
+        name: `${author.first_name} ${author.last_name}`
+      }));
+    } else {
+      console.warn('authorsRes.data.data nije pronađen ili nije niz za autore. Postavljanje na prazan niz.');
+      uniqueAuthors.value.data = [];
+    }
+
+ 
+    if (publishersRes.data && Array.isArray(publishersRes.data.publishers)) {
+      uniquePublishers.value.data = publishersRes.data.publishers;
+    } else if (publishersRes.data && Array.isArray(publishersRes.data.data)) { 
+       uniquePublishers.value.data = publishersRes.data.data;
+    } else {
+       console.warn('Podaci za izdavače nisu u očekivanom formatu (očekuje se .data.publishers ili .data.data). Postavljanje na prazan niz.');
+       uniquePublishers.value.data = [];
+    }
+
+    console.log('Podaci uspešno učitani i postavljeni.');
   } catch (error) {
-    globalError.value = 'Greška pri učitavanju podataka!'
-    console.error('Greška pri učitavanju podataka:', error)
+    globalError.value = 'Greška pri ucitavanju podataka sa padajuce liste!';
+    console.error('Greška pri učitavanju podataka:', error);
+    console.error('Detalji greške:', error.response || error.message || error);
+    
+    
+    uniqueCategories.value.data = [];
+    uniqueGenres.value.data = [];
+    uniqueAuthors.value.data = [];
+    uniquePublishers.value.data = [];
   }
+  console.log(uniqueCategories)
 }
 
 const triggerFileInput = () => {
@@ -314,6 +412,7 @@ const triggerFileInput = () => {
 const handleFileUpload = (e) => {
   const file = e.target.files[0]
   if (file) {
+    selectedFile.value = file
     const reader = new FileReader()
     reader.onload = (evt) => {
       imageUrl.value = evt.target.result
@@ -323,64 +422,128 @@ const handleFileUpload = (e) => {
 }
 
 const validIsbn = computed(() => {
-  return !!book.isbn && /^[0-9-]+$/.test(book.isbn)
+  const isbnCleaned = (book.isbn || '').replace(/[- ]/g, '')
+  if (!isbnCleaned) return false
+
+  if (isbnCleaned.length === 10) {
+    let sum = 0
+    for (let i = 0; i < 9; i++) {
+      sum += parseInt(isbnCleaned[i]) * (10 - i)
+    }
+    const lastChar = isbnCleaned[9]
+    sum += ((lastChar === 'X' || lastChar === 'x') ? 10 : parseInt(lastChar))
+    return (sum % 11 === 0)
+  } else if (isbnCleaned.length === 13) {
+    let sum = 0
+    for (let i = 0; i < 12; i++) {
+      sum += parseInt(isbnCleaned[i]) * (i % 2 === 0 ? 1 : 3)
+    }
+    const checkDigit = (10 - (sum % 10)) % 10
+    return checkDigit === parseInt(isbnCleaned[12])
+  }
+  return false
 })
 
 const hasErrorsOnFirstTab = computed(() => {
   return (
-    !book.naziv_knjige ||
-    !book.kategorija ||
-    !book.zanr ||
-    !book.autor ||
-    !book.izdavac ||
-    !book.godina_izdavanja ||
-    !book.ukupna_kolicina || book.ukupna_kolicina <= 0
+    !book.name ||
+    !book.description ||
+    !book.publisher_id ||
+    book.authors.length === 0 ||
+    !book.number_of_copies_available ||
+    book.number_of_copies_available <= 0
+  )
+})
+
+const hasErrorsOnSecondTab = computed(() => {
+  return (
+    !book.number_of_pages ||
+    book.number_of_pages <= 0 ||
+    !book.isbn ||
+    !validIsbn.value
   )
 })
 
 async function validateAndSave() {
   showErrors.value = true
   globalError.value = ''
-  if (
-    !book.naziv_knjige ||
-    !book.kategorija ||
-    !book.zanr ||
-    !book.autor ||
-    !book.izdavac ||
-    !book.godina_izdavanja ||
-    !book.ukupna_kolicina || book.ukupna_kolicina <= 0 ||
-    !book.broj_stranica || book.broj_stranica <= 0 ||
-    !book.pismo ||
-    !book.povez ||
-    !book.format ||
-    !book.jezik ||
-    !book.isbn || !validIsbn.value
-  ) {
+
+  if (hasErrorsOnFirstTab.value) {
+    tab.value = 'one'
+    globalError.value = 'Molimo popunite sva obavezna polja na kartici "Osnovni Detalji"!'
     return
   }
+
+  if (hasErrorsOnSecondTab.value) {
+    tab.value = 'two'
+    globalError.value = 'Molimo popunite sva obavezna polja na kartici "Specifikacija"!'
+    return
+  }
+
   await saveBook()
 }
 
 async function saveBook() {
   isSaving.value = true
   globalError.value = ''
+
   try {
-    const bookData = {
-      ...book,
-      slika_knjige: imageUrl.value || ''
+    const formData = new FormData()
+
+    formData.append('name', book.name)
+    formData.append('description', book.description)
+    formData.append('number_of_pages', book.number_of_pages)
+    formData.append('number_of_copies_available', book.number_of_copies_available)
+    formData.append('isbn', book.isbn)
+
+
+    if (book.language) formData.append('language', book.language)
+    if (book.script) formData.append('script', book.script)
+    if (book.binding) formData.append('binding', book.binding)
+    if (book.dimensions) formData.append('dimensions', book.dimensions)
+
+    if (book.publisher_id) {
+      formData.append('publisher_id', book.publisher_id)
     }
 
-    // TODO: Zamijeni sa svojim backend API pozivom za insert knjige
-    // const response = await api.post('/knjige', bookData)
-    // if (response.data && response.data.id) {
-    //   router.push(`/book/${response.data.id}`)
-    // } else {
-    //   throw new Error('Nije moguće dobiti ID nove knjige')
-    // }
+    if (book.categories && book.categories.length > 0) {
+      book.categories.forEach((id) => formData.append('categories[]', id))
+    }
+    if (book.genres && book.genres.length > 0) {
+      book.genres.forEach((id) => formData.append('genres[]', id))
+    }
+    if (book.authors && book.authors.length > 0) {
+      book.authors.forEach((id) => formData.append('authors[]', id))
+    }
 
+    if (selectedFile.value) {
+      formData.append('images[0]', selectedFile.value)
+      formData.append('image_types[0]', 'front_cover')
+    }
+
+    const response = await axios.post('/books/create', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+
+    if (response.data && response.data.book && response.data.book.id) {
+      router.push(`/books/${response.data.book.id}`)
+    } else {
+      throw new Error('Nije moguće dobiti ID nove knjige nakon kreiranja.')
+    }
   } catch (error) {
-    // TODO: Prilagodi error handling svom backendu
-    globalError.value = error.message || 'Greška pri čuvanju knjige.'
+    if (error.response && error.response.data && error.response.data.errors) {
+      const errors = error.response.data.errors
+      let errorMessage = 'Molimo ispravite sljedeće greške:\n'
+      for (const key in errors) {
+        // Concatenate all error messages for a given field
+        errorMessage += `- ${errors[key].join(', ')}\n`
+      }
+      globalError.value = errorMessage
+    } else {
+      globalError.value = error.message || 'Greška pri čuvanju knjige.'
+    }
     console.error('Greška pri čuvanju knjige:', error)
   } finally {
     isSaving.value = false
@@ -424,7 +587,7 @@ const textareaStyle = {
 }
 
 .form-card {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .custom-tabs {
@@ -456,7 +619,7 @@ const textareaStyle = {
 }
 
 .custom-tabs :deep(.v-tab--selected) {
-  color: #3392EA;
+  color: #3392ea;
   font-weight: 400;
 }
 
@@ -473,20 +636,20 @@ const textareaStyle = {
 .photo-upload-box {
   width: 200px;
   height: 160px;
-  border: 1px dashed #BDBDBD;
+  border: 1px dashed #bdbdbd;
   border-radius: 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  background-color: #FAFAFA;
+  background-color: #fafafa;
   position: relative;
   overflow: hidden;
 }
 
 .photo-upload-box:hover {
-  border-color: #3392EA;
+  border-color: #3392ea;
 }
 
 .upload-text {
@@ -505,7 +668,7 @@ const textareaStyle = {
 }
 
 .custom-error {
-  color: #CF2A27;
+  color: #cf2a27;
   font-size: 12px;
   line-height: 24px;
   letter-spacing: 0.4px;

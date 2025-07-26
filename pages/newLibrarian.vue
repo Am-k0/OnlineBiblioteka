@@ -13,7 +13,7 @@
 </template>
 
 <script>
-import PersonForm from '@/components/PersonForm.vue'
+import PersonForm from '~/components/newUsers.vue'
 
 export default {
   components: {

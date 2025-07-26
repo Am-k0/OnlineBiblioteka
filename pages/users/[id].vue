@@ -15,44 +15,38 @@
     <v-card-text>
       <v-window v-model="tab">
         <v-window-item value="one">
-          <!-- Osnovni detalji -->
           <div class="student-wrapper">
             <div class="student-header">
               <div>
-                <h1 class="student-title">{{ student?.ime_i_prezime }}</h1>
+                <h1 class="student-title">{{ user?.first_name }} {{ user?.last_name }}</h1>
                 <p class="student-subtitle">
-                  <span class="link" @click="router.push('/students')">Svi učenici</span>
-                  / ID: {{ route.params.id }}
-                </p>
+                  <span class="link" @click="emit('navigate', '/users')">Svi korisnici</span> / Korisničko ime: {{ userId }} </p>
               </div>
               <ActionMenu
-                v-if="student"
-                :item="student"
+                v-if="user"
+                :item="user"
                 :hideViewOption="true"
-                entityName="učenika"
-                titleProperty="ime_i_prezime"
+                entityName="korisnika" titleProperty="first_name"
                 @edit="handleEdit"
                 @delete="handleDelete"
-                @error="setError"
+                @error="emit('error', $event)"
               />
             </div>
-            <div v-if="student" class="student-card">
-              <img :src="student.avatar || 'https://randomuser.me/api/portraits/men/1.jpg'" alt="Avatar učenika" class="student-avatar" />
+            <div v-if="user" class="student-card">
+              <img :src="getProfilePictureUrl(user.profile_picture)" alt="Avatar korisnika" class="student-avatar" />
               <div class="student-info">
                 <template v-if="editMode">
-                  <label class="label">Ime i Prezime:</label>
-                  <input v-model="form.ime_i_prezime" type="text" class="student-input" />
+                  <label class="label">Ime:</label>
+                  <input v-model="localForm.first_name" type="text" class="student-input" />
+                  <label class="label">Prezime:</label>
+                  <input v-model="localForm.last_name" type="text" class="student-input" />
                   <label class="label">JMBG:</label>
-                  <input v-model="form.jmbg" type="text" class="student-input" />
+                  <input v-model="localForm.jmbg" type="text" class="student-input" />
                   <label class="label">Email:</label>
-                  <input v-model="form.email" type="email" class="student-input" />
+                  <input v-model="localForm.email" type="email" class="student-input" />
                   <label class="label">Korisničko ime:</label>
-                  <input v-model="form.korisnicko_ime" type="text" class="student-input" />
-                  <label class="label">Broj logovanja:</label>
-                  <input v-model.number="form.broj_logovanja" type="number" class="student-input" />
-                  <label class="label">Avatar URL:</label>
-                  <input v-model="form.avatar" type="text" class="student-input" />
-                  <Buttons @save="saveStudent" @cancel="() => (editMode = false)" />
+                  <input v-model="localForm.username" type="text" class="student-input" />
+                  <Buttons @save="saveUser" @cancel="() => (editMode = false)" />
                 </template>
                 <template v-else>
                   <div class="student-field" v-for="(value, label) in displayFields" :key="label">
@@ -62,12 +56,11 @@
                 </template>
               </div>
             </div>
-            <p v-if="error" class="error-message">{{ error }}</p>
+            <p v-if="globalError" class="error-message">{{ globalError }}</p>
           </div>
         </v-window-item>
 
         <v-window-item value="two">
-          <!-- Evidencija iznajmljivanja -->
           <div class="iznajmljivanje-layout">
             <nav class="side-menu">
               <v-list nav dense class="pa-0">
@@ -78,14 +71,12 @@
                   @click="selectMenuItem(i)"
                   class="side-menu-item"
                 >
-                  <div class="side-menu-row">
-                    <v-list-item-icon>
-                      <v-icon :color="menuTab === i ? 'primary' : 'grey'" size="24">{{ item.icon }}</v-icon>
-                    </v-list-item-icon>
-                    <v-list-item-title :class="['side-menu-text', menuTab === i ? 'font-weight-bold blue--text' : '']">
-                      {{ item.label }}
-                    </v-list-item-title>
-                  </div>
+                  <template v-slot:prepend>
+                    <v-icon :color="menuTab === i ? 'primary' : 'grey'" size="24">{{ item.icon }}</v-icon>
+                  </template>
+                  <v-list-item-title :class="['side-menu-text', menuTab === i ? 'font-weight-bold blue--text' : '']">
+                    {{ item.label }}
+                  </v-list-item-title>
                 </v-list-item>
                 <div class="menu-divider-wrap">
                   <v-divider class="custom-divider" />
@@ -93,7 +84,7 @@
               </v-list>
             </nav>
             <div class="main-content">
-              <component :is="getComponent" :student-id="studentId" />
+              <component :is="getComponent" :student-id="user?.id" />
             </div>
           </div>
         </v-window-item>
@@ -103,45 +94,77 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, watch, defineProps, defineEmits } from 'vue'
+// Akcione komponente i Vuetify komponente su zadržane
 import ActionMenu from '~/components/ActionMenu.vue'
 import Buttons from '~/components/ActionButtons.vue'
+import IzdateKnjige from '~/components/IzdateKnjige.vue'
+import VracanjeKnjige from '~/components/VracanjeKnjige.vue'
+import KnjigeUPrekoracenju from '~/components/KnjigeUPrekoracenju.vue'
+import AktivneRezervacije from '~/components/AktivneRezervacije.vue'
+import ArhiviraneRezervacije from '~/components/ArhiviraneRezervacije.vue'
 
-import IzdateKnjige from '@/components/IzdateKnjige.vue'
-import VracanjeKnjige from '@/components/VracanjeKnjige.vue'
-import KnjigeUPrekoracenju from '@/components/KnjigeUPrekoracenju.vue'
-import AktivneRezervacije from '@/components/AktivneRezervacije.vue'
-import ArhiviraneRezervacije from '@/components/ArhiviraneRezervacije.vue'
-
-interface Student {
-  id: number
-  ime_i_prezime: string
-  jmbg: string
-  email: string
-  korisnicko_ime: string
-  broj_logovanja: number
-  zadnji_pristup_sistemu: string | null
-  avatar: string | null
+// Definicije interfejsa
+interface User {
+  id: number;
+  first_name: string;
+  last_name: string;
+  jmbg: string;
+  email: string;
+  username: string;
+  role_id: number;
+  profile_picture: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-interface FormData {
-  ime_i_prezime: string
-  jmbg: string
-  email: string
-  korisnicko_ime: string
-  broj_logovanja: number
-  avatar: string
+interface UserFormData {
+  first_name: string;
+  last_name: string;
+  jmbg: string;
+  email: string;
+  username: string;
 }
 
-const route = useRoute()
-const router = useRouter()
+const props = defineProps({
+  user: { // User data is now a prop
+    type: Object as () => User | null,
+    default: null
+  },
+  userId: { // ID of the user, could be string (username) or number (id)
+    type: [String, Number],
+    required: true
+  },
+  editMode: { // Controls initial edit mode
+    type: Boolean,
+    default: false
+  },
+  globalError: { // Error message from parent/backend
+    type: String,
+    default: null
+  }
+});
+
+const emit = defineEmits([
+  'update:editMode', // Emits when edit mode changes
+  'save-user',       // Emits when user clicks save after editing
+  'delete-user',     // Emits when user confirms deletion
+  'navigate',        // Emits for navigation (e.g., to /users)
+  'error',           // Emits for any internal errors (e.g., ID not found)
+  'load-user'        // Emits when the component needs user data (on mount or ID change)
+]);
 
 const tab = ref('one')
-const student = ref<Student | null>(null)
-const error = ref<string | null>(null)
-const editMode = ref(false)
-const form = ref<FormData>({ ime_i_prezime: '', jmbg: '', email: '', korisnicko_ime: '', broj_logovanja: 0, avatar: '' })
+const editMode = ref(props.editMode) // Lokalno stanje za editMode
+
+// Lokalna forma koja se inicijalizuje iz props.user ili prazno
+const localForm = ref<UserFormData>({
+  first_name: '',
+  last_name: '',
+  jmbg: '',
+  email: '',
+  username: ''
+});
 
 const menuTab = ref(0)
 const stavke = [
@@ -152,71 +175,86 @@ const stavke = [
   { label: 'Arhivirane rezervacije', icon: 'mdi-archive-outline', component: ArhiviraneRezervacije }
 ]
 
-const studentId = computed(() => Array.isArray(route.params.id) ? route.params.id[0] : route.params.id)
-const getComponent = computed(() => stavke[menuTab.value].component)
+const getComponent = computed(() => stavke[menuTab.value]?.component ?? null)
 const selectMenuItem = (index: number) => { menuTab.value = index }
 
 const formatDate = (dateString: string | null) => {
   if (!dateString) return 'Nije pristupao'
   const date = new Date(dateString)
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+  return date.toLocaleDateString('sr-RS') + ' ' + date.toLocaleTimeString('sr-RS', { hour: '2-digit', minute: '2-digit' })
 }
 
-const displayFields = computed(() => student.value ? {
-  'Ime i Prezime': student.value.ime_i_prezime,
-  'JMBG': student.value.jmbg,
-  'Email': student.value.email,
-  'Korisničko ime': student.value.korisnicko_ime,
-  'Broj logovanja': student.value.broj_logovanja,
-  'Poslednji put logovan/a': formatDate(student.value.zadnji_pristup_sistemu)
-} : {})
+const getProfilePictureUrl = (picturePath: string | null | undefined) => {
+  if (picturePath) {
+    return `http://localhost/storage/${picturePath}`;
+  }
+  return '/images/default-user-1.jpg'
+}
 
-onMounted(async () => {
-  await loadStudent()
-  if (route.query.edit === 'true') editMode.value = true
+const displayFields = computed(() => {
+  if (!props.user) {
+    return {}
+  }
+  return {
+    'Ime i Prezime': `${props.user.first_name} ${props.user.last_name}`,
+    'JMBG': props.user.jmbg,
+    'Email': props.user.email,
+    'Korisničko ime': props.user.username,
+    'Poslednji put logovan/a': formatDate(props.user.updated_at)
+  }
 })
 
-const loadStudent = async () => {
-  try {
-    // TODO: Zamijeni sa svojim backend pozivom za dohvat učenika
-    // const data = await fetchStudentById(route.params.id)
-    // student.value = data
-    // form.value = { ...data, avatar: data.avatar || '' }
-  } catch (err) {
-    error.value = `Greška pri učitavanju učenika: ${err instanceof Error ? err.message : 'Nepoznata greška'}`
+// Emituj 'load-user' kada se userId promeni ili kada se komponenta montira ako nema user podataka
+watch(() => props.userId, (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    emit('load-user', newId);
   }
+}, { immediate: true }); // Učitaj odmah po montiranju
+
+watch(() => props.user, (newUser) => {
+  if (newUser) {
+    localForm.value = {
+      first_name: newUser.first_name,
+      last_name: newUser.last_name,
+      jmbg: newUser.jmbg,
+      email: newUser.email,
+      username: newUser.username
+    };
+  }
+}, { immediate: true, deep: true }); // Inicijalizuj formu kada se user prop promeni
+
+// Watch editMode prop i emituj promenu
+watch(() => props.editMode, (newVal) => {
+  editMode.value = newVal;
+});
+watch(editMode, (newVal) => {
+  emit('update:editMode', newVal);
+});
+
+const saveUser = () => {
+  if (!props.user) {
+    emit('error', 'Podaci o korisniku nisu učitani.');
+    return;
+  }
+  // Emituj podatke iz lokalne forme i originalni ID/username
+  emit('save-user', { id: props.user.id, username: props.user.username, formData: localForm.value });
+};
+
+const handleEdit = () => { // ActionMenu emituje samo item, ne mode
+  editMode.value = true
+  // Forma se već inicijalizuje watch-erom na props.user
 }
 
-const saveStudent = async () => {
-  if (!student.value) return
-  try {
-    // TODO: Zamijeni sa svojim backend pozivom za update učenika
-    // await updateStudent(student.value.id, form.value)
-    editMode.value = false
-    await loadStudent()
-  } catch (err) {
-    error.value = `Greška pri čuvanju: ${err instanceof Error ? err.message : 'Nepoznata greška'}`
+const handleDelete = (deletedUser: User) => { // ActionMenu emituje samo item
+  const confirmed = confirm('Da li ste sigurni da želite da obrišete korisnika?');
+  if (confirmed) {
+    emit('delete-user', deletedUser.id); // Emituj samo ID za brisanje
   }
-}
-
-const setError = (msg: string) => { error.value = msg }
-const handleEdit = ({ mode }: { item: Student; mode: 'edit' | 'view' }) => { if (mode === 'edit') editMode.value = true }
-const handleDelete = async (deletedStudent: Student) => {
-  const confirmed = confirm('Da li ste sigurni da želite da obrišete učenika?')
-  if (!confirmed) return
-  try {
-    // TODO: Zamijeni sa svojim backend pozivom za brisanje učenika
-    // await deleteStudent(deletedStudent.id)
-    router.push('/students')
-  } catch (err) {
-    setError(`Greška pri brisanju: ${err instanceof Error ? err.message : 'Nepoznata greška'}`)
-  }
-}
+};
 </script>
 
-
 <style scoped>
-/* Postojeći stilovi... */
+/* Vaši stilovi ostaju isti */
 .student-wrapper {
   max-width: 800px;
   margin: 0;
@@ -281,11 +319,6 @@ const handleDelete = async (deletedStudent: Student) => {
   word-break: break-all;
 }
 
-.email-link {
-  color: #1976d2;
-  cursor: pointer;
-}
-
 .label {
   font-size: 14px;
   color: rgba(0, 0, 0, 0.6);
@@ -327,7 +360,6 @@ const handleDelete = async (deletedStudent: Student) => {
   background-color: #3392EA !important;
 }
 
-/* Stilovi za evidenciju iznajmljivanja */
 .iznajmljivanje-layout {
   display: flex;
 }
@@ -344,7 +376,6 @@ const handleDelete = async (deletedStudent: Student) => {
   padding-bottom: 0;
   display: flex;
   flex-direction: column;
-  
 }
 
 .side-menu-item {
@@ -355,7 +386,6 @@ const handleDelete = async (deletedStudent: Student) => {
   max-height: 40px;
   padding: 0 8px 0 8px;
   cursor: pointer;
- 
   background: transparent;
   margin-bottom: 0;
 }
@@ -365,16 +395,6 @@ const handleDelete = async (deletedStudent: Student) => {
   align-items: center;
   width: 231px;
   height: 40px;
-
-}
-
-.v-list-item-icon {
-  min-width: 24px !important;
-  width: 24px !important;
-  height: 24px !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .side-menu-text {
@@ -418,5 +438,4 @@ const handleDelete = async (deletedStudent: Student) => {
   flex-direction: column;
   overflow-y: auto;
 }
-
 </style>

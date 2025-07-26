@@ -25,6 +25,6 @@ const showLayout = computed(() => route.path !== '/login')
 <style scoped>
 .main-content {
   background-color: #F5F7FA;
-  padding-top: 72px; /* da ne pokrije appbar */
+  padding-top: 72px; 
 }
 </style>

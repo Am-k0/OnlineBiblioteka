@@ -9,7 +9,6 @@
     <div
       class="d-flex align-center"
       style="
-        width: 289px;
         height: 72px;
         background-color: #2D8CE4;
         padding-left: 16px;

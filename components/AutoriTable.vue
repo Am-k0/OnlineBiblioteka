@@ -165,7 +165,7 @@ const filteredAutori = computed(() => {
 
 const itemClass = 'table-row'
 
-// MODIFIED: Takes `item` directly
+
 const handleEdit = (item) => {
   router.push({
     path: `/author/${item.id}`,
@@ -173,7 +173,7 @@ const handleEdit = (item) => {
   })
 }
 
-// MODIFIED: Takes `item` directly
+
 const handleView = (item) => {
   router.push(`/author/${item.id}`)
 }
@@ -200,7 +200,7 @@ const handleDelete = async (item) => {
 </script>
 
 <style scoped>
-/* Your existing styles remain unchanged */
+
 .no-border-table .v-data-table__wrapper table,
 .no-border-table .v-data-table__wrapper table thead,
 .no-border-table .v-data-table__wrapper table tbody,

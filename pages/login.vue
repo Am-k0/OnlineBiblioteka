@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+// PROMJENA: Importuj svoju konfigurisanu Axios instancu
+import api from '@/axios' // Pretpostavljajući da je putanja do axios.js 'src/axios.js'
 
 const router = useRouter()
 
@@ -27,15 +28,10 @@ async function signIn() {
   errorMsg.value = null
 
   try {
-    // Ispravljen endpoint prema tvom Postman screenshotu
-    const response = await axios.post('http://localhost:80/api/login', {
+    // PROMJENA: Koristi uvezenu 'api' instancu
+    const response = await api.post('/login', { // Koristi relativnu putanju jer je baseURL već postavljen u axios.js
       email: credentials.value.email,
       password: credentials.value.password,
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
     })
 
     console.log('Full response:', response) // Debug log
@@ -49,15 +45,15 @@ async function signIn() {
       throw new Error('Token not found in response. Check backend response structure.')
     }
 
-    // Sačuvaj token
-    localStorage.setItem('auth_token', token)
+    // Sačuvaj token koristeći isto ime ključa kao u axios.js
+    localStorage.setItem('auth_token', token) // PROMJENA: Koristi 'auth_token'
     
-    // Postavi Axios defaultni header za sve buduće zahteve
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    // Ukloni nepotrebnu liniju - interceptor u axios.js to radi automatski
+    // axios.defaults.headers.common['Authorization'] = `Bearer ${token}` 
     
     // Provera da li je token uspješno sačuvan
     const storedToken = localStorage.getItem('auth_token')
-    console.log('Stored token:', storedToken) // Debug log
+    console.log('Stored token after save:', storedToken) // Debug log
     
     if (!storedToken) {
       throw new Error('Failed to save token to localStorage')
@@ -69,17 +65,13 @@ async function signIn() {
   } catch (error: any) {
     console.error('Login error:', error)
     
-    // Detaljnija obrada grešaka
     if (error.response) {
-      // Server responded with error status
       errorMsg.value = error.response.data?.message || 
                       error.response.data?.error ||
                       'Login failed. Please check your credentials.'
     } else if (error.request) {
-      // Request was made but no response received
       errorMsg.value = 'No response from server. Please try again later.'
     } else {
-      // Something happened in setting up the request
       errorMsg.value = error.message || 'An unexpected error occurred'
     }
   } finally {
