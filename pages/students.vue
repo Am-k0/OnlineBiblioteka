@@ -44,7 +44,7 @@ const search = ref('')
 const router = useRouter()
 
 const onAddKorisnik = () => {
-  router.push('/newUsers')
+  router.push('/newStudent')
 }
 </script>
 

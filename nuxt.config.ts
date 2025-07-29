@@ -1,7 +1,7 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
+// nuxt.config.ts
 import { defineNuxtConfig } from 'nuxt/config';
 import tailwindcss from "@tailwindcss/vite";
-import path from 'path'; // Uvezite 'path' modul
+import path from 'path';
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
@@ -9,7 +9,9 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.API_BASE_URL || 'http://localhost:80/api'
+      // Ovo je za PRODUCTION. Ako tvoj Laravel backend bude na 'http://mojdomen.com/api', onda neka ostane /api
+      // Ako Laravel backend bude na 'http://mojdomen.com' a rute su '/api/create', onda ovde stavi 'http://mojdomen.com'
+      apiBase: process.env.API_BASE_URL || 'http://localhost/api' // Ostavite /api ovde ako vaše Laravel rute počinju sa /api
     }
   },
 
@@ -24,26 +26,22 @@ export default defineNuxtConfig({
 
   vite: {
     plugins: [tailwindcss()],
-    resolve: { // DODAJTE OVAJ RESOLVE OBJEKAT
+    resolve: {
       alias: {
-        // Postojeći ~ i @ alijasi su već automatski podešeni od strane Nuxt-a
-        // Ali možete eksplicitno dodati ako želite specifičnu putanju za @/axios
-        '@': path.resolve(__dirname, './'), // Ovo je već podrazumevano u Nuxtu da '@' pokazuje na root
-                                            // Ako je vaš axios.js u 'src', onda bi bilo './src'
-        '~': path.resolve(__dirname, './'), // Isto za '~'
-        '@axios': path.resolve(__dirname, './src/axios.js'), // <-- DODAJTE OVAJ ALIAS ZA AXIOS
-        // Ako je vaš axios.js direktno u root-u projekta:
-        // '@axios': path.resolve(__dirname, './axios.js'),
-        // Ako je vaš axios.js u 'plugins' folderu unutar 'src':
-        // '@axios': path.resolve(__dirname, './src/plugins/axios.js'),
+        '@axios': path.resolve(__dirname, './src/axios.js'),
       }
     },
     server: {
       proxy: {
         '/api': {
-          target: 'http://localhost:80/api',
+          target: 'http://localhost', // ISPRAVKA: Target je samo bazni URL backend servera (bez /api)
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '/api')
+          // rewrite: (path) => path.replace(/^\/api/, '/api') // Ovo je sada redundantno ako Laravel rute već imaju /api
+          // Ako tvoje Laravel rute zaista počinju sa `/api` (kao što `Route::prefix('api')` implicira),
+          // onda proxy već preusmerava `localhost:3000/api/create` na `localhost/api/create`.
+          // Ne treba ti `rewrite` ako je `target` bazni domen, a rute već imaju prefiks.
+          // Ali ako želiš da bude eksplicitno, možeš i ovo:
+          rewrite: (path) => path // Bez izmene, prosleđuje putanju kakva jeste
         }
       }
     }

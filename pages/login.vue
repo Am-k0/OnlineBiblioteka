@@ -2,7 +2,10 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 // PROMJENA: Importuj svoju konfigurisanu Axios instancu
-import api from '@/axios' // Pretpostavljajući da je putanja do axios.js 'src/axios.js'
+// Pretpostavljajući da je putanja do axios.js 'src/axios.js'
+// VAŽNO: Koristi imenovani import ako api.js eksportuje default, ili direktno importuj funkciju
+import api from '@/axios' // Ako je export default
+// ili: import { axiosInstance as api } from '@/axios'; // Ako je named export, npr. 'axiosInstance'
 
 const router = useRouter()
 
@@ -10,7 +13,7 @@ const credentials = ref({ email: '', password: '' })
 const errorMsg = ref<string | null>(null)
 const loading = ref(false)
 const visible = ref(false)
-const formIsValid = ref(false)
+const formIsValid = ref(false) // Ovo je vezano za v-form validaciju
 
 const emailRules = [
   (v: string) => !!v || 'Email is required',
@@ -22,60 +25,82 @@ const passwordRules = [
 ]
 
 async function signIn() {
-  if (!formIsValid.value) return
+  // PROVJERA: Proveri da li je v-form ispravna pre slanja
+  if (!formIsValid.value) {
+    console.log('Frontend form validation failed.');
+    errorMsg.value = 'Please correct the form errors.';
+    return;
+  }
 
   loading.value = true
   errorMsg.value = null
+  console.log('Attempting sign-in...');
+  console.log('Credentials:', credentials.value.email); // Ne loguj password direktno
 
   try {
     // PROMJENA: Koristi uvezenu 'api' instancu
     const response = await api.post('/login', { // Koristi relativnu putanju jer je baseURL već postavljen u axios.js
       email: credentials.value.email,
       password: credentials.value.password,
-    })
+    });
 
-    console.log('Full response:', response) // Debug log
+    console.log('Login API Full response:', response); // Debug log
 
     // Prilagodjeno prema tvom Postman odgovoru gdje token dolazi kao "status_token"
+    // Dodao sam i 'data.token' i 'data.access_token' za širu kompatibilnost
     const token = response.data?.status_token || 
-                 response.data?.token ||
-                 response.data?.access_token
+                  response.data?.token ||
+                  response.data?.access_token;
 
     if (!token) {
-      throw new Error('Token not found in response. Check backend response structure.')
+      console.error('Token not found in response data. Response:', response.data);
+      throw new Error('Token not found in response. Check backend response structure.');
     }
 
-    // Sačuvaj token koristeći isto ime ključa kao u axios.js
-    localStorage.setItem('auth_token', token) // PROMJENA: Koristi 'auth_token'
     
-    // Ukloni nepotrebnu liniju - interceptor u axios.js to radi automatski
-    // axios.defaults.headers.common['Authorization'] = `Bearer ${token}` 
+    localStorage.setItem('auth_token', token); // Koristi 'auth_token'
+    console.log('Token successfully saved to localStorage with key "auth_token".');
     
-    // Provera da li je token uspješno sačuvan
-    const storedToken = localStorage.getItem('auth_token')
-    console.log('Stored token after save:', storedToken) // Debug log
+  
+    const storedToken = localStorage.getItem('auth_token');
+    console.log('Stored token after save (read back from localStorage):', storedToken ? 'Token exists' : 'Token is NULL or EMPTY');
     
     if (!storedToken) {
-      throw new Error('Failed to save token to localStorage')
+      throw new Error('Failed to save token to localStorage. Verify browser storage and permissions.');
     }
 
-    // Redirekcija nakon uspješnog logina
-    router.push('/')
+
+    console.log('Login successful. Redirecting to /');
+    router.push('/');
 
   } catch (error: any) {
-    console.error('Login error:', error)
+    console.error('Login error in signIn function:', error);
     
     if (error.response) {
+      console.error('Error response status:', error.response.status);
+      console.error('Error response data:', error.response.data);
+
       errorMsg.value = error.response.data?.message || 
                       error.response.data?.error ||
-                      'Login failed. Please check your credentials.'
+                      'Login failed. Please check your credentials.';
+      
+      // Specifična poruka za 401 Unauthorized
+      if (error.response.status === 401) {
+        errorMsg.value = 'Invalid email or password.';
+      }
+
     } else if (error.request) {
-      errorMsg.value = 'No response from server. Please try again later.'
+      // Zahtev je poslat, ali nije primljen odgovor
+      console.error('No response received from server. Request:', error.request);
+      errorMsg.value = 'No response from server. Please try again later.';
     } else {
-      errorMsg.value = error.message || 'An unexpected error occurred'
+      // Nešto drugo je pošlo naopako pre slanja zahteva
+      console.error('Error setting up request:', error.message);
+      errorMsg.value = error.message || 'An unexpected error occurred.';
     }
   } finally {
-    loading.value = false
+    loading.value = false;
+    console.log('Login attempt finished. Loading set to false.');
   }
 }
 </script>

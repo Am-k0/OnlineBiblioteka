@@ -34,7 +34,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import BibliotekariTable from '@/components/BibliotekariTable.vue'
+import usersTable from '~/components/usersTable.vue'
 
 const search = ref('')
 const router = useRouter()

@@ -20,17 +20,18 @@
               <div>
                 <h1 class="student-title">{{ user?.first_name }} {{ user?.last_name }}</h1>
                 <p class="student-subtitle">
-                  <span class="link" @click="emit('navigate', '/users')">Svi korisnici</span> / Korisničko ime: {{ userId }} </p>
+                  <span class="link" @click="router.push('/students')">Svi korisnici</span> / Korisničko ime: {{ user?.username }}
+                </p>
               </div>
               <ActionMenu
                 v-if="user"
                 :item="user"
                 :hideViewOption="true"
-                entityName="korisnika" titleProperty="first_name"
+                entityName="korisnika"
+                titleProperty="first_name"
                 @edit="handleEdit"
                 @delete="handleDelete"
-                @error="emit('error', $event)"
-              />
+                @error="showSnackbar($event, 'error')" />
             </div>
             <div v-if="user" class="student-card">
               <img :src="getProfilePictureUrl(user.profile_picture)" alt="Avatar korisnika" class="student-avatar" />
@@ -46,8 +47,7 @@
                   <input v-model="localForm.email" type="email" class="student-input" />
                   <label class="label">Korisničko ime:</label>
                   <input v-model="localForm.username" type="text" class="student-input" />
-                  <Buttons @save="saveUser" @cancel="() => (editMode = false)" />
-                </template>
+                  <Buttons @save="saveUser" @cancel="editMode = false" /> </template>
                 <template v-else>
                   <div class="student-field" v-for="(value, label) in displayFields" :key="label">
                     <span class="student-label">{{ label }}</span>
@@ -57,6 +57,7 @@
               </div>
             </div>
             <p v-if="globalError" class="error-message">{{ globalError }}</p>
+            <p v-if="loading" class="loading-message">Učitavam korisnika...</p>
           </div>
         </v-window-item>
 
@@ -90,12 +91,29 @@
         </v-window-item>
       </v-window>
     </v-card-text>
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+    >
+      {{ snackbar.message }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, defineProps, defineEmits } from 'vue'
-// Akcione komponente i Vuetify komponente su zadržane
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import axios from 'axios'
 import ActionMenu from '~/components/ActionMenu.vue'
 import Buttons from '~/components/ActionButtons.vue'
 import IzdateKnjige from '~/components/IzdateKnjige.vue'
@@ -104,7 +122,6 @@ import KnjigeUPrekoracenju from '~/components/KnjigeUPrekoracenju.vue'
 import AktivneRezervacije from '~/components/AktivneRezervacije.vue'
 import ArhiviraneRezervacije from '~/components/ArhiviraneRezervacije.vue'
 
-// Definicije interfejsa
 interface User {
   id: number;
   first_name: string;
@@ -126,45 +143,22 @@ interface UserFormData {
   username: string;
 }
 
-const props = defineProps({
-  user: { // User data is now a prop
-    type: Object as () => User | null,
-    default: null
-  },
-  userId: { // ID of the user, could be string (username) or number (id)
-    type: [String, Number],
-    required: true
-  },
-  editMode: { // Controls initial edit mode
-    type: Boolean,
-    default: false
-  },
-  globalError: { // Error message from parent/backend
-    type: String,
-    default: null
-  }
-});
+const route = useRoute()
+const router = useRouter()
 
-const emit = defineEmits([
-  'update:editMode', // Emits when edit mode changes
-  'save-user',       // Emits when user clicks save after editing
-  'delete-user',     // Emits when user confirms deletion
-  'navigate',        // Emits for navigation (e.g., to /users)
-  'error',           // Emits for any internal errors (e.g., ID not found)
-  'load-user'        // Emits when the component needs user data (on mount or ID change)
-]);
-
+const user = ref<User | null>(null)
+const userId = ref<string>('')
+const editMode = ref(false)
+const globalError = ref<string | null>(null)
+const loading = ref(false)
 const tab = ref('one')
-const editMode = ref(props.editMode) // Lokalno stanje za editMode
-
-// Lokalna forma koja se inicijalizuje iz props.user ili prazno
 const localForm = ref<UserFormData>({
   first_name: '',
   last_name: '',
   jmbg: '',
   email: '',
   username: ''
-});
+})
 
 const menuTab = ref(0)
 const stavke = [
@@ -174,6 +168,20 @@ const stavke = [
   { label: 'Aktivne rezervacije', icon: 'mdi-calendar-clock', component: AktivneRezervacije },
   { label: 'Arhivirane rezervacije', icon: 'mdi-archive-outline', component: ArhiviraneRezervacije }
 ]
+
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: '',
+  timeout: 3000,
+})
+
+const showSnackbar = (message: string, color: string = 'info', timeout: number = 3000) => {
+  snackbar.value.message = message
+  snackbar.value.color = color
+  snackbar.value.timeout = timeout
+  snackbar.value.show = true
+}
 
 const getComponent = computed(() => stavke[menuTab.value]?.component ?? null)
 const selectMenuItem = (index: number) => { menuTab.value = index }
@@ -186,32 +194,119 @@ const formatDate = (dateString: string | null) => {
 
 const getProfilePictureUrl = (picturePath: string | null | undefined) => {
   if (picturePath) {
-    return `http://localhost/storage/${picturePath}`;
+    return `http://localhost/storage/${picturePath}`
   }
   return '/images/default-user-1.jpg'
 }
 
 const displayFields = computed(() => {
-  if (!props.user) {
+  if (!user.value) {
     return {}
   }
   return {
-    'Ime i Prezime': `${props.user.first_name} ${props.user.last_name}`,
-    'JMBG': props.user.jmbg,
-    'Email': props.user.email,
-    'Korisničko ime': props.user.username,
-    'Poslednji put logovan/a': formatDate(props.user.updated_at)
+    'Ime i Prezime': `${user.value.first_name} ${user.value.last_name}`,
+    'JMBG': user.value.jmbg,
+    'Email': user.value.email,
+    'Korisničko ime': user.value.username,
+    'Poslednji put logovan/a': formatDate(user.value.updated_at)
   }
 })
 
-// Emituj 'load-user' kada se userId promeni ili kada se komponenta montira ako nema user podataka
-watch(() => props.userId, (newId, oldId) => {
-  if (newId && newId !== oldId) {
-    emit('load-user', newId);
+const fetchUser = async (username: string) => {
+  loading.value = true
+  globalError.value = null
+  try {
+    const response = await axios.get(`http://localhost:8000/api/users/${username}`)
+    user.value = response.data
+    if (user.value) {
+      localForm.value = {
+        first_name: user.value.first_name,
+        last_name: user.value.last_name,
+        jmbg: user.value.jmbg,
+        email: user.value.email,
+        username: user.value.username
+      }
+    }
+  } catch (error: any) {
+    console.error('Greška pri dohvatanju korisnika:', error)
+    if (error.response && error.response.data) {
+      globalError.value = `Greška: ${error.response.data.message || 'Nepoznata greška'}`
+    } else {
+      globalError.value = 'Došlo je do mrežne greške ili greške servera.'
+    }
+    showSnackbar(globalError.value, 'error')
+    user.value = null
+  } finally {
+    loading.value = false
   }
-}, { immediate: true }); // Učitaj odmah po montiranju
+}
 
-watch(() => props.user, (newUser) => {
+const saveUser = async () => {
+  if (!user.value) {
+    showSnackbar('Podaci o korisniku nisu učitani.', 'error')
+    return
+  }
+  loading.value = true
+  globalError.value = null
+  try {
+    const response = await axios.put(`http://localhost:8000/api/user/update`, localForm.value)
+    user.value = response.data.user
+    editMode.value = false
+    showSnackbar('Korisnik uspješno ažuriran!', 'success')
+  } catch (error: any) {
+    console.error('Greška pri ažuriranju korisnika:', error)
+    if (error.response && error.response.data) {
+      globalError.value = `Greška pri ažuriranju: ${error.response.data.message || 'Nepoznata greška'}`
+      if (error.response.status === 422 && error.response.data.errors) {
+        globalError.value += '\n' + Object.values(error.response.data.errors).flat().join('\n')
+      }
+    } else {
+      globalError.value = 'Došlo je do mrežne greške ili greške servera pri ažuriranju.'
+    }
+    showSnackbar(globalError.value, 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleEdit = () => {
+  editMode.value = true
+}
+
+const handleDelete = async (item: User) => {
+  const confirmed = confirm(`Da li ste sigurni da želite da obrišete korisnika ${item.first_name} ${item.last_name}?`)
+  if (confirmed) {
+    loading.value = true
+    try {
+      await axios.delete(`http://localhost:8000/api/users/${item.id}`)
+      showSnackbar('Korisnik uspješno obrisan!', 'success')
+      router.push('/users')
+    } catch (error: any) {
+      console.error('Greška pri brisanju korisnika:', error)
+      showSnackbar(`Greška pri brisanju: ${error.response?.data?.message || 'Nepoznata greška'}`, 'error')
+    } finally {
+      loading.value = false
+    }
+  }
+}
+
+onMounted(() => {
+  if (route.params.id) {
+    userId.value = route.params.id as string
+    fetchUser(userId.value)
+  } else {
+    showSnackbar('Nije pronađen ID korisnika u URL-u.', 'error')
+  }
+})
+
+watch(() => route.params.id, (newId) => {
+  if (newId && newId !== userId.value) {
+    userId.value = newId as string
+    fetchUser(userId.value)
+  }
+})
+
+watch(user, (newUser) => {
   if (newUser) {
     localForm.value = {
       first_name: newUser.first_name,
@@ -219,42 +314,12 @@ watch(() => props.user, (newUser) => {
       jmbg: newUser.jmbg,
       email: newUser.email,
       username: newUser.username
-    };
+    }
   }
-}, { immediate: true, deep: true }); // Inicijalizuj formu kada se user prop promeni
-
-// Watch editMode prop i emituj promenu
-watch(() => props.editMode, (newVal) => {
-  editMode.value = newVal;
-});
-watch(editMode, (newVal) => {
-  emit('update:editMode', newVal);
-});
-
-const saveUser = () => {
-  if (!props.user) {
-    emit('error', 'Podaci o korisniku nisu učitani.');
-    return;
-  }
-  // Emituj podatke iz lokalne forme i originalni ID/username
-  emit('save-user', { id: props.user.id, username: props.user.username, formData: localForm.value });
-};
-
-const handleEdit = () => { // ActionMenu emituje samo item, ne mode
-  editMode.value = true
-  // Forma se već inicijalizuje watch-erom na props.user
-}
-
-const handleDelete = (deletedUser: User) => { // ActionMenu emituje samo item
-  const confirmed = confirm('Da li ste sigurni da želite da obrišete korisnika?');
-  if (confirmed) {
-    emit('delete-user', deletedUser.id); // Emituj samo ID za brisanje
-  }
-};
+}, { immediate: true, deep: true })
 </script>
 
 <style scoped>
-/* Vaši stilovi ostaju isti */
 .student-wrapper {
   max-width: 800px;
   margin: 0;
@@ -337,6 +402,11 @@ const handleDelete = (deletedUser: User) => { // ActionMenu emituje samo item
 
 .error-message {
   color: red;
+  margin-top: 16px;
+}
+
+.loading-message {
+  color: #3392EA;
   margin-top: 16px;
 }
 
