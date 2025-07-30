@@ -27,28 +27,174 @@
             rounded
             class="search-field"
             append-inner-icon="mdi-magnify"
+            @input="handleSearchInput"
           />
         </div>
       </div>
-      <UsersTable :search="search" />
+      <UsersTable
+        :items="users"
+        :loading="loading"
+        :initial-current-page="currentPage"
+        :initial-items-per-page="itemsPerPage"
+        :total-items="totalItems"
+        :error="errorMessage"
+        :role-map="roleMap"
+        entity-display-name="učenika" @update:itemsPerPage="updateItemsPerPage"
+        @update:currentPage="updateCurrentPage"
+        @view="handleViewUser"
+        @edit="handleEditUser"
+        @delete="handleDeleteUser"
+        @retry-fetch="fetchUsers"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import UsersTable from '~/components/usersTable.vue'
+import UsersTable from '~/components/usersTable.vue' // ✅ PROVERI PUTANJU!
+import api from '@/axios' // ✅ PROVERI PUTANJU!
 
 const search = ref('')
 const router = useRouter()
 
+const users = ref([])
+const loading = ref(false)
+const currentPage = ref(1)
+const itemsPerPage = ref(20)
+const totalItems = ref(0)
+const errorMessage = ref(null)
+
+const roleMap = {
+  1: 'Učenik',       
+  2: 'Bibliotekar',  
+};
+const fetchUsers = async () => {
+  console.log(`[StudentsPage] Dohvaćam učenike. Stranica: ${currentPage.value}, Po stranici: ${itemsPerPage.value}, Pretraga: ${search.value}`);
+  loading.value = true;
+  errorMessage.value = null;
+  try {
+    const response = await api.get('/users', {
+      params: {
+        page: currentPage.value,
+        per_page: itemsPerPage.value,
+        search_value: search.value,
+        role_id: 1, // Filter za učenike
+      }
+    });
+
+    console.log('[StudentsPage] API odgovor za učenike:', response.data);
+
+    const paginationData = response.data.data;
+    users.value = paginationData.data;
+    totalItems.value = paginationData.total;
+    currentPage.value = paginationData.current_page;
+    itemsPerPage.value = paginationData.per_page;
+    console.log(`[StudentsPage] Podaci ažurirani. Ukupno: ${totalItems.value}, Trenutna stranica: ${currentPage.value}`);
+
+  } catch (error) {
+    console.error('[StudentsPage] Greška pri dohvatanju studenata:', error);
+    if (error.response) {
+      console.error('[StudentsPage] Greška u odgovoru API-ja:', error.response.data);
+      if (error.response.data && error.response.data.message) {
+        errorMessage.value = error.response.data.message;
+      } else if (error.response.data && error.response.data.errors) {
+        errorMessage.value = Object.values(error.response.data.errors).flat().join(', ');
+      } else {
+        errorMessage.value = `Greška: ${error.response.status} - ${error.response.statusText}`;
+      }
+    } else if (error.request) {
+      errorMessage.value = 'Nema odgovora od servera. Proverite mrežnu konekciju.';
+    } else {
+      errorMessage.value = 'Desila se neočekivana greška. Pokušajte ponovo.';
+    }
+    users.value = [];
+    totalItems.value = 0;
+    currentPage.value = 1;
+    itemsPerPage.value = 20;
+  } finally {
+    loading.value = false;
+    console.log('[StudentsPage] Završeno dohvatanje učenika. Loading: false');
+  }
+};
+
+onMounted(() => {
+  console.log('[StudentsPage] Komponenta montirana. Pokrećem dohvatanje učenika.');
+  fetchUsers();
+});
+
+watch([currentPage, itemsPerPage], () => {
+  console.log(`[StudentsPage] currentPage ili itemsPerPage se promenio. Pokrećem novo dohvatanje.`);
+  fetchUsers();
+});
+
+let searchTimeout = null;
+const handleSearchInput = () => {
+  console.log('[StudentsPage] Unos u pretragu:', search.value);
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+  searchTimeout = setTimeout(() => {
+    console.log('[StudentsPage] Debounced search. Resetujem stranicu na 1 i dohvaćam.');
+    currentPage.value = 1;
+    fetchUsers();
+  }, 500);
+};
+
+const updateItemsPerPage = (value) => {
+  console.log('[StudentsPage] updateItemsPerPage pozvan:', value);
+  itemsPerPage.value = value;
+  currentPage.value = 1;
+};
+
+const updateCurrentPage = (value) => {
+  console.log('[StudentsPage] updateCurrentPage pozvan:', value);
+  currentPage.value = value;
+};
+
+const handleViewUser = (user) => {
+  console.log('[StudentsPage] Prikaz korisnika (detalji):', user);
+  if (user.username) {
+    router.push(`/students/${user.username}`); // Navigacija po username-u
+  } else {
+    errorMessage.value = 'Korisničko ime nije dostupno za prikaz detalja.';
+  }
+};
+
+const handleEditUser = (user) => {
+  console.log('[StudentsPage] Uređivanje korisnika:', user);
+  router.push(`/students/edit/${user.id}`);
+};
+
+const handleDeleteUser = async (user) => {
+  console.log('[StudentsPage] Pokušaj brisanja korisnika:', user);
+  try {
+    loading.value = true;
+    await api.delete(`/users`, { data: { users_id: [user.id] } }); // API za brisanje po ID-u
+    console.log('[StudentsPage] Korisnik uspešno obrisan:', user);
+    fetchUsers(); // Ponovo dohvati podatke nakon brisanja
+  } catch (error) {
+    console.error('[StudentsPage] Greška pri brisanju korisnika:', error);
+    if (error.response) {
+      errorMessage.value = error.response.data.message || 'Greška pri brisanja korisnika.';
+    } else {
+      errorMessage.value = 'Greška pri brisanja korisnika. Nema odgovora od servera.';
+    }
+  } finally {
+    loading.value = false;
+    console.log('[StudentsPage] Završeno brisanje korisnika. Loading: false');
+  }
+};
+
 const onAddKorisnik = () => {
+  console.log('[StudentsPage] Preusmeravam na stranicu za dodavanje novog učenika.');
   router.push('/newStudent')
 }
 </script>
 
 <style scoped>
+/* Održavaš postojeće stilove */
 .page-container {
   padding: 0;
   background-color: white;

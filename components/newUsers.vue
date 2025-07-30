@@ -14,10 +14,24 @@
       </div>
 
       <div class="form-container">
-        <v-text-field v-model="firstName" label="Unesite ime..." variant="outlined" hide-details class="form-field"></v-text-field>
+        <v-text-field 
+          v-model="firstName" 
+          label="Unesite ime..." 
+          variant="outlined" 
+          hide-details 
+          class="form-field"
+          :error="!!localError.firstName"
+        ></v-text-field>
         <div v-if="localError.firstName" class="error-message">{{ localError.firstName }}</div>
 
-        <v-text-field v-model="lastName" label="Unesite prezime..." variant="outlined" hide-details class="form-field"></v-text-field>
+        <v-text-field 
+          v-model="lastName" 
+          label="Unesite prezime..." 
+          variant="outlined" 
+          hide-details 
+          class="form-field"
+          :error="!!localError.lastName"
+        ></v-text-field>
         <div v-if="localError.lastName" class="error-message">{{ localError.lastName }}</div>
 
         <v-select
@@ -40,14 +54,30 @@
           class="form-field"
           type="text"
           maxlength="13"
+          :error="!!localError.jmbg"
           @keypress="samoBrojevi($event)">
         </v-text-field>
         <div v-if="localError.jmbg" class="error-message">{{ localError.jmbg }}</div>
 
-        <v-text-field v-model="email" label="Unesite e-mail..." variant="outlined" hide-details class="form-field" type="email"></v-text-field>
+        <v-text-field 
+          v-model="email" 
+          label="Unesite e-mail..." 
+          variant="outlined" 
+          hide-details 
+          class="form-field" 
+          type="email"
+          :error="!!localError.email"
+        ></v-text-field>
         <div v-if="localError.email" class="error-message">{{ localError.email }}</div>
 
-        <v-text-field v-model="korisnickoIme" label="Unesite korisničko ime..." variant="outlined" hide-details class="form-field"></v-text-field>
+        <v-text-field 
+          v-model="korisnickoIme" 
+          label="Unesite korisničko ime..." 
+          variant="outlined" 
+          hide-details 
+          class="form-field"
+          :error="!!localError.korisnickoIme"
+        ></v-text-field>
         <div v-if="localError.korisnickoIme" class="error-message">{{ localError.korisnickoIme }}</div>
 
         <v-text-field
@@ -58,7 +88,8 @@
           :append-inner-icon="vidljivoLozinka ? 'mdi-eye-off' : 'mdi-eye'"
           @click:append-inner="vidljivoLozinka = !vidljivoLozinka"
           hide-details
-          class="form-field">
+          class="form-field"
+          :error="!!localError.password">
         </v-text-field>
         <div v-if="localError.password" class="error-message">{{ localError.password }}</div>
 
@@ -70,13 +101,19 @@
           :append-inner-icon="vidljivoPonoviLozinku ? 'mdi-eye-off' : 'mdi-eye'"
           @click:append-inner="vidljivoPonoviLozinku = !vidljivoPonoviLozinku"
           hide-details
-          class="form-field">
+          class="form-field"
+          :error="!!localError.ponoviLozinku">
         </v-text-field>
         <div v-if="localError.ponoviLozinku" class="error-message">{{ localError.ponoviLozinku }}</div>
 
-        <div v-if="displayGlobalError" class="error-message">{{ displayGlobalError }}</div>
+        <div v-if="displayGlobalError" class="error-message global-error">{{ displayGlobalError }}</div>
 
-        <ActionButtons @save="handleSave" @cancel="emit('cancel')" :loading="loading" container-class="mt-4" />
+        <ActionButtons 
+          @save="handleSave" 
+          @cancel="emit('cancel')" 
+          :loading="loading" 
+          container-class="mt-4" 
+        />
       </div>
     </div>
   </div>
@@ -86,8 +123,7 @@
 import { ref, watch, defineProps, defineEmits, computed } from 'vue'
 import ActionButtons from '@/components/ActionButtons.vue'
 import { useRouter } from 'vue-router'
-// PROMENA: Uvezi tvoju konfigurisanu Axios instancu sa interceptorima
-import api from '@/axios' // PAZI: Proveri da li je putanja do tvog axios.js fajla ispravna!
+import api from '@/axios'
 
 const router = useRouter()
 
@@ -118,6 +154,7 @@ const emit = defineEmits([
   'form-error'
 ]);
 
+// Reactive data
 const slikaUrl = ref('')
 const fotografija = ref(null)
 const firstName = ref('')
@@ -133,25 +170,100 @@ const vidljivoPonoviLozinku = ref(false)
 const loading = ref(false)
 
 const selectedRole = computed(() => {
-  return props.kolekcija === 'bibliotekari' ? 1 : 2; // 1 za bibliotekara, 2 za učenika
+  return props.kolekcija === 'ucenici' ? 1 : 2; // Učenici = 1, Bibliotekari = 2
 });
 
 const computedRoleOption = computed(() => {
-  return props.kolekcija === 'bibliotekari'
-    ? { id: 1, name: 'Bibliotekar' }
-    : { id: 2, name: 'Učenik' };
+  return props.kolekcija === 'ucenici'
+    ? { id: 1, name: 'Učenik' }
+    : { id: 2, name: 'Bibliotekar' };
 });
 
 const localError = ref({
-  firstName: '', lastName: '', jmbg: '', email: '', korisnickoIme: '', password: '', ponoviLozinku: '', opsta: ''
+  firstName: '',
+  lastName: '',
+  jmbg: '',
+  email: '',
+  korisnickoIme: '',
+  password: '',
+  ponoviLozinku: '',
+  opsta: ''
 })
 
 const displayGlobalError = ref(props.globalError);
 
+// Watchers
 watch(() => props.globalError, (newVal) => {
   displayGlobalError.value = newVal;
 });
 
+watch(() => props.backendErrors, (newErrors) => {
+  if (newErrors && Object.keys(newErrors).length > 0) {
+    console.log('Backend errors received:', newErrors);
+    
+    // Reset local errors
+    localError.value = {
+      firstName: '',
+      lastName: '',
+      jmbg: '',
+      email: '',
+      korisnickoIme: '',
+      password: '',
+      ponoviLozinku: '',
+      opsta: ''
+    };
+
+    // Map backend errors to local errors
+    if (newErrors.first_name) {
+      localError.value.firstName = Array.isArray(newErrors.first_name) 
+        ? newErrors.first_name[0] 
+        : newErrors.first_name;
+    }
+    
+    if (newErrors.last_name) {
+      localError.value.lastName = Array.isArray(newErrors.last_name) 
+        ? newErrors.last_name[0] 
+        : newErrors.last_name;
+    }
+    
+    if (newErrors.jmbg) {
+      const jmbgError = Array.isArray(newErrors.jmbg) ? newErrors.jmbg[0] : newErrors.jmbg;
+      if (jmbgError.includes("format is invalid") || jmbgError.includes("regex")) {
+        localError.value.jmbg = 'JMBG mora imati tačno 13 cifara!';
+      } else if (jmbgError.includes("already been taken")) {
+        localError.value.jmbg = 'JMBG je već zauzet!';
+      } else {
+        localError.value.jmbg = jmbgError;
+      }
+    }
+    
+    if (newErrors.email) {
+      const emailError = Array.isArray(newErrors.email) ? newErrors.email[0] : newErrors.email;
+      if (emailError.includes("already been taken")) {
+        localError.value.email = 'E-mail je već zauzet!';
+      } else {
+        localError.value.email = emailError;
+      }
+    }
+    
+    if (newErrors.username) {
+      const usernameError = Array.isArray(newErrors.username) ? newErrors.username[0] : newErrors.username;
+      if (usernameError.includes("already been taken")) {
+        localError.value.korisnickoIme = 'Korisničko ime je već zauzeto!';
+      } else {
+        localError.value.korisnickoIme = usernameError;
+      }
+    }
+    
+    if (newErrors.password) {
+      localError.value.password = Array.isArray(newErrors.password) 
+        ? newErrors.password[0] 
+        : newErrors.password;
+    }
+  }
+}, { deep: true });
+
+// Methods
 const samoBrojevi = (evt) => {
   const charCode = evt.which ? evt.which : evt.keyCode
   if (charCode > 31 && (charCode < 48 || charCode > 57)) {
@@ -167,212 +279,272 @@ const handleFileUpload = (e) => {
   const file = e.target.files[0]
   if (file) {
     console.log('Selected file:', file);
-    if (file.size > 5 * 1024 * 1024) { // 5 MB
-        alert('Slika je prevelika! Maksimalna veličina je 5MB.');
-        fotografija.value = null;
-        slikaUrl.value = '';
-        console.log('File too large, resetting file inputs.');
-        return;
+    
+    // Check file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Slika je prevelika! Maksimalna veličina je 5MB.');
+      fotografija.value = null;
+      slikaUrl.value = '';
+      e.target.value = ''; // Reset file input
+      return;
     }
+
+    // Check file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Neispravna vrsta datoteke! Dozvoljena su samo JPEG, PNG, JPG i GIF slika.');
+      fotografija.value = null;
+      slikaUrl.value = '';
+      e.target.value = ''; // Reset file input
+      return;
+    }
+
     fotografija.value = file
     slikaUrl.value = URL.createObjectURL(file)
     console.log('Image URL created:', slikaUrl.value);
-  } else {
-    console.log('No file selected.');
   }
+}
+
+const clearErrors = () => {
+  localError.value = {
+    firstName: '',
+    lastName: '',
+    jmbg: '',
+    email: '',
+    korisnickoIme: '',
+    password: '',
+    ponoviLozinku: '',
+    opsta: ''
+  };
+  displayGlobalError.value = null;
+}
+
+const validateForm = () => {
+  let hasErrors = false;
+  
+  // Clear previous errors
+  clearErrors();
+
+  // Frontend validation
+  if (!firstName.value.trim()) {
+    localError.value.firstName = 'Morate uneti ime!';
+    hasErrors = true;
+  }
+
+  if (!lastName.value.trim()) {
+    localError.value.lastName = 'Morate uneti prezime!';
+    hasErrors = true;
+  }
+
+  if (!jmbg.value.trim()) {
+    localError.value.jmbg = 'Morate uneti JMBG!';
+    hasErrors = true;
+  } else if (jmbg.value.length !== 13) {
+    localError.value.jmbg = 'JMBG mora imati tačno 13 cifara!';
+    hasErrors = true;
+  }
+
+  if (!email.value.trim()) {
+    localError.value.email = 'Morate uneti e-mail!';
+    hasErrors = true;
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
+    localError.value.email = 'Unesite validan e-mail format!';
+    hasErrors = true;
+  }
+
+  if (!korisnickoIme.value.trim()) {
+    localError.value.korisnickoIme = 'Morate uneti korisničko ime!';
+    hasErrors = true;
+  }
+
+  if (!password.value) {
+    localError.value.password = 'Morate uneti šifru!';
+    hasErrors = true;
+  } else if (password.value.length < 8) {
+    localError.value.password = 'Šifra mora imati najmanje 8 karaktera!';
+    hasErrors = true;
+  }
+
+  if (password.value !== ponoviLozinku.value) {
+    localError.value.ponoviLozinku = 'Šifre se ne poklapaju!';
+    hasErrors = true;
+  }
+
+  return !hasErrors;
 }
 
 const handleSave = async () => {
   console.log('handleSave initiated.');
-  localError.value = {
-    firstName: '', lastName: '', jmbg: '', email: '', korisnickoIme: '', password: '', ponoviLozinku: '', opsta: ''
-  }
-  displayGlobalError.value = null;
-
-  let imaGreske = false
-
-  // Frontend validacija (ostaje ista)
-  if (!firstName.value) { localError.value.firstName = 'Morate uneti ime!'; imaGreske = true; console.log('Validation Error: firstName missing'); }
-  if (!lastName.value) { localError.value.lastName = 'Morate uneti prezime!'; imaGreske = true; console.log('Validation Error: lastName missing'); }
-  if (!jmbg.value) {
-    localError.value.jmbg = 'Morate uneti JMBG!';
-    imaGreske = true;
-    console.log('Validation Error: jmbg missing');
-  } else if (jmbg.value.length !== 13) {
-    localError.value.jmbg = 'JMBG mora imati tačno 13 cifara!';
-    imaGreske = true;
-    console.log('Validation Error: jmbg length invalid');
-  }
-  if (!email.value) { localError.value.email = 'Morate uneti e-mail!'; imaGreske = true; console.log('Validation Error: email missing'); }
-  if (email.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
-    localError.value.email = 'Unesite validan e-mail format!';
-    imaGreske = true;
-    console.log('Validation Error: email format invalid');
-  }
-
-  if (!korisnickoIme.value) { localError.value.korisnickoIme = 'Morate uneti korisničko ime!'; imaGreske = true; console.log('Validation Error: korisnickoIme missing'); }
-  if (!password.value) {
-    localError.value.password = 'Morate uneti šifru!';
-    imaGreske = true;
-    console.log('Validation Error: password missing');
-  } else if (password.value.length < 8) {
-      localError.value.password = 'Šifra mora imati najmanje 8 karaktera!';
-      imaGreske = true;
-      console.log('Validation Error: password too short');
-  }
-
-  if (password.value !== ponoviLozinku.value) {
-    localError.value.ponoviLozinku = 'Šifre se ne poklapaju!'; imaGreske = true; console.log('Validation Error: passwords do not match');
-  }
-
-  if (imaGreske) {
+  
+  // Validate form
+  if (!validateForm()) {
     console.log('Frontend validation failed:', localError.value);
     emit('form-error', localError.value);
     return;
   }
 
+  // Prepare FormData
   const formData = new FormData();
-  formData.append('first_name', firstName.value);
-  formData.append('last_name', lastName.value);
-  formData.append('email', email.value);
-  formData.append('username', korisnickoIme.value);
-  formData.append('jmbg', jmbg.value);
+  formData.append('first_name', firstName.value.trim());
+  formData.append('last_name', lastName.value.trim());
+  formData.append('email', email.value.trim());
+  formData.append('username', korisnickoIme.value.trim());
+  formData.append('jmbg', jmbg.value.trim());
   formData.append('password', password.value);
   formData.append('role_id', selectedRole.value);
 
   if (fotografija.value) {
     formData.append('profile_picture', fotografija.value);
-    console.log('Appending profile_picture to FormData.');
+    console.log('Profile picture added to FormData');
   }
 
+  // Debug FormData
   console.log('FormData contents:');
   for (let pair of formData.entries()) {
-    console.log(pair[0]+ ': ' + pair[1]);
+    console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
   }
-
-  // Uklonjene linije za ručno dobijanje tokena i proveru
-  // const token = localStorage.getItem('token'); // <<<<<< OVO JE UKLONJENO
-  // console.log('Retrieved token from localStorage:', token ? 'Token exists' : 'Token is NULL or EMPTY'); // <<<<<< OVO JE UKLONJENO
-  // console.log('Full token value (for debugging, be careful with sensitive info):', token); // <<<<<< OVO JE UKLONJENO
-  // if (!token) { /* ... */ } // <<<<<< OVO JE UKLONJENO
 
   try {
     loading.value = true;
-    console.log('Attempting API call to /api/create using configured Axios instance (api)...');
-    console.log('Request URL will be derived from baseURL in axios.js + /create');
-    console.log('Authorization header will be automatically added by Axios interceptor.');
+    console.log('Making API request to /create...');
 
-    // PROMENA: Koristi uvezenu 'api' instancu
-    // NEMA POTREBE ZA RUČNIM DODAVANJEM HEADERA OVDE!
-    const response = await api.post('/create', formData); // Pozivaj API bez objekta 'headers'
+    const response = await api.post('/create', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
 
     if (response.status === 201) {
-      const createdUser = response.data.user;
-      console.log('Korisnik uspješno kreiran:', createdUser);
-      console.log('API Response data:', response.data);
+      const createdUser = response.data.data;
+      console.log('Korisnik uspešno kreiran:', createdUser);
 
+      // Clear form
+      firstName.value = '';
+      lastName.value = '';
+      jmbg.value = '';
+      email.value = '';
+      korisnickoIme.value = '';
+      password.value = '';
+      ponoviLozinku.value = '';
+      fotografija.value = null;
+      slikaUrl.value = '';
+      
+      // Clear file input
+      if (fileInput.value) {
+        fileInput.value.value = '';
+      }
+
+      // Navigate to user profile
       if (props.kolekcija === 'bibliotekari') {
-        router.push(`/librarian/${createdUser.username}`);
-        console.log(`Redirecting to /librarian/${createdUser.username}`);
+        router.push(`/thelibrarian/${createdUser.username}`);
       } else {
-        router.push(`/student/${createdUser.username}`);
-        console.log(`Redirecting to /student/${createdUser.username}`);
+        router.push(`/students/${createdUser.username}`);
       }
     }
 
   } catch (error) {
-    loading.value = false;
-    console.error('Greška prilikom kreiranja korisnika - CATCH BLOCK:', error.response || error);
-    console.error('Error response:', error.response);
+    console.error('Error creating user:', error);
 
     if (error.response) {
-      console.error('Error response status:', error.response.status);
-      console.error('Error response data:', error.response.data);
-
-      if (error.response.status === 400 || error.response.status === 422) {
-        const backendErrors = error.response.data;
-        console.log('Backend validation errors (400/422):', backendErrors);
-
-        if (typeof backendErrors === 'object' && backendErrors !== null) {
-          if (backendErrors.jmbg) {
-            localError.value.jmbg = backendErrors.jmbg[0];
-            if (backendErrors.jmbg.includes("The jmbg field format is invalid.")) {
-                localError.value.jmbg = 'JMBG mora imati tačno 13 cifara!';
-            } else if (backendErrors.jmbg.includes("The jmbg has already been taken.")) {
-                localError.value.jmbg = 'JMBG je već zauzet!';
-            }
-          }
-          if (backendErrors.email) {
-            localError.value.email = backendErrors.email[0];
-             if (backendErrors.email.includes("The email has already been taken.")) {
-                localError.value.email = 'E-mail je već zauzet!';
-            }
-          }
-          if (backendErrors.username) {
-            localError.value.korisnickoIme = backendErrors.username[0];
-            if (backendErrors.username.includes("The username has already been taken.")) {
-                localError.value.korisnickoIme = 'Korisničko ime je već zauzeto!';
-            }
-          }
-          if (backendErrors.password) {
-              localError.value.password = backendErrors.password[0];
-          }
-          if (backendErrors.error) {
-            displayGlobalError.value = backendErrors.error;
-          }
-        } else {
-          displayGlobalError.value = 'Došlo je do greške prilikom obrade podataka. Proverite unete podatke.';
+      console.error('Error response:', error.response.data);
+      
+      if (error.response.status === 422) {
+        // Validation errors
+        const backendErrors = error.response.data.errors;
+        console.log('Backend validation errors:', backendErrors);
+        
+        // Map backend errors to local errors
+        if (backendErrors.first_name) {
+          localError.value.firstName = Array.isArray(backendErrors.first_name) 
+            ? backendErrors.first_name[0] 
+            : backendErrors.first_name;
         }
+        
+        if (backendErrors.last_name) {
+          localError.value.lastName = Array.isArray(backendErrors.last_name) 
+            ? backendErrors.last_name[0] 
+            : backendErrors.last_name;
+        }
+        
+        if (backendErrors.jmbg) {
+          const jmbgError = Array.isArray(backendErrors.jmbg) ? backendErrors.jmbg[0] : backendErrors.jmbg;
+          if (jmbgError.includes("format is invalid") || jmbgError.includes("regex")) {
+            localError.value.jmbg = 'JMBG mora imati tačno 13 cifara!';
+          } else if (jmbgError.includes("already been taken")) {
+            localError.value.jmbg = 'JMBG je već zauzet!';
+          } else {
+            localError.value.jmbg = jmbgError;
+          }
+        }
+        
+        if (backendErrors.email) {
+          const emailError = Array.isArray(backendErrors.email) ? backendErrors.email[0] : backendErrors.email;
+          if (emailError.includes("already been taken")) {
+            localError.value.email = 'E-mail je već zauzet!';
+          } else {
+            localError.value.email = emailError;
+          }
+        }
+        
+        if (backendErrors.username) {
+          const usernameError = Array.isArray(backendErrors.username) ? backendErrors.username[0] : backendErrors.username;
+          if (usernameError.includes("already been taken")) {
+            localError.value.korisnickoIme = 'Korisničko ime je već zauzeto!';
+          } else {
+            localError.value.korisnickoIme = usernameError;
+          }
+        }
+        
+        if (backendErrors.password) {
+          localError.value.password = Array.isArray(backendErrors.password) 
+            ? backendErrors.password[0] 
+            : backendErrors.password;
+        }
+        
+        if (backendErrors.profile_picture) {
+          displayGlobalError.value = Array.isArray(backendErrors.profile_picture) 
+            ? backendErrors.profile_picture[0] 
+            : backendErrors.profile_picture;
+        }
+        
       } else if (error.response.status === 401) {
-          displayGlobalError.value = 'Niste autorizovani. Vaša sesija je istekla ili nemate potrebne dozvole.';
-          console.error('Authentication Error: 401 Unauthorized.');
-          // Opciono: router.push('/login'); // Preusmeri na login ako je token istekao
+        displayGlobalError.value = 'Niste autorizovani. Vaša sesija je istekla ili nemate potrebne dozvole.';
+        console.error('Authentication Error: 401 Unauthorized.');
+        // Možete dodati redirekciju na login
+        // router.push('/login');
+        
       } else if (error.response.status === 403) {
-          displayGlobalError.value = 'Nemate dozvolu za kreiranje korisnika. Morate biti bibliotekar.';
-          console.error('Authorization Error: 403 Forbidden.');
+        displayGlobalError.value = 'Nemate dozvolu za kreiranje korisnika. Morate biti bibliotekar.';
+        console.error('Authorization Error: 403 Forbidden.');
+        
+      } else if (error.response.status === 500) {
+        displayGlobalError.value = 'Došlo je do greške na serveru. Pokušajte ponovo.';
+        console.error('Server Error: 500 Internal Server Error.');
+        
       } else {
         displayGlobalError.value = `Došlo je do nepoznate greške (${error.response.status}). Pokušajte ponovo.`;
         console.error('Unhandled HTTP Error:', error.response.status);
       }
+      
+    } else if (error.request) {
+      displayGlobalError.value = 'Nije moguće povezati se sa serverom. Proverite svoju internet vezu.';
+      console.error('Network Error:', error.request);
+      
     } else {
-      displayGlobalError.value = 'Nije moguće povezati se sa serverom. Proverite svoju internet vezu ili pokušajte kasnije.';
-      console.error('Network or Server Error:', error.message);
+      displayGlobalError.value = 'Došlo je do neočekivane greške. Pokušajte ponovo.';
+      console.error('Unknown Error:', error.message);
     }
+
     emit('form-error', localError.value);
+    
   } finally {
     loading.value = false;
     console.log('handleSave finished. Loading set to false.');
   }
 }
-
-watch(() => props.backendErrors, (newErrors) => {
-  console.log('Watching props.backendErrors, new errors:', newErrors);
-  if (newErrors.jmbg) {
-    if (newErrors.jmbg.includes("The jmbg field format is invalid.")) {
-        localError.value.jmbg = 'JMBG mora imati tačno 13 cifara!';
-    } else if (newErrors.jmbg.includes("The jmbg has already been taken.")) {
-        localError.value.jmbg = 'JMBG je već zauzet!';
-    }
-    console.log('JMBG error from backend:', localError.value.jmbg);
-  }
-  if (newErrors.email && newErrors.email.includes("The email has already been taken.")) {
-    localError.value.email = 'E-mail je već zauzet!';
-    console.log('Email error from backend:', localError.value.email);
-  }
-  if (newErrors.username && newErrors.username.includes("The username has already been taken.")) {
-    localError.value.korisnickoIme = 'Korisničko ime je već zauzeto!';
-    console.log('Username error from backend:', localError.value.korisnickoIme);
-  }
-  if (newErrors.password) {
-      localError.value.password = newErrors.password[0];
-      console.log('Password error from backend:', localError.value.password);
-  }
-}, { deep: true });
 </script>
 
-
 <style scoped>
-/* Vaš CSS ostaje nepromenjen */
 .page-container {
   padding: 0;
   background-color: white;
@@ -428,6 +600,7 @@ watch(() => props.backendErrors, (newErrors) => {
 .photo-section {
   margin-bottom: 24px;
 }
+
 .photo-upload-box {
   width: 200px;
   height: 160px;
@@ -441,15 +614,19 @@ watch(() => props.backendErrors, (newErrors) => {
   background-color: #FAFAFA;
   position: relative;
   overflow: hidden;
+  transition: border-color 0.3s ease;
 }
+
 .photo-upload-box:hover {
   border-color: #3392EA;
 }
+
 .upload-text {
   margin-top: 8px;
   color: #757575;
   font-size: 14px;
 }
+
 .image-preview {
   width: 100%;
   height: 100%;
@@ -458,10 +635,12 @@ watch(() => props.backendErrors, (newErrors) => {
   top: 0;
   left: 0;
 }
+
 .form-container {
   max-width: 463px;
   width: 100%;
 }
+
 .form-field {
   width: 100%;
   height: 48px;
@@ -473,5 +652,24 @@ watch(() => props.backendErrors, (newErrors) => {
   font-size: 12px;
   margin-top: -10px;
   margin-bottom: 16px;
+}
+
+.global-error {
+  background-color: #ffebee;
+  border: 1px solid #ffcdd2;
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+/* Dodatni stilovi za error state u poljima */
+.v-text-field--error .v-field__outline {
+  border-color: #ff5252 !important;
+}
+
+.v-text-field--error .v-field__outline:hover {
+  border-color: #ff5252 !important;
 }
 </style>

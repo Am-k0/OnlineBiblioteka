@@ -9,16 +9,15 @@
 
       <v-list class="dropdown-menu">
 
-        <v-list-item 
+        <v-list-item
           v-if="!hideViewOption"
-          @click="handleView" 
+          @click="handleView"
           class="dropdown-item view-item"
         >
           <template v-slot:prepend>
             <v-icon size="24" class="dropdown-icon">mdi-file-document-outline</v-icon>
           </template>
-          <v-list-item-title class="dropdown-text">Pogledaj detalje</v-list-item-title>
-        </v-list-item>
+          <v-list-item-title class="dropdown-text">Pogledaj detalje</v-list-item-title> </v-list-item>
 
         <v-list-item @click="handleEdit" class="dropdown-item edit-item">
           <template v-slot:prepend>
@@ -129,7 +128,6 @@ const props = defineProps({
   inlineLayout: { type: Boolean, default: false }
 })
 
-// MODIFIED: Added 'view' to the list of emitted events
 const emit = defineEmits([
   'view',
   'edit',
@@ -147,12 +145,10 @@ const entityTitle = computed(() =>
   props.item[props.titleProperty] || props.item.id
 )
 
-// MODIFIED: Emits a dedicated 'view' event with the item
 const handleView = () => {
   emit('view', props.item)
 }
 
-// MODIFIED: Emits a dedicated 'edit' event with the item
 const handleEdit = () => {
   emit('edit', props.item)
 }

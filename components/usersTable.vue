@@ -2,8 +2,10 @@
   <div>
     <v-data-table
       :headers="visibleHeaders"
-      :items="items"      :loading="loading"
-      loading-text="Učitavam korisnike..." item-value="id"
+      :items="items"
+      :loading="loading"
+      loading-text="Učitavam korisnike..."
+      item-value="id"
       :items-per-page="itemsPerPage"
       :page="currentPage"
       hide-default-footer
@@ -26,7 +28,7 @@
       </template>
 
       <template v-slot:item.tip="{ item }">
-        <span class="opis-text">Student</span>
+        <span class="opis-text">{{ getRoleName(item.role_id) }}</span>
       </template>
 
       <template v-slot:item.zadnji_pristup_sistemu="{ item }">
@@ -37,11 +39,12 @@
         <div class="cell-actions">
           <ActionMenu
             :item="item"
-            entity-name="korisnika" title-property="first_name"
-            @view="handleView"
+            :entity-name="entityDisplayName"
+            title-property="first_name" @view="handleView"
             @edit="handleEdit"
             @delete="handleDelete"
-            @error="emit('error', $event)" />
+            @error="emit('error', $event)"
+          />
         </div>
       </template>
     </v-data-table>
@@ -51,11 +54,15 @@
       v-model:currentPage="currentPage"
       :total-items="totalItems"
       class="pagination-footer mt-4"
-      @update:itemsPerPage="updateItemsPerPage" @update:currentPage="updateCurrentPage"   />
+      @update:itemsPerPage="updateItemsPerPage"
+      @update:currentPage="updateCurrentPage"
+    />
 
-    <v-alert v-if="localError" type="error" class="mt-4"> {{ localError }}
+    <v-alert v-if="localError" type="error" class="mt-4">
+      {{ localError }}
       <div class="mt-2">
-        <v-btn @click="emit('retry-fetch')" color="white" small>Pokušaj ponovo</v-btn> </div>
+        <v-btn @click="emit('retry-fetch')" color="white" small>Pokušaj ponovo</v-btn>
+      </div>
     </v-alert>
   </div>
 </template>
@@ -63,10 +70,9 @@
 <script setup lang="ts">
 import { ref, watch, defineProps, defineEmits } from 'vue'
 import { useRouter } from 'vue-router'
-import ActionMenu from './ActionMenu.vue'
-import PaginationFooter from './PaginationFooter.vue'
+import ActionMenu from './ActionMenu.vue' // ✅ PROVERI PUTANJU
+import PaginationFooter from './PaginationFooter.vue' // ✅ PROVERI PUTANJU
 
-// Definišemo interfejs za props
 interface UserItem {
   id: number;
   first_name: string;
@@ -77,11 +83,14 @@ interface UserItem {
   profile_picture?: string | null;
   created_at: string;
   updated_at: string;
-  // Dodajte ostale propertije ako su potrebni
+}
+
+interface RoleMap {
+  [key: number]: string;
 }
 
 const props = defineProps({
-  items: { // Promenjeno: sada prihvatate listu korisnika kao prop
+  items: {
     type: Array as () => UserItem[],
     required: true,
   },
@@ -89,11 +98,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  initialItemsPerPage: { // Dodat prop za inicijalni broj stavki po stranici
+  initialItemsPerPage: {
     type: Number,
     default: 20,
   },
-  initialCurrentPage: { // Dodat prop za inicijalnu trenutnu stranicu
+  initialCurrentPage: {
     type: Number,
     default: 1,
   },
@@ -101,14 +110,20 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
-  error: { // Primanje errora kao prop, ali koristimo i localError
+  error: {
     type: String,
     default: null,
   },
-  // search prop više nije potreban ovde, jer roditeljska komponenta obrađuje pretragu i prosljeđuje filtrirane 'items'
+  roleMap: {
+    type: Object as () => RoleMap,
+    required: true,
+  },
+  entityDisplayName: { // Prop za dinamički naziv entiteta (npr. 'korisnika', 'studenta')
+    type: String,
+    default: 'korisnika',
+  },
 })
 
-// Definišemo događaje koje će ova komponenta emitovati
 const emit = defineEmits<{
   (e: 'update:itemsPerPage', value: number): void;
   (e: 'update:currentPage', value: number): void;
@@ -116,28 +131,25 @@ const emit = defineEmits<{
   (e: 'edit', item: UserItem): void;
   (e: 'delete', item: UserItem): void;
   (e: 'error', message: string): void;
-  (e: 'retry-fetch'): void; // Događaj za ponovno dohvatanje podataka
+  (e: 'retry-fetch'): void;
 }>()
 
 const router = useRouter()
 
-// Lokalno stanje za paginaciju, inicijalizovano iz prop-ova
 const itemsPerPage = ref(props.initialItemsPerPage)
 const currentPage = ref(props.initialCurrentPage)
 
-// Lokalna greška ako je potrebno nešto interno prikazati, ali preferira se prop
 const localError = ref(props.error)
 watch(() => props.error, (newVal) => {
   localError.value = newVal
 })
 
-
-const defaultAvatar = '/images/default-user-1.jpg' // Putanja do defaultnog avatara
+const defaultAvatar = '/images/default-user-1.jpg' // ✅ PROVERI PUTANJU
 
 const visibleHeaders = ref([
   { title: 'Ime i prezime', key: 'ime_i_prezime', align: 'start' as const, sortable: true },
   { title: 'Email', key: 'email', sortable: true },
-  { title: 'Tip', key: 'tip', sortable: true }, // Fiksno "Student" ako je ovo samo za studente
+  { title: 'Tip', key: 'tip', sortable: false },
   { title: 'Zadnji pristup sistemu', key: 'zadnji_pristup_sistemu', sortable: true },
   { title: '', key: 'actions', align: 'end' as const, sortable: false },
 ])
@@ -149,55 +161,64 @@ const formatDate = (dateString: string | null) => {
 }
 
 const getProfilePictureUrl = (picturePath: string | null | undefined) => {
-  // Ovde je važno da li backend vraća punu URL ili samo putanju storage/profile_pictures/...
-  // Ako vraća samo putanju (npr. 'profile_pictures/neka_slika.jpg'), onda morate dodati domen i storage prefix.
-  // U ovom primeru pretpostavljam da Laravel vraća 'profile_pictures/neka_slika.jpg' i da je storage dostupan na http://localhost/storage/
-  if (picturePath) return `http://localhost/storage/${picturePath}`
+  if (picturePath) {
+    if (picturePath.startsWith('http://') || picturePath.startsWith('https://')) {
+      return picturePath;
+    }
+    // Pretpostavka da su slike u storage folderu Laravel backend-a
+    return `http://localhost:8000/storage/${picturePath}`; // ✅ PRILAGODI URL AKO JE DRUGAČIJI
+  }
   return defaultAvatar
 }
 
+const getRoleName = (roleId: number) => {
+  return props.roleMap[roleId] || 'Nepoznato';
+};
+
 const itemClass = () => 'table-row'
 
-// Emituje događaje umesto da direktno vrši navigaciju ili API pozive
 const handleView = (item: UserItem) => {
-  if (item.id) emit('view', item)
-  else localError.value = 'ID korisnika nije dostupan za prikaz detalja.'
+  console.log('[UsersTable] Handle View:', item);
+  if (item.username) emit('view', item)
+  else localError.value = 'Korisničko ime nije dostupno za prikaz detalja.'
 }
 const handleEdit = (item: UserItem) => {
+  console.log('[UsersTable] Handle Edit:', item);
   if (item.id) emit('edit', item)
   else localError.value = 'ID korisnika nije dostupan za uređivanje.'
 }
 const handleDelete = (item: UserItem) => {
-  // Ovo samo potvrđuje i emituje, stvarna logika brisanja je u roditelju
-  const confirmed = confirm(`Da li ste sigurni da želite da obrišete korisnika ${item.first_name} ${item.last_name}?`)
+  console.log('[UsersTable] Handle Delete prompt for:', item);
+  // Koristi entityDisplayName za potvrdu brisanja
+  const confirmed = confirm(`Da li ste sigurni da želite da obrišete ${props.entityDisplayName} ${item.first_name} ${item.last_name}?`)
   if (confirmed) emit('delete', item)
 }
 
-// Funkcije za paginaciju koje emituju događaje
 const updateItemsPerPage = (value: number) => {
+  console.log('[UsersTable] updateItemsPerPage:', value);
   itemsPerPage.value = value
   emit('update:itemsPerPage', value)
 }
 
 const updateCurrentPage = (value: number) => {
+  console.log('[UsersTable] updateCurrentPage:', value);
   currentPage.value = value
   emit('update:currentPage', value)
 }
 
-// Watcheri za prop-ove
 watch(() => props.initialItemsPerPage, (newVal) => {
+  console.log('[UsersTable] initialItemsPerPage prop changed:', newVal);
   itemsPerPage.value = newVal
 })
 
 watch(() => props.initialCurrentPage, (newVal) => {
+  console.log('[UsersTable] initialCurrentPage prop changed:', newVal);
   currentPage.value = newVal
 })
-
-// 'search' prop više ne mora da se watchuje ovde, jer roditelj treba da prosleđuje filtrirane 'items'
 </script>
 
-
 <style scoped>
+/* Održavaš postojeće stilove */
 .no-border-table {
   border: none;
   box-shadow: none;
