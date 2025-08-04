@@ -17,7 +17,7 @@
       <template v-slot:item.ime_i_prezime="{ item }">
         <div class="cell-naziv d-flex align-center">
           <v-avatar size="36" class="mr-2">
-            <img :src="getProfilePictureUrl(item.profile_picture)" alt="Avatar" />
+            <img :src="getProfilePictureUrl(item.profile_picture)" alt="Avatar" class="avatar-img" />
           </v-avatar>
           <span class="naziv-text">{{ item.first_name }} {{ item.last_name }}</span>
         </div>
@@ -40,7 +40,8 @@
           <ActionMenu
             :item="item"
             :entity-name="entityDisplayName"
-            title-property="first_name" @view="handleView"
+            title-property="first_name" 
+            @view="handleView"
             @edit="handleEdit"
             @delete="handleDelete"
             @error="emit('error', $event)"
@@ -70,8 +71,8 @@
 <script setup lang="ts">
 import { ref, watch, defineProps, defineEmits } from 'vue'
 import { useRouter } from 'vue-router'
-import ActionMenu from './ActionMenu.vue' // ✅ PROVERI PUTANJU
-import PaginationFooter from './PaginationFooter.vue' // ✅ PROVERI PUTANJU
+import ActionMenu from './ActionMenu.vue'
+import PaginationFooter from './PaginationFooter.vue'
 
 interface UserItem {
   id: number;
@@ -118,7 +119,7 @@ const props = defineProps({
     type: Object as () => RoleMap,
     required: true,
   },
-  entityDisplayName: { // Prop za dinamički naziv entiteta (npr. 'korisnika', 'studenta')
+  entityDisplayName: {
     type: String,
     default: 'korisnika',
   },
@@ -135,23 +136,22 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
-
 const itemsPerPage = ref(props.initialItemsPerPage)
 const currentPage = ref(props.initialCurrentPage)
-
 const localError = ref(props.error)
+
 watch(() => props.error, (newVal) => {
   localError.value = newVal
 })
 
-const defaultAvatar = '/images/default-user-1.jpg' // ✅ PROVERI PUTANJU
+const defaultAvatar = '/images/default-user-1.jpg'
 
 const visibleHeaders = ref([
-  { title: 'Ime i prezime', key: 'ime_i_prezime', align: 'start' as const, sortable: true },
+  { title: 'Ime i prezime', key: 'ime_i_prezime', align: 'start', sortable: true },
   { title: 'Email', key: 'email', sortable: true },
   { title: 'Tip', key: 'tip', sortable: false },
   { title: 'Zadnji pristup sistemu', key: 'zadnji_pristup_sistemu', sortable: true },
-  { title: '', key: 'actions', align: 'end' as const, sortable: false },
+  { title: '', key: 'actions', align: 'end', sortable: false },
 ])
 
 const formatDate = (dateString: string | null) => {
@@ -162,91 +162,114 @@ const formatDate = (dateString: string | null) => {
 
 const getProfilePictureUrl = (picturePath: string | null | undefined) => {
   if (picturePath) {
-    if (picturePath.startsWith('http://') || picturePath.startsWith('https://')) {
-      return picturePath;
+    if (picturePath.startsWith('http')) {
+      return picturePath
     }
-    // Pretpostavka da su slike u storage folderu Laravel backend-a
-    return `http://localhost:8000/storage/${picturePath}`; // ✅ PRILAGODI URL AKO JE DRUGAČIJI
+    return `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/storage/${picturePath}`
   }
   return defaultAvatar
 }
 
 const getRoleName = (roleId: number) => {
-  return props.roleMap[roleId] || 'Nepoznato';
-};
+  return props.roleMap[roleId] || 'Nepoznato'
+}
 
 const itemClass = () => 'table-row'
 
 const handleView = (item: UserItem) => {
-  console.log('[UsersTable] Handle View:', item);
-  if (item.username) emit('view', item)
-  else localError.value = 'Korisničko ime nije dostupno za prikaz detalja.'
+  console.log('Viewing user:', item.username)
+  if (item.username) {
+    router.push(`/users/${item.username}`)
+      .then(() => {
+        console.log('Successfully navigated to view page')
+      })
+      .catch((error) => {
+        console.error('Navigation to view failed:', error)
+        localError.value = 'Greška pri navigaciji na stranicu za prikaz.'
+      })
+  } else {
+    localError.value = 'Korisničko ime nije dostupno za prikaz detalja.'
+  }
 }
+
 const handleEdit = (item: UserItem) => {
-  console.log('[UsersTable] Handle Edit:', item);
-  if (item.id) emit('edit', item)
-  else localError.value = 'ID korisnika nije dostupan za uređivanje.'
+  console.log('Editing user:', item.username)
+  if (item.username) {
+    const targetPath = `/users/${item.username}/edit`
+    console.log('Navigating to edit page:', targetPath)
+    
+    router.push(targetPath)
+      .then(() => {
+        console.log('Successfully navigated to edit page')
+      })
+      .catch((error) => {
+        console.error('Navigation to edit failed:', error)
+        localError.value = 'Greška pri navigaciji na stranicu za uređivanje.'
+      })
+  } else {
+    localError.value = 'Korisničko ime nije dostupno za uređivanje.'
+  }
 }
+
 const handleDelete = (item: UserItem) => {
-  console.log('[UsersTable] Handle Delete prompt for:', item);
-  // Koristi entityDisplayName za potvrdu brisanja
   const confirmed = confirm(`Da li ste sigurni da želite da obrišete ${props.entityDisplayName} ${item.first_name} ${item.last_name}?`)
   if (confirmed) emit('delete', item)
 }
 
 const updateItemsPerPage = (value: number) => {
-  console.log('[UsersTable] updateItemsPerPage:', value);
   itemsPerPage.value = value
   emit('update:itemsPerPage', value)
 }
 
 const updateCurrentPage = (value: number) => {
-  console.log('[UsersTable] updateCurrentPage:', value);
   currentPage.value = value
   emit('update:currentPage', value)
 }
 
 watch(() => props.initialItemsPerPage, (newVal) => {
-  console.log('[UsersTable] initialItemsPerPage prop changed:', newVal);
   itemsPerPage.value = newVal
 })
 
 watch(() => props.initialCurrentPage, (newVal) => {
-  console.log('[UsersTable] initialCurrentPage prop changed:', newVal);
   currentPage.value = newVal
 })
 </script>
 
 <style scoped>
-/* Održavaš postojeće stilove */
 .no-border-table {
   border: none;
   box-shadow: none;
 }
-
 .table-row {
   height: 56px;
 }
-
 .cell-naziv {
   width: 100%;
   overflow: hidden;
 }
-
 .naziv-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .opis-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .cell-actions {
   display: flex;
   justify-content: flex-end;
+}
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.v-data-table :deep(.v-data-table__td),
+.v-data-table :deep(.v-data-table__th) {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 </style>

@@ -1,7 +1,12 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
+  <div class="page-container bg-white min-h-screen">
+    <header class="app-header">
       <h1 class="page-title">Bibliotekari</h1>
+    </header>
+
+    <div class="header-divider"></div>
+
+    <div class="page-content">
       <div class="header-actions">
         <v-btn
           color="primary"
@@ -26,31 +31,30 @@
           />
         </div>
       </div>
+      <UsersTable
+        :items="users"
+        :loading="loading"
+        :initial-current-page="currentPage"
+        :initial-items-per-page="itemsPerPage"
+        :total-items="totalItems"
+        :error="errorMessage"
+        :role-map="roleMap"
+        entity-display-name="bibliotekara" @update:itemsPerPage="updateItemsPerPage"
+        @update:currentPage="updateCurrentPage"
+        @view="handleViewUser"
+        @edit="handleEditUser"
+        @delete="handleDeleteUser"
+        @retry-fetch="fetchUsers"
+        :hide-table-borders="true" />
     </div>
-
-    <UsersTable
-      :items="users"
-      :loading="loading"
-      :initial-current-page="currentPage"
-      :initial-items-per-page="itemsPerPage"
-      :total-items="totalItems"
-      :error="errorMessage"
-      :role-map="roleMap"
-      entity-display-name="bibliotekara" @update:itemsPerPage="updateItemsPerPage"
-      @update:currentPage="updateCurrentPage"
-      @view="handleViewUser"
-      @edit="handleEditUser"
-      @delete="handleDeleteUser"
-      @retry-fetch="fetchUsers"
-    />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import UsersTable from '~/components/usersTable.vue' // ✅ PROVERI PUTANJU!
-import api from '@/axios' // ✅ PROVERI PUTANJU!
+import UsersTable from '~/components/usersTable.vue' 
+import api from '@/axios' 
 
 const search = ref('')
 const router = useRouter()
@@ -153,7 +157,7 @@ const updateCurrentPage = (value) => {
 const handleViewUser = (user) => {
   console.log('[LibrarianPage] Prikaz korisnika (detalji):', user);
   if (user.username) {
-    router.push(`/thelibrarian/${user.username}`); // Navigacija po username-u
+    router.push(`/users/${user.username}`); 
   } else {
     errorMessage.value = 'Korisničko ime nije dostupno za prikaz detalja.';
   }
@@ -161,16 +165,16 @@ const handleViewUser = (user) => {
 
 const handleEditUser = (user) => {
   console.log('[LibrarianPage] Uređivanje korisnika:', user);
-  router.push(`/thelibrarian/edit/${user.id}`);
+  router.push(`/users/edit/${user.id}`);
 };
 
 const handleDeleteUser = async (user) => {
   console.log('[LibrarianPage] Pokušaj brisanja korisnika:', user);
   try {
     loading.value = true;
-    await api.delete(`/users`, { data: { users_id: [user.id] } }); // API za brisanje po ID-u
+    await api.delete(`/users`, { data: { users_id: [user.id] } }); 
     console.log('[LibrarianPage] Korisnik uspešno obrisan:', user);
-    fetchUsers(); // Ponovo dohvati podatke nakon brisanja
+    fetchUsers(); 
   } catch (error) {
     console.error('[LibrarianPage] Greška pri brisanju korisnika:', error);
     if (error.response) {
@@ -191,16 +195,17 @@ const onAddBibliotekar = () => {
 </script>
 
 <style scoped>
-/* Održavaš postojeće stilove */
 .page-container {
-  padding: 24px;
-}
-
-.page-header {
+  padding: 0; 
+  background-color: white; 
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-bottom: 24px;
+  min-height: 100vh; 
+  overflow: hidden; 
+}
+
+.app-header {
+  padding: 24px 24px 0 24px; 
 }
 
 .page-title {
@@ -214,25 +219,46 @@ const onAddBibliotekar = () => {
   margin: 0;
 }
 
+.header-divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin-top: 20px; 
+  margin-bottom: 24px; 
+}
+
+.page-content {
+  padding: 0 24px; 
+  flex-grow: 1; 
+}
+
 .header-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  margin-bottom: 24px;
+  padding-left: 0;
+  padding-right: 0; 
 }
 
 .add-button {
-  font-family: 'Roboto', sans-serif !important;
   font-weight: 500 !important;
   font-size: 14px !important;
-  line-height: 100% !important;
+  line-height: 100% !important; 
   letter-spacing: 1.25px !important;
-  width: 147px !important;
+  vertical-align: middle;
+  width: 195px !important;
   height: 36px !important;
-  align-items: center;
-  justify-content: center;
+  border-radius: 4px !important;
   background-color: #3392EA !important;
   color: white !important;
+  text-transform: uppercase;
+  padding: 12px 16px 12px 12px !important;
+  gap: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: none !important;
 }
 
 .search-field {
@@ -241,8 +267,11 @@ const onAddBibliotekar = () => {
   font-size: 14px !important;
   line-height: 100% !important;
   letter-spacing: 0.25px !important;
-  width: 132px;
+  width: 170px;
   height: 24px;
+  border: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
 }
 
 .search-field :deep(input) {
@@ -251,6 +280,27 @@ const onAddBibliotekar = () => {
   box-shadow: none !important;
   padding: 0 !important;
   font-size: 14px;
+  min-height: unset !important;
+  height: 24px !important;
+}
+
+.search-field :deep(.v-field__overlay) {
+    background-color: transparent !important;
+}
+
+.search-field :deep(.v-field__outline) {
+    border: none !important;
+}
+
+.search-field :deep(.v-field__field) {
+    height: 24px !important;
+    padding: 0 !important;
+}
+
+.search-field :deep(.v-field__append-inner) {
+    height: 24px !important;
+    align-items: center;
+    padding-top: 0 !important;
 }
 
 .search-field :deep(.v-icon) {

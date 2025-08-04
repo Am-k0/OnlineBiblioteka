@@ -14,7 +14,7 @@
           @click="onAddKorisnik"
           prepend-icon="mdi-plus"
         >
-          NOVI UČENIK
+          NOVI UČENIK 
         </v-btn>
         <div class="search-wrapper">
           <v-text-field
@@ -156,7 +156,7 @@ const updateCurrentPage = (value) => {
 const handleViewUser = (user) => {
   console.log('[StudentsPage] Prikaz korisnika (detalji):', user);
   if (user.username) {
-    router.push(`/students/${user.username}`); // Navigacija po username-u
+    router.push(`/users/${user.username}`); // Navigacija po username-u
   } else {
     errorMessage.value = 'Korisničko ime nije dostupno za prikaz detalja.';
   }
@@ -164,7 +164,7 @@ const handleViewUser = (user) => {
 
 const handleEditUser = (user) => {
   console.log('[StudentsPage] Uređivanje korisnika:', user);
-  router.push(`/students/edit/${user.id}`);
+  router.push(`/users/edit/${user.id}`);
 };
 
 const handleDeleteUser = async (user) => {
@@ -247,7 +247,7 @@ const onAddKorisnik = () => {
   line-height: 100% !important;
   letter-spacing: 1.25px !important;
   vertical-align: middle;
-  width: 147px !important;
+  width: 152px !important;
   height: 36px !important;
   border-radius: 4px !important;
   background-color: #3392EA !important;
@@ -267,7 +267,7 @@ const onAddKorisnik = () => {
   font-size: 14px !important;
   line-height: 100% !important;
   letter-spacing: 0.25px !important;
-  width: 132px;
+  width: 145px;
   height: 24px;
   border: none !important;
   box-shadow: none !important;

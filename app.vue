@@ -20,6 +20,7 @@ const route = useRoute()
 
 // Ako nije login stranica, prikazuj layout
 const showLayout = computed(() => route.path !== '/login')
+
 </script>
 
 <style scoped>
