@@ -22,33 +22,14 @@
           <span class="naziv-text">{{ item.naziv_knjige }}</span>
         </div>
       </template>
-      <template #item.autor="{ item }">
-        <span class="opis-text">{{ item.autor }}</span>
-      </template>
-      <template #item.kategorija="{ item }">
-        <span class="opis-text">{{ item.kategorija }}</span>
-      </template>
-      <template #item.na_raspolaganju="{ item }">
-        <span class="opis-text">{{ item.na_raspolaganju }}</span>
-      </template>
-      <template #item.rezervisano="{ item }">
-        <span class="opis-text">{{ item.rezervisano }}</span>
-      </template>
-      <template #item.izdato="{ item }">
-        <span class="opis-text">{{ item.izdato }}</span>
-      </template>
-      <template #item.u_prekoracenju="{ item }">
-        <span class="opis-text">{{ item.u_prekoracenju }}</span>
-      </template>
-      <template #item.ukupna_kolicina="{ item }">
-        <span class="opis-text">{{ item.ukupna_kolicina }}</span>
-      </template>
+      <!-- ostali slotovi -->
       <template #item.actions="{ item }">
         <div class="cell-actions">
           <ActionMenu
             :item="item"
             entity-name="knjigu"
             title-property="naziv_knjige"
+            @view="handleView"
             @edit="handleEdit"
             @delete="handleDelete"
             @otpisi="handleOtpisi"
@@ -103,6 +84,7 @@ const visibleHeaders = [
 const itemClass = () => 'table-row'
 
 function setError(err) { error.value = err }
+
 async function fetchBooks(page = 1, perPage = 20) {
   loading.value = true
   try {
@@ -132,19 +114,44 @@ async function fetchBooks(page = 1, perPage = 20) {
     loading.value = false
   }
 }
+
 function getImageUrl(book) {
   const image = (book.images || []).find(img => img.type === 'front_cover')
   return image ? `/storage/${image.path}` : undefined
 }
-function handleEdit({ item, mode }) {
-  if (mode === 'view') router.push(`/books/${item.id}`)
-  else if (mode === 'edit') router.push(`/books/${item.id}?edit=true`)
+
+// ISPRAVLJENI HANDLERI SA LOGOVIMA
+function handleView(item) {
+  console.log('handleView pozvan za item:', item)
+  if (item && item.id) {
+    router.push(`/book/${item.id}`)
+    console.log('Navigacija na:', `/book/${item.id}`)
+  } else {
+    console.warn('ID knjige nije prosleđen u handleView', item)
+  }
 }
-function handleDelete(item) {}
-function handleOtpisi(item) {}
-function handleIzdaj(item) {}
-function handleVrati(item) {}
-function handleRezervisi(item) {}
+
+function handleEdit({ item, mode }) {
+  console.log('handleEdit pozvan', item, mode)
+  if (mode === 'view') router.push(`/books/${item.id}`)
+  else if (mode === 'edit') router.push(`/book/${item.id}?edit=true`)
+}
+
+function handleDelete(item) {
+  console.log('handleDelete', item)
+}
+function handleOtpisi(item) {
+  console.log('handleOtpisi', item)
+}
+function handleIzdaj(item) {
+  console.log('handleIzdaj', item)
+}
+function handleVrati(item) {
+  console.log('handleVrati', item)
+}
+function handleRezervisi(item) {
+  console.log('handleRezervisi', item)
+}
 
 watch([itemsPerPage, currentPage], () => {
   fetchBooks(currentPage.value, itemsPerPage.value)
@@ -153,6 +160,7 @@ onMounted(() => fetchBooks(currentPage.value, itemsPerPage.value))
 </script>
 
 <style scoped>
+/* Stil isti kao kod tebe */
 .no-border-table { border: none; box-shadow: none; }
 .table-row { height: 56px; }
 .cell-naziv { width: 100%; overflow: hidden; }

@@ -7,12 +7,14 @@
         <span>/ Nova knjiga</span>
       </div>
     </div>
+
     <v-card class="form-card">
       <v-tabs v-model="tab" class="custom-tabs" grow slider-color="#3392EA">
         <v-tab value="one" class="custom-tab first-tab">Osnovni Detalji</v-tab>
         <v-tab value="two" class="custom-tab second-tab">Specifikacija</v-tab>
         <v-tab value="three" class="custom-tab third-tab">Multimedia</v-tab>
       </v-tabs>
+
       <v-card-text>
         <v-form ref="form">
           <v-window v-model="tab">
@@ -24,6 +26,7 @@
                 <div v-if="globalError" class="custom-error" style="font-weight: bold">
                   {{ globalError }}
                 </div>
+
                 <div class="field-wrapper">
                   <v-text-field
                     v-model="book.name"
@@ -37,6 +40,7 @@
                     Morate unijeti naziv knjige!
                   </div>
                 </div>
+
                 <div class="field-wrapper">
                   <v-textarea
                     v-model="book.description"
@@ -51,6 +55,7 @@
                     Morate unijeti kratak sadržaj knjige!
                   </div>
                 </div>
+
                 <div class="field-wrapper">
                   <v-autocomplete
                     v-model="book.categories"
@@ -65,6 +70,7 @@
                     hide-details="auto"
                   />
                 </div>
+
                 <div class="field-wrapper">
                   <v-autocomplete
                     v-model="book.genres"
@@ -79,6 +85,7 @@
                     hide-details="auto"
                   />
                 </div>
+
                 <div class="field-wrapper">
                   <v-autocomplete
                     v-model="book.authors"
@@ -97,6 +104,7 @@
                     Morate izabrati barem jednog autora!
                   </div>
                 </div>
+
                 <div class="field-wrapper">
                   <v-autocomplete
                     v-model="book.publisher_id"
@@ -113,6 +121,25 @@
                     Morate izabrati izdavača!
                   </div>
                 </div>
+
+                <div class="field-wrapper">
+                  <v-text-field
+                    v-model="book.publication_year"
+                    label="Godina izdavanja*"
+                    type="number"
+                    variant="outlined"
+                    :style="fieldStyle"
+                    :error="showErrors && (!book.publication_year || book.publication_year <= 0)"
+                    hide-details="auto"
+                  />
+                  <div
+                    v-if="showErrors && (!book.publication_year || book.publication_year <= 0)"
+                    class="custom-error"
+                  >
+                    Morate unijeti godinu izdavanja!
+                  </div>
+                </div>
+
                 <div class="field-wrapper">
                   <v-text-field
                     v-model="book.number_of_copies_available"
@@ -130,11 +157,13 @@
                     Morate unijeti pozitivnu količinu!
                   </div>
                 </div>
+
                 <div class="form-actions">
                   <ActionButtons @save="validateAndSave" @cancel="cancel" :loading="isSaving" />
                 </div>
               </div>
             </v-window-item>
+
             <v-window-item value="two">
               <div class="tab-content form-content">
                 <div class="field-wrapper">
@@ -154,6 +183,7 @@
                     Morate unijeti broj stranica!
                   </div>
                 </div>
+
                 <div class="field-wrapper">
                   <v-select
                     v-model="book.script"
@@ -166,6 +196,7 @@
                     hide-details="auto"
                   />
                 </div>
+
                 <div class="field-wrapper">
                   <v-select
                     v-model="book.binding"
@@ -178,6 +209,7 @@
                     hide-details="auto"
                   />
                 </div>
+
                 <div class="field-wrapper">
                   <v-select
                     v-model="book.dimensions"
@@ -188,6 +220,7 @@
                     hide-details="auto"
                   />
                 </div>
+
                 <div class="field-wrapper">
                   <v-select
                     v-model="book.language"
@@ -200,6 +233,7 @@
                     hide-details="auto"
                   />
                 </div>
+
                 <div class="field-wrapper">
                   <v-text-field
                     v-model="book.isbn"
@@ -216,11 +250,13 @@
                     Nevažeći ISBN format!
                   </div>
                 </div>
+
                 <div class="form-actions">
                   <ActionButtons @save="validateAndSave" @cancel="cancel" :loading="isSaving" />
                 </div>
               </div>
             </v-window-item>
+
             <v-window-item value="three">
               <div class="tab-content form-content">
                 <div class="field-wrapper">
@@ -237,6 +273,7 @@
                     <img v-if="imageUrl" :src="imageUrl" class="image-preview" alt="Slika knjige" />
                   </div>
                 </div>
+
                 <div class="form-actions">
                   <ActionButtons @save="validateAndSave" @cancel="cancel" :loading="isSaving" />
                 </div>
@@ -271,6 +308,7 @@ const book = reactive({
   description: '',
   number_of_copies_available: null,
   number_of_pages: null,
+  publication_year: null,
   script: '',
   binding: '',
   dimensions: '',
@@ -281,7 +319,6 @@ const book = reactive({
   authors: [],
   publisher_id: null
 })
-
 
 const uniqueCategories = ref({ data: [] })
 const uniqueGenres = ref({ data: [] })
@@ -319,90 +356,67 @@ const LANGUAGE_OPTIONS = [
 ]
 
 onMounted(() => {
-  console.log('Komponenta NovaKnjiga je mounted. Pozivam fetchRelatedData().');
-  fetchRelatedData();
+  fetchRelatedData()
 })
 
 async function fetchRelatedData() {
-  console.log('Unutar fetchRelatedData() funkcije.');
+  console.log('Započeto učitavanje podataka za padajuće liste...')
   try {
-    debugger; 
-
-    console.log('Slanje zahteva za kategorije, žanrove, autore i izdavače...');
     const [categoriesRes, genresRes, authorsRes, publishersRes] = await Promise.all([
-      axios.get('/categories').then(res => {
-        console.log('Kategorije odgovor:', res.data);
-        return res.data;
-      }),
-      axios.get('/genres').then(res => {
-        console.log('Žanrovi odgovor:', res.data);
-        return res.data;
-      }),
-      
-      axios.get('/authors?per_page=20').then(res => { 
-        console.log('Autori odgovor:', res.data);
-        return res.data;
-      }),
-      axios.get('/publishers?per_page=20').then(res => { 
-        console.log('Izdavači odgovor:', res.data);
-        return res.data;
-      })
-    ]);
-console.log(categoriesRes);
+      axios.get('/categories'),
+      axios.get('/genres'),
+      axios.get('/authors?per_page=100'),
+      axios.get('/publishers?per_page=100')
+    ])
 
-    if (categoriesRes.data && Array.isArray(categoriesRes.data.categories)) {
-      uniqueCategories.value.data = categoriesRes.categories.data;
-    } else if (categoriesRes.data && Array.isArray(categoriesRes.data.data)) { 
-       uniqueCategories.value.data = categoriesRes.data.data;
+    // Obrada KATEGORIJA
+    if (categoriesRes?.data?.categories?.data && Array.isArray(categoriesRes.data.categories.data)) {
+      uniqueCategories.value.data = categoriesRes.data.categories.data
+      console.log('Kategorije uspešno učitane:', uniqueCategories.value.data)
     } else {
-       console.warn('Podaci za kategorije nisu u očekivanom formatu (očekuje se .data.categories ili .data.data). Postavljanje na prazan niz.');
-       uniqueCategories.value.data = [];
+      console.warn('Podaci za kategorije nisu u očekivanom formatu (očekuje se .data.categories.data). Response:', categoriesRes.data)
+      uniqueCategories.value.data = []
     }
 
-    // Za Žanrove: podaci su u res.data.genres
-    if (genresRes.data && Array.isArray(genresRes.data.genres)) {
-      uniqueGenres.value.data = genresRes.data.genres;
-    } else if (genresRes.data && Array.isArray(genresRes.data.data)) { 
-       uniqueGenres.value.data = genresRes.data.data;
+    // Obrada ŽANROVA
+    if (genresRes?.data?.genres?.data && Array.isArray(genresRes.data.genres.data)) {
+      uniqueGenres.value.data = genresRes.data.genres.data
+      console.log('Žanrovi uspešno učitani:', uniqueGenres.value.data)
     } else {
-       console.warn('Podaci za žanrove nisu u očekivanom formatu (očekuje se .data.genres ili .data.data). Postavljanje na prazan niz.');
-       uniqueGenres.value.data = [];
+      console.warn('Podaci za žanrove nisu u očekivanom formatu (očekuje se .data.genres.data). Response:', genresRes.data)
+      uniqueGenres.value.data = []
     }
 
-
-    if (authorsRes.data && Array.isArray(authorsRes.data.data)) {
-      uniqueAuthors.value.data = authorsRes.data.data.map(author => ({
+    // Obrada AUTORA - ISPRAVLJENO
+    if (authorsRes?.data?.data?.data && Array.isArray(authorsRes.data.data.data)) {
+      uniqueAuthors.value.data = authorsRes.data.data.data.map(author => ({
         ...author,
         name: `${author.first_name} ${author.last_name}`
-      }));
+      }))
+      console.log('Autori uspešno učitani:', uniqueAuthors.value.data)
     } else {
-      console.warn('authorsRes.data.data nije pronađen ili nije niz za autore. Postavljanje na prazan niz.');
-      uniqueAuthors.value.data = [];
+      console.warn('Podaci za autore nisu u očekivanom formatu. Response:', authorsRes.data)
+      uniqueAuthors.value.data = []
     }
 
- 
-    if (publishersRes.data && Array.isArray(publishersRes.data.publishers)) {
-      uniquePublishers.value.data = publishersRes.data.publishers;
-    } else if (publishersRes.data && Array.isArray(publishersRes.data.data)) { 
-       uniquePublishers.value.data = publishersRes.data.data;
+    // Obrada IZDAVAČA
+    if (publishersRes?.data?.publishers?.data && Array.isArray(publishersRes.data.publishers.data)) {
+      uniquePublishers.value.data = publishersRes.data.publishers.data
+      console.log('Izdavači uspešno učitani:', uniquePublishers.value.data)
     } else {
-       console.warn('Podaci za izdavače nisu u očekivanom formatu (očekuje se .data.publishers ili .data.data). Postavljanje na prazan niz.');
-       uniquePublishers.value.data = [];
+      console.warn('Podaci za izdavače nisu u očekivanom formatu (očekuje se .data.publishers.data). Response:', publishersRes.data)
+      uniquePublishers.value.data = []
     }
 
-    console.log('Podaci uspešno učitani i postavljeni.');
+    console.log('Svi podaci za padajuće liste su obrađeni.')
   } catch (error) {
-    globalError.value = 'Greška pri ucitavanju podataka sa padajuce liste!';
-    console.error('Greška pri učitavanju podataka:', error);
-    console.error('Detalji greške:', error.response || error.message || error);
-    
-    
-    uniqueCategories.value.data = [];
-    uniqueGenres.value.data = [];
-    uniqueAuthors.value.data = [];
-    uniquePublishers.value.data = [];
+    globalError.value = 'Greška pri učitavanju podataka za padajuće liste!'
+    console.error('Greška pri učitavanju podataka:', error.response || error.message || error)
+    uniqueCategories.value.data = []
+    uniqueGenres.value.data = []
+    uniqueAuthors.value.data = []
+    uniquePublishers.value.data = []
   }
-  console.log(uniqueCategories)
 }
 
 const triggerFileInput = () => {
@@ -450,6 +464,8 @@ const hasErrorsOnFirstTab = computed(() => {
     !book.description ||
     !book.publisher_id ||
     book.authors.length === 0 ||
+    !book.publication_year ||
+    book.publication_year <= 0 ||
     !book.number_of_copies_available ||
     book.number_of_copies_available <= 0
   )
@@ -490,61 +506,112 @@ async function saveBook() {
   try {
     const formData = new FormData()
 
+    // Dodavanje osnovnih polja
     formData.append('name', book.name)
     formData.append('description', book.description)
     formData.append('number_of_pages', book.number_of_pages)
     formData.append('number_of_copies_available', book.number_of_copies_available)
+    formData.append('publication_year', book.publication_year)
     formData.append('isbn', book.isbn)
 
-
+    // Dodavanje opcionih polja samo ako su popunjena
     if (book.language) formData.append('language', book.language)
     if (book.script) formData.append('script', book.script)
     if (book.binding) formData.append('binding', book.binding)
     if (book.dimensions) formData.append('dimensions', book.dimensions)
 
+    // Publisher ID
     if (book.publisher_id) {
       formData.append('publisher_id', book.publisher_id)
     }
 
+    // Dodavanje arrays - koristimo standardan format za Laravel
     if (book.categories && book.categories.length > 0) {
-      book.categories.forEach((id) => formData.append('categories[]', id))
+      book.categories.forEach((id, index) => {
+        formData.append(`categories[${index}]`, id)
+      })
     }
+    
     if (book.genres && book.genres.length > 0) {
-      book.genres.forEach((id) => formData.append('genres[]', id))
+      book.genres.forEach((id, index) => {
+        formData.append(`genres[${index}]`, id)
+      })
     }
+    
     if (book.authors && book.authors.length > 0) {
-      book.authors.forEach((id) => formData.append('authors[]', id))
+      book.authors.forEach((id, index) => {
+        formData.append(`authors[${index}]`, id)
+      })
     }
 
+    // Dodavanje slike
     if (selectedFile.value) {
-      formData.append('images[0]', selectedFile.value)
-      formData.append('image_types[0]', 'front_cover')
+      formData.append('image', selectedFile.value)
     }
 
+    console.log('Šalje se zahtev na /books/create endpoint...')
+    
+    // ISPRAVKA: Vraćen na originalni endpoint /books/create
     const response = await axios.post('/books/create', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data'
+        'Content-Type': 'multipart/form-data',
+        'Accept': 'application/json'
       }
     })
 
-    if (response.data && response.data.book && response.data.book.id) {
-      router.push(`/books/${response.data.book.id}`)
-    } else {
-      throw new Error('Nije moguće dobiti ID nove knjige nakon kreiranja.')
+    console.log('Odgovor servera:', response)
+
+    // Proveravamo različite moguće strukture odgovora
+    let bookId = null
+    if (response.data?.book?.id) {
+      bookId = response.data.book.id
+    } else if (response.data?.data?.id) {
+      bookId = response.data.data.id
+    } else if (response.data?.id) {
+      bookId = response.data.id
     }
+
+    if (bookId) {
+      console.log('Knjiga je uspešno kreirana sa ID:', bookId)
+      router.push(`/book/${bookId}`)
+    } else {
+      console.log('Knjiga je kreirana, redirektovanje na listu knjiga...')
+      router.push('/books')
+    }
+
   } catch (error) {
-    if (error.response && error.response.data && error.response.data.errors) {
-      const errors = error.response.data.errors
-      let errorMessage = 'Molimo ispravite sljedeće greške:\n'
-      for (const key in errors) {
-        // Concatenate all error messages for a given field
-        errorMessage += `- ${errors[key].join(', ')}\n`
-      }
-      globalError.value = errorMessage
-    } else {
-      globalError.value = error.message || 'Greška pri čuvanju knjige.'
-    }
     console.error('Greška pri čuvanju knjige:', error)
+    
+    if (error.response) {
+      console.error('Response status:', error.response.status)
+      console.error('Response data:', error.response.data)
+      
+      if (error.response.status === 422 && error.response.data?.errors) {
+        // Validation errors
+        const errors = error.response.data.errors
+        let errorMessage = 'Molimo ispravite sljedeće greške:\n'
+        for (const key in errors) {
+          if (Array.isArray(errors[key])) {
+            errorMessage += `- ${errors[key].join(', ')}\n`
+          } else {
+            errorMessage += `- ${errors[key]}\n`
+          }
+        }
+        globalError.value = errorMessage
+      } else if (error.response.status === 405) {
+        globalError.value = 'Endpoint /books/create ne postoji ili ne podržava POST metodu. Molimo proverite API rutu.'
+      } else if (error.response.status === 401) {
+        globalError.value = 'Nemate dozvolu za ovu akciju. Molimo proverite autentifikaciju.'
+      } else if (error.response.data?.message) {
+        globalError.value = error.response.data.message
+      } else {
+        globalError.value = `Greška servera (${error.response.status}). Molimo pokušajte ponovo.`
+      }
+    } else if (error.request) {
+      globalError.value = 'Nema odgovora od servera. Molimo proverite internetsku konekciju.'
+    } else {
+      globalError.value = error.message || 'Neočekivana greška pri čuvanju knjige.'
+    }
   } finally {
     isSaving.value = false
   }
@@ -558,6 +625,7 @@ const fieldStyle = {
   width: '724px',
   height: '48px'
 }
+
 const textareaStyle = {
   width: '724px',
   height: '160px'

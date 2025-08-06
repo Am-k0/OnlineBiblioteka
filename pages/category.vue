@@ -144,7 +144,7 @@ const saveCategory = async () => {
 
     // Create the category
     const createResponse = await axios.post(
-      'http://localhost/api/categories',
+      'http://localhost/api/categories/create',
       categoryData,
       {
         headers: {
