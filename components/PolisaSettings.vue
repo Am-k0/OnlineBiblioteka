@@ -1,126 +1,176 @@
 <template>
   <div class="pa-4">
-    <div class="mb-4 polisa-row">
+    <div v-for="policy in policies" :key="policy.id" class="mb-4 polisa-row">
       <div class="polisa-description">
-        <h3 class="polisa-title">Rok za rezervaciju</h3>
+        <h3 class="polisa-title">{{ policy.name }}</h3>
         <p class="polisa-text">
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fringilla mauris dolor sed duis quam mi faucibus sit eleifend. Sed lobortis ornare porttitor lectus dictum. Turpis diam non pellentesque nisl rhoncus, vitae amet at placerat.
+          Podesite period važenja za datu polisu. Vrednost se izražava u danima.
         </p>
       </div>
       <div class="polisa-input-group">
         <v-text-field
-          v-model="rokZaRezervaciju"
+          v-model.number="policy.period"
           hide-details
           variant="outlined"
           density="compact"
+          type="number"
+          min="1"
           class="polisa-text-field"
-        ></v-text-field>
-        <span class="polisa-label">dana!</span>
-      </div>
-    </div>
-
-    <div class="mb-4 polisa-row">
-      <div class="polisa-description">
-        <h3 class="polisa-title">Rok vraćanja</h3>
-        <p class="polisa-text">
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fringilla mauris dolor sed duis quam mi faucibus sit eleifend. Sed lobortis ornare porttitor lectus dictum. Turpis diam non pellentesque nisl rhoncus, vitae amet at placerat.
-        </p>
-      </div>
-      <div class="polisa-input-group">
-        <v-text-field
-          v-model="rokVracanja"
-          hide-details
-          variant="outlined"
-          density="compact"
-          class="polisa-text-field"
+          @blur="updatePolicy(policy)"
         ></v-text-field>
         <span class="polisa-label">dana</span>
       </div>
     </div>
-
-    <div class="mb-4 polisa-row">
-      <div class="polisa-description">
-        <h3 class="polisa-title">Rok konflikta</h3>
-        <p class="polisa-text">
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fringilla mauris dolor sed duis quam mi faucibus sit eleifend. Sed lobortis ornare porttitor lectus dictum. Turpis diam non pellentesque nisl rhoncus, vitae amet at placerat.
-        </p>
-      </div>
-      <div class="polisa-input-group">
-        <v-text-field
-          v-model="rokKonflikta"
-          hide-details
-          variant="outlined"
-          density="compact"
-          class="polisa-text-field"
-        ></v-text-field>
-        <span class="polisa-label">dana</span>
-      </div>
-    </div>
+    
+    <v-snackbar v-model="snackbar.show" :timeout="3000" color="success">
+      {{ snackbar.text }}
+    </v-snackbar>
+    <v-snackbar v-model="errorSnackbar.show" :timeout="5000" color="error">
+      {{ errorSnackbar.text }}
+    </v-snackbar>
   </div>
 </template>
 
 <script>
+import axios from 'axios';
+
 export default {
   name: 'PolisaSettings',
   data() {
     return {
-      rokZaRezervaciju: '...',
-      rokVracanja: '...',
-      rokKonflikta: '...'
+      policies: [],
+      snackbar: {
+        show: false,
+        text: ''
+      },
+      errorSnackbar: {
+        show: false,
+        text: ''
+      }
     };
+  },
+  methods: {
+    async fetchPolicies() {
+      try {
+        // ISPRAVLJENO: Koristimo 'auth.token' umesto 'authToken'
+        const token = localStorage.getItem('auth.token');
+        if (!token) {
+          this.showErrorSnackbar('Niste prijavljeni. Token za autorizaciju nije pronađen.');
+          return;
+        }
+
+        const response = await axios.get('http://localhost/api/policies', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        this.policies = response.data;
+      } catch (error) {
+        console.error('Greška pri učitavanju polisa:', error);
+        if (error.response && error.response.status === 401) {
+          this.showErrorSnackbar('Vaša sesija je istekla. Molimo vas da se ponovo prijavite.');
+          // Opcionalno: preusmeriti na login stranu
+          // this.$router.push('/login'); 
+        } else {
+          this.showErrorSnackbar('Nije moguće učitati podešavanja.');
+        }
+      }
+    },
+    
+    async updatePolicy(policy) {
+      if (!policy.period || policy.period < 1) {
+        this.showErrorSnackbar('Vrednost mora biti pozitivan broj.');
+        this.fetchPolicies();
+        return;
+      }
+
+      try {
+        // ISPRAVLJENO: Koristimo 'auth.token' umesto 'authToken'
+        const token = localStorage.getItem('auth.token');
+        if (!token) {
+          this.showErrorSnackbar('Niste prijavljeni. Token za autorizaciju nije pronađen.');
+          return;
+        }
+
+        await axios.put(`http://localhost/api/policies/${policy.id}`, 
+          { period: policy.period },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+        this.showSnackbar(`Polisa "${policy.name}" je uspešno ažurirana.`);
+      } catch (error) {
+        console.error(`Greška pri ažuriranju polise ${policy.id}:`, error);
+        if (error.response && error.response.status === 401) {
+          this.showErrorSnackbar('Vaša sesija je istekla. Molimo vas da se ponovo prijavite.');
+        } else {
+          this.showErrorSnackbar('Došlo je do greške prilikom čuvanja.');
+        }
+        this.fetchPolicies();
+      }
+    },
+
+    showSnackbar(message) {
+      this.snackbar.text = message;
+      this.snackbar.show = true;
+    },
+
+    showErrorSnackbar(message) {
+      this.errorSnackbar.text = message;
+      this.errorSnackbar.show = true;
+    }
+  },
+  created() {
+    this.fetchPolicies();
   }
 }
 </script>
 
 <style scoped>
+/* Stilovi ostaju nepromenjeni */
 .polisa-row {
   display: flex;
-  align-items: center; /* Središnje poravnanje po vertikali */
+  align-items: center;
   padding: 16px;
   background-color: white;
   border-radius: 4px;
 }
-
 .polisa-description {
   width: 320px;
-  height: 80px;
-  margin-right: 24px; /* Dodaje razmak između opisa i polja za unos */
+  min-height: 80px;
+  margin-right: 24px;
   display: flex;
   flex-direction: column;
-  justify-content: center; /* Središnje poravnanje po vertikali unutar bloka opisa */
+  justify-content: center;
 }
-
 .polisa-title {
   font-family: 'Roboto', sans-serif;
   font-weight: 500;
   font-size: 16px;
-  line-height: 1;
+  line-height: 1.2;
   letter-spacing: 0.15px;
   margin-bottom: 8px;
 }
-
 .polisa-text {
   font-family: 'Roboto', sans-serif;
   font-weight: 400;
   font-size: 14px;
-  line-height: 1;
+  line-height: 1.4;
   letter-spacing: 0.25px;
   color: rgba(0, 0, 0, 0.6);
 }
-
 .polisa-input-group {
   display: flex;
   align-items: center;
   height: 48px;
-  width: 336px;
+  width: 250px;
   gap: 16px;
 }
-
 .polisa-text-field {
-  width: 100px; /* Smanjio sam širinu da bude realnija */
-  /* Možete podesiti ovu vrijednost po potrebi */
+  width: 100px;
 }
-
 .polisa-label {
   font-family: 'Roboto', sans-serif;
   font-weight: 400;

@@ -1,106 +1,99 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-// PROMJENA: Importuj svoju konfigurisanu Axios instancu
-// Pretpostavljajući da je putanja do axios.js 'src/axios.js'
-// VAŽNO: Koristi imenovani import ako api.js eksportuje default, ili direktno importuj funkciju
-import api from '@/axios' // Ako je export default
-// ili: import { axiosInstance as api } from '@/axios'; // Ako je named export, npr. 'axiosInstance'
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import api from '@/axios';
 
-const router = useRouter()
+const router = useRouter();
 
-const credentials = ref({ email: '', password: '' })
-const errorMsg = ref<string | null>(null)
-const loading = ref(false)
-const visible = ref(false)
-const formIsValid = ref(false) // Ovo je vezano za v-form validaciju
+const credentials = ref({ email: '', password: '' });
+const errorMsg = ref<string | null>(null);
+const loading = ref(false);
+const visible = ref(false);
+const formIsValid = ref(false);
 
 const emailRules = [
-  (v: string) => !!v || 'Email is required',
-  (v: string) => /.+@.+\..+/.test(v) || 'Email is not valid',
-]
+  (v: string) => !!v || 'Email je obavezan',
+  (v: string) => /.+@.+\..+/.test(v) || 'Email nije validan',
+];
 const passwordRules = [
-  (v: string) => !!v || 'Password is required',
-  (v: string) => v.length >= 6 || 'Password must be at least 6 characters',
-]
+  (v: string) => !!v || 'Lozinka je obavezna',
+  (v: string) => v.length >= 6 || 'Lozinka mora imati najmanje 6 karaktera',
+];
 
 async function signIn() {
-  // PROVJERA: Proveri da li je v-form ispravna pre slanja
   if (!formIsValid.value) {
-    console.log('Frontend form validation failed.');
-    errorMsg.value = 'Please correct the form errors.';
+    errorMsg.value = 'Molimo ispravite greške u formi.';
     return;
   }
 
-  loading.value = true
-  errorMsg.value = null
-  console.log('Attempting sign-in...');
-  console.log('Credentials:', credentials.value.email); // Ne loguj password direktno
+  loading.value = true;
+  errorMsg.value = null;
 
   try {
-    // PROMJENA: Koristi uvezenu 'api' instancu
-    const response = await api.post('/login', { // Koristi relativnu putanju jer je baseURL već postavljen u axios.js
+    // 1. Prvi API poziv: Prijava i dohvat tokena
+    const loginResponse = await api.post('/login', {
       email: credentials.value.email,
       password: credentials.value.password,
     });
 
-    console.log('Login API Full response:', response); // Debug log
-
-    // Prilagodjeno prema tvom Postman odgovoru gdje token dolazi kao "status_token"
-    // Dodao sam i 'data.token' i 'data.access_token' za širu kompatibilnost
-    const token = response.data?.status_token || 
-                  response.data?.token ||
-                  response.data?.access_token;
-
+    const token = loginResponse.data?.access_token;
     if (!token) {
-      console.error('Token not found in response data. Response:', response.data);
-      throw new Error('Token not found in response. Check backend response structure.');
+      throw new Error('Token nije pronađen u odgovoru sa servera.');
     }
 
-    
-    localStorage.setItem('auth_token', token); // Koristi 'auth_token'
-    console.log('Token successfully saved to localStorage with key "auth_token".');
-    
-  
-    const storedToken = localStorage.getItem('auth_token');
-    console.log('Stored token after save (read back from localStorage):', storedToken ? 'Token exists' : 'Token is NULL or EMPTY');
-    
-    if (!storedToken) {
-      throw new Error('Failed to save token to localStorage. Verify browser storage and permissions.');
-    }
+    localStorage.setItem('auth_token', token);
 
-
-    console.log('Login successful. Redirecting to /');
-    router.push('/');
-
-  } catch (error: any) {
-    console.error('Login error in signIn function:', error);
-    
-    if (error.response) {
-      console.error('Error response status:', error.response.status);
-      console.error('Error response data:', error.response.data);
-
-      errorMsg.value = error.response.data?.message || 
-                      error.response.data?.error ||
-                      'Login failed. Please check your credentials.';
-      
-      // Specifična poruka za 401 Unauthorized
-      if (error.response.status === 401) {
-        errorMsg.value = 'Invalid email or password.';
+    // 2. Drugi API poziv: Dohvat svih korisnika
+    // Axios interceptor će automatski dodati token u zaglavlje.
+    const usersResponse = await api.get('/users', {
+      params: {
+        role_id: 2, // Možete postaviti ID uloge na osnovu potrebe (npr. 2 za bibliotekare)
+        per_page: 100 // Povećajte broj korisnika po stranici da biste bili sigurni da ćete naći traženog
       }
+    });
+    
+    // Pristupanje listi korisnika unutar paginiranog odgovora
+    const usersData = usersResponse.data?.data?.data; 
 
-    } else if (error.request) {
-      // Zahtev je poslat, ali nije primljen odgovor
-      console.error('No response received from server. Request:', error.request);
-      errorMsg.value = 'No response from server. Please try again later.';
+    if (!Array.isArray(usersData)) {
+      throw new Error('Odgovor sa servera nije ispravnog formata (lista korisnika).');
+    }
+
+    // 3. Pronađi korisnika po emailu
+    const user = usersData.find(
+      (u: any) => u.email === credentials.value.email
+    );
+    
+    if (!user) {
+      throw new Error('Korisnički podaci nisu pronađeni u odgovoru sa servera.');
+    }
+
+    localStorage.setItem('user', JSON.stringify(user));
+
+    if (!localStorage.getItem('auth_token') || !localStorage.getItem('user')) {
+      throw new Error('Neuspelo čuvanje podataka u localStorage.');
+    }
+
+    router.push('/');
+  } catch (error: any) {
+    console.error('Greška pri prijavi:', error);
+
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+
+    if (error.response) {
+      errorMsg.value = error.response.data?.message ||
+        error.response.data?.error ||
+        'Greška pri prijavi. Proverite podatke.';
+
+      if (error.response.status === 401) {
+        errorMsg.value = 'Neispravan email ili lozinka.';
+      }
     } else {
-      // Nešto drugo je pošlo naopako pre slanja zahteva
-      console.error('Error setting up request:', error.message);
-      errorMsg.value = error.message || 'An unexpected error occurred.';
+      errorMsg.value = 'Greška servera. Pokušajte ponovo kasnije.';
     }
   } finally {
     loading.value = false;
-    console.log('Login attempt finished. Loading set to false.');
   }
 }
 </script>
@@ -154,7 +147,7 @@ async function signIn() {
           </v-form>
 
           <div class="forgot-link">
-            <a href="#">Forgot password?</a>
+            <a href="#">Zaboravili ste lozinku?</a>
           </div>
 
           <div v-if="errorMsg" class="error-text">
@@ -162,7 +155,7 @@ async function signIn() {
           </div>
 
           <div class="login-footer">
-            ©2021 ICT Cortex. All rights reserved.
+            ©2021 ICT Cortex. Sva prava zadržana.
           </div>
         </v-card>
       </div>

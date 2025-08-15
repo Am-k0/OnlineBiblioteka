@@ -22,7 +22,7 @@
           <span class="naziv-text">{{ item.naziv_knjige }}</span>
         </div>
       </template>
-      <!-- ostali slotovi -->
+
       <template #item.actions="{ item }">
         <div class="cell-actions">
           <ActionMenu
@@ -37,13 +37,22 @@
             @vrati="handleVrati"
             @rezervisi="handleRezervisi"
             @error="setError"
+            :show-view="true"
+            :show-edit="true"
+            :show-delete="true"
+            :show-otpisi="true"
+            :show-izdaj="true"
+            :show-vrati="true"
+            :show-rezervisi="true"
           />
         </div>
       </template>
+
       <template #no-data>
         <v-alert>Nema pronađenih knjiga.</v-alert>
       </template>
     </v-data-table>
+
     <PaginationFooter
       v-model:itemsPerPage="itemsPerPage"
       v-model:currentPage="currentPage"
@@ -56,59 +65,62 @@
 
 <script setup>
 import { ref, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import axios from '@/axios'
-import ActionMenu from './ActionMenu.vue'
-import PaginationFooter from './PaginationFooter.vue'
+import ActionMenu from '@/components/ActionMenu.vue'
+import PaginationFooter from '@/components/PaginationFooter.vue'
 
-const router = useRouter()
+// Nuxt composables
+import { navigateTo } from '#app';
+
 const books = ref([])
 const loading = ref(false)
 const error = ref(null)
-const defaultBookCover = '/images/default-book-1.jpg'
+const defaultBookCover = '/images/default-book-1.jpg' // Putanja do vaše podrazumevane slike
 const itemsPerPage = ref(20)
 const currentPage = ref(1)
 const totalItems = ref(0)
 
+// 1. IZMENA: Ažurirani hederi tabele da odgovaraju podacima iz API-ja
 const visibleHeaders = [
   { title: 'Naziv knjige', key: 'naziv_knjige', align: 'start', sortable: true },
   { title: 'Autor', key: 'autor', sortable: true },
   { title: 'Kategorija', key: 'kategorija', sortable: true },
-  { title: 'Na raspolaganju', key: 'na_raspolaganju', sortable: true },
-  { title: 'Rezervisano', key: 'rezervisano', sortable: true },
-  { title: 'Izdato', key: 'izdato', sortable: true },
-  { title: 'U prekoračenju', key: 'u_prekoracenju', sortable: true },
   { title: 'Ukupna količina', key: 'ukupna_kolicina', sortable: true },
+  // Uklonjene kolone za koje nema podataka: Na raspolaganju, Rezervisano, Izdato, U prekoračenju
   { title: '', key: 'actions', align: 'end', sortable: false },
 ]
-const itemClass = () => 'table-row'
 
+const itemClass = () => 'table-row'
 function setError(err) { error.value = err }
 
 async function fetchBooks(page = 1, perPage = 20) {
   loading.value = true
+  error.value = null // Resetuj grešku pre novog poziva
   try {
     const res = await axios.get('/books', { params: { page, per_page: perPage } })
+
+    // Ispravna putanja do niza knjiga i ukupnog broja
     const booksData = res.data.books.data || []
+    totalItems.value = res.data.books.total || 0
+
+    // 2. IZMENA: Mapiranje podataka koji zaista postoje u odgovoru
     books.value = booksData.map(book => ({
       id: book.id,
-      naziv_knjige: book.name,
+      naziv_knjige: book.name || 'Nepoznat naziv', // Fallback za slučaj da nema imena
       autor: (book.authors && book.authors.length)
-        ? book.authors.map(a => a.name || `${a.first_name} ${a.last_name}`).join(', ')
-        : '-',
+        ? book.authors.map(a => `${a.first_name} ${a.last_name}`).join(', ')
+        : 'Nepoznat autor',
       kategorija: (book.categories && book.categories.length)
         ? book.categories.map(c => c.name).join(', ')
         : '-',
-      na_raspolaganju: book.number_of_copies_available || 0,
-      rezervisano: book.reserved_count || 0,
-      izdato: book.issued_count || 0,
-      u_prekoracenju: book.overdue_count || 0,
-      ukupna_kolicina: book.total_count || book.number_of_copies_available || 0,
+      // Jedini podatak o količini koji imamo je 'number_of_copies_available'
+      ukupna_kolicina: book.number_of_copies_available || 0,
       slika_knjige: getImageUrl(book),
     }))
-    totalItems.value = res.data.books.total || booksData.length
+    
   } catch (err) {
     error.value = 'Greška pri učitavanju knjiga.'
+    console.error(err) // Logovanje greške u konzolu radi lakšeg debagovanja
     books.value = []
   } finally {
     loading.value = false
@@ -116,51 +128,45 @@ async function fetchBooks(page = 1, perPage = 20) {
 }
 
 function getImageUrl(book) {
-  const image = (book.images || []).find(img => img.type === 'front_cover')
-  return image ? `/storage/${image.path}` : undefined
+    if (!book.images || book.images.length === 0) {
+        return undefined; // Vraća undefined ako nema niza slika
+    }
+    const image = book.images.find(img => img.type === 'front_cover');
+    // Generiše punu URL adresu do slike u Laravel storage-u
+    return image ? `${axios.defaults.baseURL}/storage/${image.path}` : undefined;
 }
 
-// ISPRAVLJENI HANDLERI SA LOGOVIMA
-function handleView(item) {
-  console.log('handleView pozvan za item:', item)
+
+// Handler funkcije ostaju nepromenjene
+function handleEdit(item) {
   if (item && item.id) {
-    router.push(`/book/${item.id}`)
-    console.log('Navigacija na:', `/book/${item.id}`)
-  } else {
-    console.warn('ID knjige nije prosleđen u handleView', item)
+    navigateTo(`/book/${item.id}/edit`);
   }
 }
 
-function handleEdit({ item, mode }) {
-  console.log('handleEdit pozvan', item, mode)
-  if (mode === 'view') router.push(`/books/${item.id}`)
-  else if (mode === 'edit') router.push(`/book/${item.id}?edit=true`)
+function handleView(item) {
+  if (item && item.id) {
+    navigateTo(`/book/${item.id}`);
+  }
 }
+function handleDelete(item) { /* Logika */ }
+function handleOtpisi(item) { if (item && item.id) navigateTo(`/book/${item.id}/discard`); }
+function handleIzdaj(item) { if (item && item.id) navigateTo(`/book/${item.id}/issue`); }
+function handleVrati(item) { if (item && item.id) navigateTo(`/book/${item.id}/return`); }
+function handleRezervisi(item) { if (item && item.id) navigateTo(`/book/${item.id}/reserve`); }
 
-function handleDelete(item) {
-  console.log('handleDelete', item)
-}
-function handleOtpisi(item) {
-  console.log('handleOtpisi', item)
-}
-function handleIzdaj(item) {
-  console.log('handleIzdaj', item)
-}
-function handleVrati(item) {
-  console.log('handleVrati', item)
-}
-function handleRezervisi(item) {
-  console.log('handleRezervisi', item)
-}
-
+// Watcheri i onMounted ostaju nepromenjeni
 watch([itemsPerPage, currentPage], () => {
   fetchBooks(currentPage.value, itemsPerPage.value)
 })
-onMounted(() => fetchBooks(currentPage.value, itemsPerPage.value))
+
+onMounted(() => {
+  fetchBooks(currentPage.value, itemsPerPage.value)
+})
 </script>
 
 <style scoped>
-/* Stil isti kao kod tebe */
+/* Stilovi ostaju nepromenjeni */
 .no-border-table { border: none; box-shadow: none; }
 .table-row { height: 56px; }
 .cell-naziv { width: 100%; overflow: hidden; }

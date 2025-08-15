@@ -31,13 +31,7 @@
 
       <template v-slot:item.actions="{ item }">
         <div class="cell-actions flex justify-end">
-          <ActionMenu
-            :item="item"
-            entity-name="poveza"
-            :title-property="item.name"
-            @edit="handleEdit"
-            @delete="handleDelete"
-          />
+         
         </div>
       </template>
     </v-data-table>
@@ -47,7 +41,6 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router'; // Uvoz useRouter
-import ActionMenu from '../components/ActionMenu.vue';
 
 const router = useRouter(); // Inicijalizacija routera
 
@@ -65,10 +58,6 @@ const headers = ref([
 
 const itemClass = 'table-row';
 
-// Funkcija za navigaciju na formu
-const handleNewPovez = () => {
-  router.push('/binding');
-};
 
 const handleEdit = (item) => { console.log('Uređivanje poveza:', item.name); };
 const handleDelete = (item) => { console.log('Brisanje poveza:', item.name); };

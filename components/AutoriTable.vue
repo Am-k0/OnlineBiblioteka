@@ -38,10 +38,14 @@
           <ActionMenu
             :item="item"
             entity-name="autora"
-            :title-property="item.name"
+            title-property="name"
+            :show-view="true"
+            :show-edit="true"
+            :show-delete="true"
+            @view="handleView"
             @edit="handleEdit"
             @delete="handleDelete"
-            @view="handleView" @error="setError"
+            @error="setError"
           />
         </div>
       </template>

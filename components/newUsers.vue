@@ -183,7 +183,6 @@ const localError = ref({
 
 const displayGlobalError = ref(props.globalError)
 
-
 watch(() => props.globalError, (newVal) => {
   displayGlobalError.value = newVal
 })
@@ -218,7 +217,6 @@ const triggerFileInput = () => {
 const handleFileUpload = (e) => {
   const file = e.target.files[0]
   if (file) {
-   
     if (file.size > 5 * 1024 * 1024) {
       localError.value.opsta = 'Slika je prevelika! Maksimalna veličina je 5MB.'
       return
@@ -307,7 +305,7 @@ const handleSave = async () => {
     return
   }
 
- // Priprema podataka za slanje
+  // Priprema podataka za slanje
   const formData = new FormData()
   formData.append('first_name', firstName.value.trim())
   formData.append('last_name', lastName.value.trim())
@@ -324,17 +322,17 @@ const handleSave = async () => {
   try {
     loading.value = true
     
- 
-    const response = await api.post('/users/create', formData, {
+    // PROMENJENA RUTA - umesto '/users/create' koristimo '/create'
+    const response = await api.post('/create', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     })
 
     if (response.status === 201) {
-      const createdUser = response.data.data
+      const createdUser = response.data.user // Promenio sa response.data.data na response.data.user
       
-    
+      // Resetujemo form
       firstName.value = ''
       lastName.value = ''
       jmbg.value = ''
@@ -349,7 +347,7 @@ const handleSave = async () => {
         fileInput.value.value = ''
       }
 
-      
+      // Preusmeravanje
       router.push(`/users/${createdUser.username}`)
     }
 
@@ -357,9 +355,9 @@ const handleSave = async () => {
     console.error('Error creating user:', error)
     
     if (error.response) {
-      if (error.response.status === 422) {
-       
-        const backendErrors = error.response.data.errors
+      if (error.response.status === 400) { // Backend vraća 400, ne 422
+        // Validacione greške
+        const backendErrors = error.response.data
         localError.value = {
           firstName: backendErrors.first_name?.[0] || '',
           lastName: backendErrors.last_name?.[0] || '',
@@ -404,7 +402,6 @@ const handleSave = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  
 }
 
 .page-content {

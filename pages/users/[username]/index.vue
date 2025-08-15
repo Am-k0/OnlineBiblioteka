@@ -224,17 +224,33 @@ const fetchUser = async () => {
   globalError.value = null
 
   try {
+    console.log('Dohvatam korisnika:', username)
     const response = await api.get(`/users/${username}`)
-    user.value = response.data.data
+    console.log('Odgovor servera:', response.data)
+    
+    // ISPRAVKA: Backend vraća podatke kao niz, uzimamo prvi element
+    if (Array.isArray(response.data) && response.data.length > 0) {
+      user.value = response.data[0]
+    } else if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+      // Slučaj kada backend vraća objekat direktno
+      user.value = response.data
+    } else {
+      throw new Error('Neočekivan format odgovora od servera')
+    }
+    
+    console.log('User podatci:', user.value)
   } catch (error: any) {
     console.error('Greška pri dohvatanju korisnika:', error)
     if (axios.isAxiosError(error) && error.response) {
+      console.error('Error response:', error.response.data)
       if (error.response.status === 404) {
         globalError.value = `Korisnik sa korisničkim imenom "${username}" nije pronađen.`
       } else if (error.response.status === 403) {
         globalError.value = 'Nemate dozvolu za pristup ovom korisniku.'
       } else if (error.response.status === 401) {
         globalError.value = 'Neautorizovan pristup. Molimo prijavite se ponovo.'
+      } else {
+        globalError.value = `Došlo je do greške (${error.response.status}): ${error.response.data?.message || 'Nepoznata greška'}`
       }
     } else {
       globalError.value = 'Došlo je do mrežne greške ili greške servera.'
@@ -246,7 +262,6 @@ const fetchUser = async () => {
   }
 }
 
-// ISPRAVKA: Navigacija na edit stranicu
 const handleEdit = () => {
   if (user.value?.username) {
     console.log('Navigiram na edit stranicu za korisnika:', user.value.username)

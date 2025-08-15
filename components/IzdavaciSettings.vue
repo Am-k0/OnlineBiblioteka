@@ -40,7 +40,9 @@
           <ActionMenu
             :item="item"
             entity-name="izdavača"
-            :title-property="item.name"
+            title-property="name"
+            :show-edit="true"
+            :show-delete="true"
             @edit="handleEdit"
             @delete="handleDelete"
             @error="setError"
@@ -112,7 +114,11 @@ const fetchIzdavaci = async () => {
     });
     
     const apiData = response.data.publishers;
-    izdavaci.value = apiData.data;
+    izdavaci.value = apiData.data.map(publisher => ({
+      id: publisher.publisher_id,
+      name: publisher.publisher_name,
+    }));
+    
     totalItems.value = apiData.total;
   } catch (err) {
     setError('Greška pri učitavanju izdavača: ' + (err.response?.data?.message || err.message || 'Nepoznata greška'));
@@ -133,19 +139,24 @@ const handlePageChange = (newValue) => {
 };
 
 const handleNewIzdavac = () => {
-  // Preusmjerava na stranicu za kreiranje novog izdavača
   router.push('/publisher');
 };
 
-const handleEdit = (item) => { console.log('Uređivanje izdavača:', item); };
+const handleEdit = (item) => { 
+  console.log('Uređivanje izdavača:', item); 
+};
+
 const handleDelete = async (item) => {
   try {
     if (!confirm(`Da li ste sigurni da želite da obrišete izdavača "${item.name}"?`)) return;
     loading.value = true;
     const token = localStorage.getItem('auth_token');
+    if (!token) throw new Error('Niste prijavljeni');
+
     await axios.delete(`${apiBaseUrl}/api/publishers/${item.id}/destroy`, {
       headers: { Authorization: `Bearer ${token}` }
     });
+    
     await fetchIzdavaci();
   } catch (err) {
     setError('Greška pri brisanju izdavača: ' + (err.response?.data?.message || err.message || 'Nepoznata greška'));

@@ -8,15 +8,22 @@
 
     <div class="page-content p-4">
       <v-card flat class="bg-white">
-        <v-tabs v-model="tab" class="custom-tabs" grow>
-          <v-tab value="polisa" class="custom-tab">Polisa</v-tab>
-          <v-tab value="kategorija" class="custom-tab">Kategorija</v-tab>
-          <v-tab value="zanrovi" class="custom-tab">Žanrovi</v-tab>
-          <v-tab value="izdavaci" class="custom-tab">Izdavači</v-tab>
-          <v-tab value="povez" class="custom-tab">Povez</v-tab>
-          <v-tab value="format" class="custom-tab">Format</v-tab>
-          <v-tab value="pismo" class="custom-tab">Pismo</v-tab>
-        </v-tabs>
+        <div class="tabs-and-divider-wrapper">
+          <v-tabs
+            v-model="tab"
+            class="custom-tabs"
+            grow
+          >
+            <v-tab value="polisa" class="custom-tab">Polisa</v-tab>
+            <v-tab value="kategorija" class="custom-tab">Kategorija</v-tab>
+            <v-tab value="zanrovi" class="custom-tab">Žanrovi</v-tab>
+            <v-tab value="izdavaci" class="custom-tab">Izdavači</v-tab>
+            <v-tab value="povez" class="custom-tab">Povez</v-tab>
+            <v-tab value="format" class="custom-tab">Format</v-tab>
+            <v-tab value="pismo" class="custom-tab">Pismo</v-tab>
+          </v-tabs>
+          <div class="tab-content-divider"></div>
+        </div>
 
         <v-card-text class="p-4">
           <v-window v-model="tab">
@@ -110,11 +117,9 @@ import { useRoute } from 'vue-router';
 const route = useRoute();
 const tab = ref('polisa');
 
-// Postavlja početnu vrijednost taba na osnovu rute, ako postoji
 if (route.query.tab) {
   tab.value = route.query.tab;
 }
-
 
 watch(
   () => route.query.tab,
@@ -123,10 +128,9 @@ watch(
       tab.value = newTab;
     }
   },
-  { immediate: true } // Pokreni watcher odmah po kreiranju
+  { immediate: true }
 );
 
-// Lazy load komponenti za bolje performanse
 const PolisaSettings = defineAsyncComponent(() =>
   import('../components/PolisaSettings.vue')
 );
@@ -156,7 +160,7 @@ const PismoSettings = defineAsyncComponent(() =>
   background-color: white;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
   overflow: hidden; 
 }
 
@@ -180,18 +184,29 @@ const PismoSettings = defineAsyncComponent(() =>
   background-color: #e0e0e0;
   margin-top: 20px;
   margin-bottom: 24px;
-    margin-bottom: 0;
 }
 
 .page-content {
-  padding: 0 24px;
+  padding: 0 24px; /* Vraćamo padding da bi se sadržaj poravnao */
   flex-grow: 1;
 }
 
-.custom-tabs {
-  display: flex;
-  
+.tabs-and-divider-wrapper {
+  position: relative;
+  /* Koristimo margin-left negativnu vrednost da "poguramo" kontejner levo */
+  margin-left: -24px; 
+  /* Širina je 100% plus padding s obe strane */
+  width: calc(100% + 48px);
 }
+
+.custom-tabs {
+  width: 694px; /* Vraćena fiksna širina za tabove */
+  height: 48px;
+  gap: 16px;
+  margin-left: 24px; /* Pozicioniramo tabove 24px od ivice wrapper-a */
+  margin-top: 0;
+}
+
 .custom-tab {
   padding: 0.75rem 1rem;
   font-weight: 500;
@@ -200,9 +215,12 @@ const PismoSettings = defineAsyncComponent(() =>
   transition: all 0.2s ease;
   color: #4b5563;
   height: 48px;
-  text-transform: lowercase;
+  text-transform: none;
   flex: 1 0 auto;
   min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .custom-tab:hover {
@@ -213,7 +231,6 @@ const PismoSettings = defineAsyncComponent(() =>
   text-transform: uppercase;
 }
 
-/* Stil za aktivni tab */
 .v-tab--selected.custom-tab {
   color: rgb(59 130 246) !important;
   border-bottom: 2px solid rgb(59 130 246) !important;
@@ -224,9 +241,22 @@ const PismoSettings = defineAsyncComponent(() =>
   text-transform: none !important;
 }
 
+.tab-content-divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.v-card-text {
+  padding: 24px 0; /* Uklanjamo horizontalni padding unutar card-text-a */
+}
+
 @media (max-width: 768px) {
   .custom-tabs {
     flex-wrap: wrap;
+    width: auto;
+    left: 0;
   }
   
   .custom-tab {

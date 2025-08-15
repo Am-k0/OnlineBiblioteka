@@ -41,6 +41,9 @@
             :item="item"
             :entity-name="entityDisplayName"
             title-property="first_name" 
+            :show-view="true"
+            :show-edit="true"
+            :show-delete="true"
             @view="handleView"
             @edit="handleEdit"
             @delete="handleDelete"
@@ -147,11 +150,11 @@ watch(() => props.error, (newVal) => {
 const defaultAvatar = '/images/default-user-1.jpg'
 
 const visibleHeaders = ref([
-  { title: 'Ime i prezime', key: 'ime_i_prezime', align: 'start', sortable: true },
+  { title: 'Ime i prezime', key: 'ime_i_prezime', align: 'start' as const, sortable: true },
   { title: 'Email', key: 'email', sortable: true },
   { title: 'Tip', key: 'tip', sortable: false },
   { title: 'Zadnji pristup sistemu', key: 'zadnji_pristup_sistemu', sortable: true },
-  { title: '', key: 'actions', align: 'end', sortable: false },
+  { title: '', key: 'actions', align: 'end' as const, sortable: false },
 ])
 
 const formatDate = (dateString: string | null) => {

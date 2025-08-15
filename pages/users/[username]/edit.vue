@@ -153,7 +153,7 @@ import api from '@/axios'
 
 // Dodaj meta informacije za stranicu
 definePageMeta({
-  layout: 'default'
+  layout: 'loan-management'
 })
 
 const route = useRoute()
@@ -293,7 +293,7 @@ const validateForm = () => {
 const fetchUserData = async () => {
   const username = route.params.username as string
   if (!username) {
-    fetchError.value = 'Username nije definisan u URL-u.'
+    fetchError.value = 'Korisničko ime nije definisano u URL-u.'
     pageLoading.value = false
     return
   }
@@ -302,9 +302,25 @@ const fetchUserData = async () => {
   fetchError.value = null
   
   try {
-    console.log('Fetching user data for:', username)
     const response = await api.get(`/users/${username}`)
-    const user = response.data.data
+    console.log('API Response:', response.data) // Debug log
+    
+    // Proveravaj različite formate odgovora
+    let user = null
+    if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+      // Ako je odgovor niz sa korisnikom
+      user = response.data[0]
+    } else if (response.data && response.data.data) {
+      // Ako je odgovor objekat sa data svojstvom
+      user = response.data.data
+    } else if (response.data && response.data.id) {
+      // Ako je odgovor direktno korisnik
+      user = response.data
+    }
+    
+    if (!user) {
+      throw new Error('API je vratio neispravan format podataka.')
+    }
     
     // Popuni formu sa podacima korisnika
     userId.value = user.id
@@ -319,24 +335,23 @@ const fetchUserData = async () => {
     if (user.profile_picture) {
       slikaUrl.value = user.profile_picture.startsWith('http') 
         ? user.profile_picture
-        : `http://localhost:8000/storage/${user.profile_picture}`
+        : `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/storage/${user.profile_picture}`
     } else {
       slikaUrl.value = '/images/default-user-1.jpg'
     }
     
-    console.log('User data loaded successfully:', user)
   } catch (error: any) {
     console.error('Failed to fetch user data:', error)
     if (error.response) {
       if (error.response.status === 404) {
-        fetchError.value = 'Korisnik nije pronađen.'
+        fetchError.value = 'Korisnik nije pronađen. Molimo provjerite da li korisničko ime postoji.'
       } else if (error.response.status === 403) {
         fetchError.value = 'Nemate dozvolu za pristup ovom korisniku.'
       } else {
-        fetchError.value = `Greška ${error.response.status}: ${error.response.data?.message || 'Nepoznata greška'}`
+        fetchError.value = `Došlo je do greške (${error.response.status}): ${error.response.data?.message || 'Nepoznata greška'}`
       }
     } else {
-      fetchError.value = 'Došlo je do greške prilikom učitavanja podataka.'
+      fetchError.value = 'Došlo je do greške prilikom učitavanja podataka. Molimo provjerite mrežnu vezu i URL adrese.'
     }
   } finally {
     pageLoading.value = false
@@ -348,39 +363,43 @@ const handleSave = async () => {
     return
   }
   
-  if (!userId.value) {
-    displayGlobalError.value = 'ID korisnika nije dostupan.'
+  if (!korisnickoIme.value) {
+    displayGlobalError.value = 'Korisničko ime nije dostupno.'
     return
   }
   
+  // Kreiranje FormData objekta za slanje podataka
   const formData = new FormData()
   
-  formData.append('_method', 'PATCH')
-  
+  // Dodaj osnovne podatke
   formData.append('first_name', firstName.value.trim())
   formData.append('last_name', lastName.value.trim())
   formData.append('email', email.value.trim())
   formData.append('jmbg', jmbg.value.trim())
   
+  // Dodaj password samo ako je unesen
   if (password.value) {
     formData.append('password', password.value)
   }
   
+  // Dodaj sliku ako je uploadovana nova
   if (fotografija.value) {
     formData.append('profile_picture', fotografija.value)
-  } else if (!slikaUrl.value || slikaUrl.value.includes('default-user-1.jpg')) {
-    formData.append('profile_picture', '')
   }
   
   try {
     loading.value = true
-    console.log('Updating user with ID:', userId.value)
     
-    const response = await api.post(`/users/${userId.value}`, formData)
+    // Pozovi PATCH endpoint za update korisnika
+    const response = await api.patch(`/user/update`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
     
     if (response.status === 200) {
-      console.log('User updated successfully')
       displayGlobalError.value = null
+      // Preusmeravaj na prikaz korisnika
       router.push(`/users/${korisnickoIme.value}`)
     }
   } catch (error: any) {
@@ -388,21 +407,23 @@ const handleSave = async () => {
     if (error.response) {
       if (error.response.status === 422) {
         const backendErrors = error.response.data.errors
+        // Mapiranje backend grešaka na frontend
         localError.value = {
-          firstName: backendErrors.first_name?.[0] || '',
-          lastName: backendErrors.last_name?.[0] || '',
-          jmbg: backendErrors.jmbg?.[0] || '',
-          email: backendErrors.email?.[0] || '',
-          korisnickoIme: backendErrors.username?.[0] || '',
-          password: backendErrors.password?.[0] || '',
+          firstName: backendErrors?.first_name?.[0] || '',
+          lastName: backendErrors?.last_name?.[0] || '',
+          jmbg: backendErrors?.jmbg?.[0] || '',
+          email: backendErrors?.email?.[0] || '',
+          korisnickoIme: backendErrors?.username?.[0] || '',
+          password: backendErrors?.password?.[0] || '',
           ponoviLozinku: '',
-          opsta: backendErrors.profile_picture?.[0] || ''
+          opsta: backendErrors?.profile_picture?.[0] || ''
         }
+        displayGlobalError.value = 'Uneseni podaci su neispravni. Molimo provjerite greške u poljima.'
       } else {
         displayGlobalError.value = `Došlo je do greške (${error.response.status}): ${error.response.data?.message || 'Nepoznata greška'}`
       }
     } else {
-      displayGlobalError.value = 'Došlo je do neočekivane greške.'
+      displayGlobalError.value = 'Došlo je do neočekivane greške. Molimo provjerite mrežnu vezu.'
     }
   } finally {
     loading.value = false
@@ -428,20 +449,18 @@ watch(() => displayGlobalError.value, (newVal) => {
   if (newVal) {
     setTimeout(() => {
       displayGlobalError.value = null
-    }, 5000) // Sakriva grešku posle 5 sekundi
+    }, 5000)
   }
 })
 
 // Lifecycle hook za učitavanje podataka pri ulasku na stranicu
 onMounted(() => {
-  console.log('Edit page mounted, route params:', route.params)
   fetchUserData()
 })
 
 // Watcher za promenu username parametra
 watch(() => route.params.username, (newUsername) => {
   if (newUsername) {
-    console.log('Username changed to:', newUsername)
     fetchUserData()
   }
 })

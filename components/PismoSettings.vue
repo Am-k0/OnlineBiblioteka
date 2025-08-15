@@ -31,13 +31,7 @@
 
       <template v-slot:item.actions="{ item }">
         <div class="cell-actions flex justify-end">
-          <ActionMenu
-            :item="item"
-            entity-name="pisma"
-            :title-property="item.name"
-            @edit="handleEdit"
-            @delete="handleDelete"
-          />
+         
         </div>
       </template>
     </v-data-table>
@@ -47,7 +41,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router'; // Uvoz useRouter
-import ActionMenu from '../components/ActionMenu.vue';
+
 
 const router = useRouter(); // Inicijalizacija routera
 
