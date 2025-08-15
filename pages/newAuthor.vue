@@ -176,21 +176,21 @@ const cancel = () => {
 </script>
 
 <style scoped>
-/* Ovo je wrapper za celu stranicu */
+
 .page-container {
-  padding: 0; /* Ukloni padding, jer header i content sada imaju svoje */
+  padding: 0; 
   background-color: white;
   display: flex;
   flex-direction: column;
-  min-height: 100vh; /* Koristimo min-h-screen od Tailwinda, ali je dobro imati fallback */
-  overflow: hidden; /* Glavni kontejner nema skrolovanje */
+  min-height: 100vh; 
+  overflow: hidden; 
 }
 
-/* Stilovi preuzeti iz author/[id].vue za header */
+
 .app-header {
-  padding: 6px 24px 0 24px; /* Smanjen padding na vrhu i dnu */
+  padding: 6px 24px 0 24px; 
   display: flex;
-  justify-content: space-between; /* Da bi gurnuo ActionMenu desno, iako ga ovde nema */
+  justify-content: space-between; 
   align-items: center;
 }
 
@@ -209,7 +209,7 @@ const cancel = () => {
   font-size: 14px;
   color: #777;
   margin: 0;
-  margin-top: 2px; /* Smanjena margina između naslova i podnaslova */
+  margin-top: 2px; 
 }
 
 .page-subtitle .link {
@@ -237,7 +237,7 @@ const cancel = () => {
   margin-bottom: 8px;
   color: #212121;
 }
-.breadcrumbs-old { /* Stara breadcrumbs klasa, sada redundantna ili za uklanjanje */
+.breadcrumbs-old { 
   display: flex;
   align-items: center;
   gap: 8px;
@@ -286,7 +286,7 @@ const cancel = () => {
 }
 .form-field {
   margin-bottom: 16px;
-  max-width: 463px; /* Zadržite ovu širinu polja */
+  max-width: 463px; 
 }
 .error-message {
   color: #ff5252;

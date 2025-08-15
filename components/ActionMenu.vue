@@ -9,9 +9,9 @@
 
       <v-list class="dropdown-menu">
 
-        <v-list-item 
-          v-if="!hideViewOption"
-          @click="handleView" 
+        <v-list-item
+          v-if="showView"
+          @click="handleView"
           class="dropdown-item view-item"
         >
           <template v-slot:prepend>
@@ -20,39 +20,59 @@
           <v-list-item-title class="dropdown-text">Pogledaj detalje</v-list-item-title>
         </v-list-item>
 
-        <v-list-item @click="handleEdit" class="dropdown-item edit-item">
+        <v-list-item
+          v-if="showEdit"
+          @click="handleEdit"
+          class="dropdown-item edit-item"
+        >
           <template v-slot:prepend>
             <v-icon size="24" class="dropdown-icon">mdi-pencil-outline</v-icon>
           </template>
           <v-list-item-title class="dropdown-text">Izmijeni {{ entityName }}</v-list-item-title>
         </v-list-item>
 
-        <template v-if="entityName === 'knjigu'">
+        <template v-if="showOtpisi || showIzdaj || showVrati || showRezervisi">
           <v-divider class="my-1"></v-divider>
 
           <div v-if="inlineLayout" class="horizontal-actions">
-            <v-list-item @click="handleOtpisi" class="action-item otpisi-item">
+            <v-list-item
+              v-if="showOtpisi"
+              @click="handleOtpisi"
+              class="action-item otpisi-item"
+            >
               <template v-slot:prepend>
                 <v-icon size="24" class="action-icon">mdi-cancel</v-icon>
               </template>
               <v-list-item-title class="action-text">Otpiši knjigu</v-list-item-title>
             </v-list-item>
 
-            <v-list-item @click="handleIzdaj" class="action-item izdaj-item">
+            <v-list-item
+              v-if="showIzdaj"
+              @click="handleIzdaj"
+              class="action-item izdaj-item"
+            >
               <template v-slot:prepend>
                 <v-icon size="24" class="action-icon">mdi-book-arrow-right</v-icon>
               </template>
               <v-list-item-title class="action-text">Izdaj knjigu</v-list-item-title>
             </v-list-item>
 
-            <v-list-item @click="handleVrati" class="action-item vrati-item">
+            <v-list-item
+              v-if="showVrati"
+              @click="handleVrati"
+              class="action-item vrati-item"
+            >
               <template v-slot:prepend>
                 <v-icon size="24" class="action-icon">mdi-book-arrow-left</v-icon>
               </template>
               <v-list-item-title class="action-text">Vrati knjigu</v-list-item-title>
             </v-list-item>
 
-            <v-list-item @click="handleRezervisi" class="action-item rezervisi-item">
+            <v-list-item
+              v-if="showRezervisi"
+              @click="handleRezervisi"
+              class="action-item rezervisi-item"
+            >
               <template v-slot:prepend>
                 <v-icon size="24" class="action-icon">mdi-bookmark-outline</v-icon>
               </template>
@@ -61,28 +81,44 @@
           </div>
 
           <template v-else>
-            <v-list-item @click="handleOtpisi" class="dropdown-item otpisi-item">
+            <v-list-item
+              v-if="showOtpisi"
+              @click="handleOtpisi"
+              class="dropdown-item otpisi-item"
+            >
               <template v-slot:prepend>
                 <v-icon size="24" class="dropdown-icon">mdi-cancel</v-icon>
               </template>
               <v-list-item-title class="dropdown-text">Otpiši knjigu</v-list-item-title>
             </v-list-item>
 
-            <v-list-item @click="handleIzdaj" class="dropdown-item izdaj-item">
+            <v-list-item
+              v-if="showIzdaj"
+              @click="handleIzdaj"
+              class="dropdown-item izdaj-item"
+            >
               <template v-slot:prepend>
                 <v-icon size="24" class="dropdown-icon">mdi-book-arrow-right</v-icon>
               </template>
               <v-list-item-title class="dropdown-text">Izdaj knjigu</v-list-item-title>
             </v-list-item>
 
-            <v-list-item @click="handleVrati" class="dropdown-item vrati-item">
+            <v-list-item
+              v-if="showVrati"
+              @click="handleVrati"
+              class="dropdown-item vrati-item"
+            >
               <template v-slot:prepend>
                 <v-icon size="24" class="dropdown-icon">mdi-book-arrow-left</v-icon>
               </template>
               <v-list-item-title class="dropdown-text">Vrati knjigu</v-list-item-title>
             </v-list-item>
 
-            <v-list-item @click="handleRezervisi" class="dropdown-item rezervisi-item">
+            <v-list-item
+              v-if="showRezervisi"
+              @click="handleRezervisi"
+              class="dropdown-item rezervisi-item"
+            >
               <template v-slot:prepend>
                 <v-icon size="24" class="dropdown-icon">mdi-bookmark-outline</v-icon>
               </template>
@@ -93,12 +129,17 @@
 
         <v-divider class="my-1" />
 
-        <v-list-item @click="handleDelete" class="dropdown-item delete-item">
+        <v-list-item
+          v-if="showDelete"
+          @click="handleDelete"
+          class="dropdown-item delete-item"
+        >
           <template v-slot:prepend>
             <v-icon size="24" class="dropdown-icon">mdi-delete-outline</v-icon>
           </template>
           <v-list-item-title class="dropdown-text">Izbriši {{ entityName }}</v-list-item-title>
         </v-list-item>
+
       </v-list>
     </v-menu>
 
@@ -125,11 +166,16 @@ const props = defineProps({
   item: { type: Object, required: true },
   entityName: { type: String, default: 'knjigu' },
   titleProperty: { type: String, default: 'naziv_knjige' },
-  hideViewOption: { type: Boolean, default: false },
+  showView: { type: Boolean, default: false }, // OVDJE JE PROMENJENA PODRAZUMEVANA VREDNOST
+  showEdit: { type: Boolean, default: false },
+  showDelete: { type: Boolean, default: false },
+  showOtpisi: { type: Boolean, default: false },
+  showIzdaj: { type: Boolean, default: false },
+  showVrati: { type: Boolean, default: false },
+  showRezervisi: { type: Boolean, default: false },
   inlineLayout: { type: Boolean, default: false }
 })
 
-// MODIFIED: Added 'view' to the list of emitted events
 const emit = defineEmits([
   'view',
   'edit',
@@ -147,35 +193,13 @@ const entityTitle = computed(() =>
   props.item[props.titleProperty] || props.item.id
 )
 
-// MODIFIED: Emits a dedicated 'view' event with the item
-const handleView = () => {
-  emit('view', props.item)
-}
-
-// MODIFIED: Emits a dedicated 'edit' event with the item
-const handleEdit = () => {
-  emit('edit', props.item)
-}
-
-const handleOtpisi = () => {
-  emit('otpisi', props.item)
-}
-
-const handleIzdaj = () => {
-  emit('izdaj', props.item)
-}
-
-const handleVrati = () => {
-  emit('vrati', props.item)
-}
-
-const handleRezervisi = () => {
-  emit('rezervisi', props.item)
-}
-
-const handleDelete = () => {
-  deleteDialog.value = true
-}
+const handleView = () => { emit('view', props.item) }
+const handleEdit = () => { emit('edit', props.item) }
+const handleOtpisi = () => { emit('otpisi', props.item) }
+const handleIzdaj = () => { emit('izdaj', props.item) }
+const handleVrati = () => { emit('vrati', props.item) }
+const handleRezervisi = () => { emit('rezervisi', props.item) }
+const handleDelete = () => { deleteDialog.value = true }
 
 const confirmDelete = () => {
   emit('delete', props.item)
@@ -184,36 +208,28 @@ const confirmDelete = () => {
 </script>
 
 <style scoped>
-/* Your existing styles remain unchanged */
 .dropdown-menu {
   min-width: 250px;
 }
-
 .dropdown-item {
   cursor: pointer;
 }
-
 .dropdown-icon {
   margin-right: 8px;
 }
-
 .dropdown-text {
   font-size: 14px;
 }
-
 .action-item {
   display: inline-block;
   width: auto;
 }
-
 .action-icon {
   margin-right: 8px;
 }
-
 .action-text {
   font-size: 14px;
 }
-
 .horizontal-actions {
   display: flex;
   flex-wrap: wrap;

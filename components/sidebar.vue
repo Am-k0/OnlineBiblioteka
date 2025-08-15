@@ -11,18 +11,50 @@
     <v-divider />
 
     <v-list density="compact" nav class="custom-icon-list">
-      <v-list-item prepend-icon="mdi-view-dashboard" title="Dashboard" to="/" :class="{ 'active-icon': $route.path === '/' }" />
+      <v-list-item prepend-icon="mdi-view-dashboard" title="Dashboard" to="/dashboard" :class="{ 'active-icon': $route.path === '/dashboard' }" />
       <v-list-item prepend-icon="mdi-account" title="Bibliotekari" to="/TheLibrarian" :class="{ 'active-icon': $route.path === '/TheLibrarian' }" />
       <v-list-item prepend-icon="mdi-account-group" title="Učenici" to="/students" :class="{ 'active-icon': $route.path === '/students' }" />
-      <v-list-item prepend-icon="mdi-book-open-page-variant" title="Knjige" to="/books" :class="{ 'active-icon': $route.path === '/books' }" />
-      <v-list-item prepend-icon="mdi-clipboard-text" title="Autori" to="/authors" :class="{ 'active-icon': $route.path === '/authors' }" />
-      <v-list-item prepend-icon="mdi-swap-horizontal" title="Izdavanje knjiga" to="/publicationOfBooks" :class="{ 'active-icon': $route.path === '/publicationOfBooks' }" />
+      
+      <v-list-item 
+        title="Knjige" 
+        to="/books" 
+        :class="{ 'active-icon': $route.path === '/books' }"
+      >
+        <template v-slot:prepend>
+          <img 
+            src="/images/icon-book.png" 
+            alt="Knjige" 
+            style="width: 24px; height: 24px; margin-right: 32px;"
+          >
+        </template>
+      </v-list-item>
+      
+      <v-list-item 
+        title="Autori" 
+        to="/authors" 
+        :class="{ 'active-icon': $route.path === '/authors' }"
+      >
+        <template v-slot:prepend>
+          <img 
+            src="/images/icon-author.png" 
+            alt="Autori" 
+            style="width: 24px; height: 24px; margin-right: 32px;"
+          >
+        </template>
+      </v-list-item>
+      
+      <v-list-item 
+        prepend-icon="mdi-swap-horizontal" 
+        title="Izdavanje knjiga" 
+        to="/loan-management/issued" 
+        :class="{ 'active-icon': $route.path.startsWith('/loan-management') }" 
+      />
     </v-list>
 
     <v-divider />
 
     <v-list density="compact" nav class="custom-icon-list">
-      <v-list-item prepend-icon="mdi-cog" title="Podešavanja" to="/settings" :class="{ 'active-icon': $route.path === '/settings' }" />
+      <v-list-item prepend-icon="mdi-cog" title="Podešavanja" to="/settings" :class="{ 'active-icon': $route.path === '/settings/settings' }" />
     </v-list>
   </v-navigation-drawer>
 </template>
@@ -32,12 +64,13 @@ import { useRoute } from '#app'
 const $route = useRoute()
 </script>
 
-
-
-
 <style>
 .active-icon .v-list-item__prepend .v-icon {
   color: #3392EA !important;
+}
+
+.active-icon img {
+  filter: brightness(0) saturate(100%) invert(46%) sepia(90%) saturate(1035%) hue-rotate(183deg) brightness(93%) contrast(91%);
 }
 
 .custom-sidebar {
@@ -56,25 +89,4 @@ const $route = useRoute()
   padding: 16px !important;
   min-height: 56px !important;
 }
-
-/* .custom-icon-list .v-list-item__prepend > .v-icon {
-  font-size: 56px;
-  width: 56px;
-  height: 56px;
-}
-
-.custom-icon-list .v-list-item__prepend {
-  padding: 16px;
-}
-
-.custom-icon-list .v-list-item {
-  margin-bottom: 10px;
-}
-
-.custom-icon-list .v-list-item__prepend {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-} */
-
 </style>

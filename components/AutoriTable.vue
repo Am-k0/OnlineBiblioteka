@@ -38,10 +38,14 @@
           <ActionMenu
             :item="item"
             entity-name="autora"
-            :title-property="item.name"
+            title-property="name"
+            :show-view="true"
+            :show-edit="true"
+            :show-delete="true"
+            @view="handleView"
             @edit="handleEdit"
             @delete="handleDelete"
-            @view="handleView" @error="setError"
+            @error="setError"
           />
         </div>
       </template>
@@ -165,7 +169,7 @@ const filteredAutori = computed(() => {
 
 const itemClass = 'table-row'
 
-// MODIFIED: Takes `item` directly
+
 const handleEdit = (item) => {
   router.push({
     path: `/author/${item.id}`,
@@ -173,7 +177,7 @@ const handleEdit = (item) => {
   })
 }
 
-// MODIFIED: Takes `item` directly
+
 const handleView = (item) => {
   router.push(`/author/${item.id}`)
 }
@@ -200,7 +204,7 @@ const handleDelete = async (item) => {
 </script>
 
 <style scoped>
-/* Your existing styles remain unchanged */
+
 .no-border-table .v-data-table__wrapper table,
 .no-border-table .v-data-table__wrapper table thead,
 .no-border-table .v-data-table__wrapper table tbody,

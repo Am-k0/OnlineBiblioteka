@@ -1,48 +1,83 @@
 <template>
-  <div class="form-container">
-    <div class="header">
-      <h1>Novi Učenik</h1>
-      <div class="breadcrumbs">
-        <a href="/students">Svi Učenici</a>
-        <span>/ Novi Učenik</span>
+  <div class="page-container bg-white min-h-screen">
+    <header class="app-header">
+      <div>
+        <h1 class="page-title">Novi Učenik</h1>
+        <p class="page-subtitle">
+          <span class="link" @click="goToStudents">Svi Učenici</span> / Novi Učenik
+        </p>
       </div>
-    </div>
+    </header>
 
-    <PersonForm :kolekcija="'ucenici'" />
+    <div class="header-divider"></div>
+
+    <div class="page-content">
+      <newUsers :kolekcija="'ucenici'" />
+    </div>
   </div>
 </template>
 
-<script>
-import PersonForm from '@/components/PersonForm.vue'
+<script setup>
+import { useRouter } from 'vue-router';
+import newUsers from '@/components/newUsers.vue';
 
-export default {
-  components: {
-    PersonForm
-  }
-}
+const router = useRouter();
+
+const goToStudents = () => {
+  router.push('/students');
+};
 </script>
 
 <style scoped>
-.header {
+.page-container {
+  padding: 0;
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.app-header {
+  padding: 6px 24px 0 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-title {
+  font-family: 'Roboto', sans-serif !important;
+  font-size: 20px;
+  font-weight: 500;
+  color: #222;
+  line-height: 100%;
+  letter-spacing: 0.15px;
+  vertical-align: middle;
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: #777;
+  margin: 0;
+  margin-top: 2px;
+}
+
+.page-subtitle .link {
+  color: #1976d2;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.header-divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin-top: 15px;
   margin-bottom: 24px;
 }
-.header h1 {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-.breadcrumbs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #757575;
-  font-size: 14px;
-}
-.breadcrumbs a {
-  color: #1976d2;
-  text-decoration: none;
-}
-.breadcrumbs a:hover {
-  text-decoration: underline;
+
+.page-content {
+  padding: 0 24px;
+  flex-grow: 1;
 }
 </style>

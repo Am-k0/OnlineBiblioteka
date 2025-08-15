@@ -1,15 +1,20 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
+  <div class="page-container bg-white min-h-screen">
+    <header class="app-header">
       <h1 class="page-title">Učenici</h1>
+    </header>
+
+    <div class="header-divider"></div>
+
+    <div class="page-content">
       <div class="header-actions">
         <v-btn
           color="primary"
           class="add-button"
-          @click="onAddUcenik"
+          @click="onAddKorisnik"
           prepend-icon="mdi-plus"
         >
-          NOVI UČENIK
+          NOVI UČENIK 
         </v-btn>
         <div class="search-wrapper">
           <v-text-field
@@ -22,38 +27,185 @@
             rounded
             class="search-field"
             append-inner-icon="mdi-magnify"
+            @input="handleSearchInput"
           />
         </div>
       </div>
+      <UsersTable
+        :items="users"
+        :loading="loading"
+        :initial-current-page="currentPage"
+        :initial-items-per-page="itemsPerPage"
+        :total-items="totalItems"
+        :error="errorMessage"
+        :role-map="roleMap"
+        entity-display-name="učenika" @update:itemsPerPage="updateItemsPerPage"
+        @update:currentPage="updateCurrentPage"
+        @view="handleViewUser"
+        @edit="handleEditUser"
+        @delete="handleDeleteUser"
+        @retry-fetch="fetchUsers"
+      />
     </div>
-
-    <StudentiTable :search="search" />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import StudentiTable from '@/components/studentiTable.vue'
+import UsersTable from '~/components/usersTable.vue' // ✅ PROVERI PUTANJU!
+import api from '@/axios' // ✅ PROVERI PUTANJU!
 
 const search = ref('')
 const router = useRouter()
 
-const onAddUcenik = () => {
+const users = ref([])
+const loading = ref(false)
+const currentPage = ref(1)
+const itemsPerPage = ref(20)
+const totalItems = ref(0)
+const errorMessage = ref(null)
+
+const roleMap = {
+  1: 'Učenik',       
+  2: 'Bibliotekar',  
+};
+const fetchUsers = async () => {
+  console.log(`[StudentsPage] Dohvaćam učenike. Stranica: ${currentPage.value}, Po stranici: ${itemsPerPage.value}, Pretraga: ${search.value}`);
+  loading.value = true;
+  errorMessage.value = null;
+  try {
+    const response = await api.get('/users', {
+      params: {
+        page: currentPage.value,
+        per_page: itemsPerPage.value,
+        search_value: search.value,
+        role_id: 1, // Filter za učenike
+      }
+    });
+
+    console.log('[StudentsPage] API odgovor za učenike:', response.data);
+
+    const paginationData = response.data.data;
+    users.value = paginationData.data;
+    totalItems.value = paginationData.total;
+    currentPage.value = paginationData.current_page;
+    itemsPerPage.value = paginationData.per_page;
+    console.log(`[StudentsPage] Podaci ažurirani. Ukupno: ${totalItems.value}, Trenutna stranica: ${currentPage.value}`);
+
+  } catch (error) {
+    console.error('[StudentsPage] Greška pri dohvatanju studenata:', error);
+    if (error.response) {
+      console.error('[StudentsPage] Greška u odgovoru API-ja:', error.response.data);
+      if (error.response.data && error.response.data.message) {
+        errorMessage.value = error.response.data.message;
+      } else if (error.response.data && error.response.data.errors) {
+        errorMessage.value = Object.values(error.response.data.errors).flat().join(', ');
+      } else {
+        errorMessage.value = `Greška: ${error.response.status} - ${error.response.statusText}`;
+      }
+    } else if (error.request) {
+      errorMessage.value = 'Nema odgovora od servera. Proverite mrežnu konekciju.';
+    } else {
+      errorMessage.value = 'Desila se neočekivana greška. Pokušajte ponovo.';
+    }
+    users.value = [];
+    totalItems.value = 0;
+    currentPage.value = 1;
+    itemsPerPage.value = 20;
+  } finally {
+    loading.value = false;
+    console.log('[StudentsPage] Završeno dohvatanje učenika. Loading: false');
+  }
+};
+
+onMounted(() => {
+  console.log('[StudentsPage] Komponenta montirana. Pokrećem dohvatanje učenika.');
+  fetchUsers();
+});
+
+watch([currentPage, itemsPerPage], () => {
+  console.log(`[StudentsPage] currentPage ili itemsPerPage se promenio. Pokrećem novo dohvatanje.`);
+  fetchUsers();
+});
+
+let searchTimeout = null;
+const handleSearchInput = () => {
+  console.log('[StudentsPage] Unos u pretragu:', search.value);
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+  searchTimeout = setTimeout(() => {
+    console.log('[StudentsPage] Debounced search. Resetujem stranicu na 1 i dohvaćam.');
+    currentPage.value = 1;
+    fetchUsers();
+  }, 500);
+};
+
+const updateItemsPerPage = (value) => {
+  console.log('[StudentsPage] updateItemsPerPage pozvan:', value);
+  itemsPerPage.value = value;
+  currentPage.value = 1;
+};
+
+const updateCurrentPage = (value) => {
+  console.log('[StudentsPage] updateCurrentPage pozvan:', value);
+  currentPage.value = value;
+};
+
+const handleViewUser = (user) => {
+  console.log('[StudentsPage] Prikaz korisnika (detalji):', user);
+  if (user.username) {
+    router.push(`/users/${user.username}`); // Navigacija po username-u
+  } else {
+    errorMessage.value = 'Korisničko ime nije dostupno za prikaz detalja.';
+  }
+};
+
+const handleEditUser = (user) => {
+  console.log('[StudentsPage] Uređivanje korisnika:', user);
+  router.push(`/users/edit/${user.id}`);
+};
+
+const handleDeleteUser = async (user) => {
+  console.log('[StudentsPage] Pokušaj brisanja korisnika:', user);
+  try {
+    loading.value = true;
+    await api.delete(`/users`, { data: { users_id: [user.id] } }); // API za brisanje po ID-u
+    console.log('[StudentsPage] Korisnik uspešno obrisan:', user);
+    fetchUsers(); // Ponovo dohvati podatke nakon brisanja
+  } catch (error) {
+    console.error('[StudentsPage] Greška pri brisanju korisnika:', error);
+    if (error.response) {
+      errorMessage.value = error.response.data.message || 'Greška pri brisanja korisnika.';
+    } else {
+      errorMessage.value = 'Greška pri brisanja korisnika. Nema odgovora od servera.';
+    }
+  } finally {
+    loading.value = false;
+    console.log('[StudentsPage] Završeno brisanje korisnika. Loading: false');
+  }
+};
+
+const onAddKorisnik = () => {
+  console.log('[StudentsPage] Preusmeravam na stranicu za dodavanje novog učenika.');
   router.push('/newStudent')
 }
 </script>
 
 <style scoped>
+/* Održavaš postojeće stilove */
 .page-container {
-  padding: 24px;
-}
-
-.page-header {
+  padding: 0;
+  background-color: white;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-bottom: 24px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-header {
+  padding: 24px 24px 0 24px;
 }
 
 .page-title {
@@ -67,25 +219,46 @@ const onAddUcenik = () => {
   margin: 0;
 }
 
+.header-divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin-top: 20px;
+  margin-bottom: 24px;
+}
+
+.page-content {
+  padding: 0 24px;
+  flex-grow: 1;
+}
+
 .header-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  margin-bottom: 24px;
+  padding-left: 0;
+  padding-right: 24px;
 }
 
 .add-button {
-  font-family: 'Roboto', sans-serif !important;
   font-weight: 500 !important;
   font-size: 14px !important;
   line-height: 100% !important;
   letter-spacing: 1.25px !important;
-  width: 147px !important;
+  vertical-align: middle;
+  width: 152px !important;
   height: 36px !important;
-  align-items: center;
-  justify-content: center;
+  border-radius: 4px !important;
   background-color: #3392EA !important;
   color: white !important;
+  text-transform: uppercase;
+  padding: 12px 16px 12px 12px !important;
+  gap: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: none !important;
 }
 
 .search-field {
@@ -94,8 +267,11 @@ const onAddUcenik = () => {
   font-size: 14px !important;
   line-height: 100% !important;
   letter-spacing: 0.25px !important;
-  width: 132px;
+  width: 145px;
   height: 24px;
+  border: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
 }
 
 .search-field :deep(input) {
@@ -104,6 +280,27 @@ const onAddUcenik = () => {
   box-shadow: none !important;
   padding: 0 !important;
   font-size: 14px;
+  min-height: unset !important;
+  height: 24px !important;
+}
+
+.search-field :deep(.v-field__overlay) {
+    background-color: transparent !important;
+}
+
+.search-field :deep(.v-field__outline) {
+    border: none !important;
+}
+
+.search-field :deep(.v-field__field) {
+    height: 24px !important;
+    padding: 0 !important;
+}
+
+.search-field :deep(.v-field__append-inner) {
+    height: 24px !important;
+    align-items: center;
+    padding-top: 0 !important;
 }
 
 .search-field :deep(.v-icon) {

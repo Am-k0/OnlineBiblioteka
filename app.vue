@@ -18,13 +18,14 @@ import SideBar from '~/components/sidebar.vue'
 
 const route = useRoute()
 
-// Ako nije login stranica, prikazuj layout
+
 const showLayout = computed(() => route.path !== '/login')
+
 </script>
 
 <style scoped>
 .main-content {
   background-color: #F5F7FA;
-  padding-top: 72px; /* da ne pokrije appbar */
+  padding-top: 72px; 
 }
 </style>

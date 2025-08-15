@@ -49,7 +49,7 @@ const onSearch = () => {}
   display: flex;
   flex-direction: column;
   height: 100vh;
-  overflow: hidden; /* Glavni kontejner nema skrolovanje */
+  overflow: hidden; 
 }
 
 .app-header {
@@ -77,7 +77,7 @@ const onSearch = () => {}
 .page-content {
   padding: 0 24px;
   flex-grow: 1;
-  /* overflow-y: auto; */ /* UKLONJENO - ovo je dozvoljavalo skrolovanje unutar sadržaja stranice */
+
 }
 
 .header-actions {
