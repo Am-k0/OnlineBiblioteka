@@ -33,7 +33,7 @@
       >
         <v-tab value="one" :class="tab === 'one' ? 'active-tab' : 'inactive-tab'">Osnovni detalji</v-tab>
         <v-tab value="two" :class="tab === 'two' ? 'active-tab' : 'inactive-tab'">
-          Evidencija {{ isStudent ? 'studenta' : 'bibliotekara' }}
+          Evidencija studenta
         </v-tab>
       </v-tabs>
 
@@ -94,32 +94,7 @@
         </v-window-item>
 
         <v-window-item v-if="user && isStudent" value="two">
-          <div class="iznajmljivanje-layout">
-            <nav class="side-menu">
-              <v-list nav dense class="pa-0">
-                <v-list-item
-                  v-for="(item, i) in stavke"
-                  :key="i"
-                  :active="menuTab === i"
-                  @click="selectMenuItem(i)"
-                  class="side-menu-item"
-                >
-                  <template v-slot:prepend>
-                    <v-icon :color="menuTab === i ? 'primary' : 'grey'" size="24">{{ item.icon }}</v-icon>
-                  </template>
-                  <v-list-item-title :class="['side-menu-text', menuTab === i ? 'font-weight-bold blue--text' : '']">
-                    {{ item.label }}
-                  </v-list-item-title>
-                </v-list-item>
-                <div class="menu-divider-wrap">
-                  <v-divider class="custom-divider" />
-                </div>
-              </v-list>
-            </nav>
-            <div class="main-content">
-              <p>Evidencija {{ isStudent ? 'studenta' : 'bibliotekara' }} nije dostupna za ovaj prikaz.</p>
-            </div>
-          </div>
+          <StudentRecordManagement />
         </v-window-item>
       </v-window>
     </div>
@@ -149,6 +124,7 @@ import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import ActionMenu from '~/components/ActionMenu.vue'
 import api from '@/axios'
+import StudentRecordManagement from '~/components/StudentRecordManagement.vue'
 
 interface User {
   id: number;
@@ -171,17 +147,8 @@ const user = ref<User | null>(null)
 const globalError = ref<string | null>(null)
 const loading = ref(false)
 const tab = ref('one')
-const menuTab = ref(0)
 
 const defaultAvatar = '/images/default-user-1.jpg'
-
-const stavke = [
-  { label: 'Izdate knjige', icon: 'mdi-file-document-outline', component: null },
-  { label: 'Vraćanje knjige', icon: 'mdi-file-restore-outline', component: null },
-  { label: 'Knjige u prekoračenju', icon: 'mdi-alert-outline', component: null },
-  { label: 'Aktivne rezervacije', icon: 'mdi-calendar-clock', component: null },
-  { label: 'Arhivirane rezervacije', icon: 'mdi-archive-outline', component: null }
-]
 
 const snackbar = ref({
   show: false,
@@ -224,25 +191,17 @@ const fetchUser = async () => {
   globalError.value = null
 
   try {
-    console.log('Dohvatam korisnika:', username)
     const response = await api.get(`/users/${username}`)
-    console.log('Odgovor servera:', response.data)
     
-    // ISPRAVKA: Backend vraća podatke kao niz, uzimamo prvi element
     if (Array.isArray(response.data) && response.data.length > 0) {
       user.value = response.data[0]
     } else if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-      // Slučaj kada backend vraća objekat direktno
       user.value = response.data
     } else {
       throw new Error('Neočekivan format odgovora od servera')
     }
-    
-    console.log('User podatci:', user.value)
   } catch (error: any) {
-    console.error('Greška pri dohvatanju korisnika:', error)
     if (axios.isAxiosError(error) && error.response) {
-      console.error('Error response:', error.response.data)
       if (error.response.status === 404) {
         globalError.value = `Korisnik sa korisničkim imenom "${username}" nije pronađen.`
       } else if (error.response.status === 403) {
@@ -264,13 +223,8 @@ const fetchUser = async () => {
 
 const handleEdit = () => {
   if (user.value?.username) {
-    console.log('Navigiram na edit stranicu za korisnika:', user.value.username)
     router.push(`/users/${user.value.username}/edit`)
-      .then(() => {
-        console.log('Navigacija uspešna')
-      })
-      .catch((error) => {
-        console.error('Greška pri navigaciji:', error)
+      .catch(() => {
         showSnackbar('Greška pri navigaciji na stranicu za uređivanje.', 'error')
       })
   } else {
@@ -288,7 +242,6 @@ const handleDelete = async (item: User) => {
     showSnackbar(`${isStudent.value ? 'Student' : 'Bibliotekar'} uspješno obrisan!`, 'success')
     handleBackClick()
   } catch (error: any) {
-    console.error('Greška pri brisanju korisnika:', error)
     if (axios.isAxiosError(error) && error.response) {
       showSnackbar(`Greška pri brisanju: ${error.response.data.message || 'Nepoznata greška'}`, 'error')
     } else {
@@ -305,10 +258,6 @@ const handleBackClick = () => {
   } else {
     router.push('/thelibrarian')
   }
-}
-
-const selectMenuItem = (index: number) => {
-  menuTab.value = index
 }
 
 onMounted(() => {

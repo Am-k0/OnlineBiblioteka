@@ -85,7 +85,7 @@
               </v-window-item>
               <v-window-item value="records">
                 <div class="student-books-wrapper">
-                  <studentBooks />
+                  <RecordManagement /> 
                 </div>
               </v-window-item>
               <v-window-item value="media">
@@ -155,7 +155,7 @@ import { useRoute, useRouter } from 'vue-router'
 import axios from '@/axios'
 import BookDetail from '@/components/BookDetails.vue'
 import BookSpecifications from '~/components/BookSpecifications.vue'
-import studentBooks from '~/components/studentBooks.vue'
+import RecordManagement from '@/components/RecordManagement.vue' // DODAT IMPORT
 import BookQuantities from '@/components/BookQuantities.vue'
 import ActionButtons from '@/components/ActionButtons.vue'
 

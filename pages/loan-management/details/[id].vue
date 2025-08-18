@@ -17,16 +17,16 @@
 
     <main class="main-content">
       <div v-if="pending" class="book-info-container">
-         <div class="book-cover-wrapper skeleton"></div>
-         <div class="book-details-form skeleton-details">
-            <div v-for="i in 6" :key="i" class="info-block">
-              <p class="label skeleton-text" style="width: 70%;"></p>
-              <p class="value skeleton-text" style="width: 50%;"></p>
-            </div>
-         </div>
+        <div class="book-cover-wrapper skeleton"></div>
+        <div class="book-details-form skeleton-details">
+          <div v-for="i in 6" :key="i" class="info-block">
+            <p class="label skeleton-text" style="width: 70%;"></p>
+            <p class="value skeleton-text" style="width: 50%;"></p>
+          </div>
+        </div>
       </div>
 
-      <div v-else-if="issue && book" class="book-info-container">
+      <div v-else-if="rental && book" class="book-info-container">
         <div class="book-cover-wrapper">
           <img :src="book.slika || 'https://via.placeholder.com/123x202?text=Nema+slike'" alt="Naslovna strana" class="book-cover" />
         </div>
@@ -54,16 +54,16 @@
 
           <div class="info-block">
             <p class="label">Bibliotekar</p>
-            <p class="value link-text">{{ issue.rented_out_by?.name || '-' }} {{ issue.rented_out_by?.last_name || '' }}</p>
+            <p class="value link-text">{{ librarianName }}</p>
           </div>
 
           <div class="info-block">
             <p class="label">Učenik</p>
-            <p class="value link-text">{{ issue.rented_by?.name || '-' }} {{ issue.rented_by?.last_name || '' }}</p>
+            <p class="value link-text">{{ studentName }}</p>
           </div>
         </div>
 
-        <div class="action-buttons-group">
+        <div class="action-buttons-group" v-if="!rental.returned_at">
           <v-btn class="btn-primary" @click="handleDiscard" :loading="discardLoading">
             <template v-slot:prepend>
               <v-icon icon="mdi-cancel" size="18"></v-icon>
@@ -76,6 +76,16 @@
             </template>
             Vrati knjigu
           </v-btn>
+          <v-btn class="btn-outline-primary" @click="handleDelete" :loading="deleteLoading">
+            <template v-slot:prepend>
+              <v-icon icon="mdi-delete-outline" size="18"></v-icon>
+            </template>
+            Izbriši zapis
+          </v-btn>
+        </div>
+        
+        <div class="returned-notice" v-else>
+          <p>Knjiga je već vraćena</p>
           <v-btn class="btn-outline-primary" @click="handleDelete" :loading="deleteLoading">
             <template v-slot:prepend>
               <v-icon icon="mdi-delete-outline" size="18"></v-icon>
@@ -109,7 +119,9 @@ const bookId = ref(route.params.bookId);
 const issueId = ref(parseInt(route.params.issueId, 10));
 
 const book = ref(null);
-const issue = ref(null);
+const rental = ref(null);
+const librarian = ref(null);
+const student = ref(null);
 
 // Loading states for buttons
 const discardLoading = ref(false);
@@ -123,11 +135,11 @@ const { data, pending, error, refresh } = useAsyncData(
       // Get rental details
       const rentalResponse = await $axios.get(`/rentals/${issueId.value}`);
       const rentalData = rentalResponse.data;
-      
+
       // Get book details
       const bookResponse = await $axios.get(`/books/${bookId.value}`);
       const bookData = bookResponse.data;
-      
+
       // Get book picture if exists
       let pictureUrl = null;
       try {
@@ -137,8 +149,44 @@ const { data, pending, error, refresh } = useAsyncData(
         console.warn("Book picture not found");
       }
 
+      // Get full rental details from rented/returned lists
+      let fullRentalData = null;
+      
+      // Try rented list first
+      const rentedResponse = await $axios.get('/rentals/rented', {
+        params: {
+          book_id: bookId.value,
+          per_page: 100
+        }
+      });
+      
+      if (rentedResponse.data?.data?.data) {
+        fullRentalData = rentedResponse.data.data.data.find(r => r.rental_id == issueId.value);
+      }
+      
+      // If not found in rented, try returned list
+      if (!fullRentalData) {
+        const returnedResponse = await $axios.get('/rentals/returned', {
+          params: {
+            book_id: bookId.value,
+            per_page: 100
+          }
+        });
+        
+        if (returnedResponse.data?.data?.data) {
+          fullRentalData = returnedResponse.data.data.data.find(r => r.rental_id == issueId.value);
+        }
+      }
+
+      if (!fullRentalData) {
+        throw new Error('Rental not found in lists');
+      }
+
       return {
-        rental: rentalData,
+        rental: {
+          ...rentalData,
+          ...fullRentalData
+        },
         book: {
           ...bookData,
           slika: pictureUrl
@@ -155,69 +203,94 @@ const { data, pending, error, refresh } = useAsyncData(
 // Populate refs when data is loaded
 watch(data, (newData) => {
   if (newData) {
-    issue.value = {
-      ...newData.rental,
-      rented_out_by: newData.rental.librarian,
-      rented_by: newData.rental.student,
-      rental_date: newData.rental.rented_at
-    };
-    
-    book.value = {
-      ...newData.book,
-      naziv_knjige: newData.book.name
-    };
+    rental.value = newData.rental;
+    book.value = newData.book;
+
+    // Extract user info
+    if (newData.rental) {
+      librarian.value = newData.rental.rented_out_by;
+      student.value = newData.rental.rented_by || newData.rental.returned_by;
+    }
   }
 }, { immediate: true });
 
 // Computed properties
 const pageTitle = computed(() => {
   if (pending.value) return 'Učitavam...';
-  if (book.value?.naziv_knjige) return book.value.naziv_knjige;
+  if (book.value?.name) return book.value.name;
   if (error.value) return 'Greška';
   return 'Detalji izdavanja';
 });
 
 const formattedDate = computed(() => {
-  if (!issue.value?.rental_date) return '-';
-  return dayjs(issue.value.rental_date).format('DD.MM.YYYY');
+  if (!rental.value?.rental_date) return '-';
+  return dayjs(rental.value.rental_date).format('DD.MM.YYYY');
 });
 
 const daysRented = computed(() => {
-  if (!issue.value?.rental_date) return null;
-  return dayjs().diff(dayjs(issue.value.rental_date), 'day');
+  if (!rental.value?.rented_at) return 0;
+  const rentedDate = dayjs(rental.value.rented_at);
+  const returnedDate = rental.value.returned_at ? dayjs(rental.value.returned_at) : dayjs();
+  return returnedDate.diff(rentedDate, 'day');
 });
 
 const daysRentedText = computed(() => {
-  if (daysRented.value === null) return '-';
   const days = daysRented.value;
   const weeks = Math.floor(days / 7);
   const remainingDays = days % 7;
-  
-  const formatDays = d => `${d} ${d === 1 ? 'dan' : (d > 4 ? 'dana' : 'dana')}`;
-  const formatWeeks = w => `${w} ${w === 1 ? 'nedelja' : 'nedelja'}`;
 
-  if (weeks === 0) return formatDays(remainingDays);
+  const formatDays = d => {
+    if (d === 1) return `${d} dan`;
+    if (d >= 2 && d <= 4) return `${d} dana`;
+    return `${d} dana`;
+  };
+
+  const formatWeeks = w => {
+    if (w === 1) return `${w} nedelja`;
+    if (w >= 2 && w <= 4) return `${w} nedelje`;
+    return `${w} nedelja`;
+  };
+
+  if (days === 0) return '-';
+  if (weeks === 0) return formatDays(days);
   if (remainingDays === 0) return formatWeeks(weeks);
   return `${formatWeeks(weeks)} i ${formatDays(remainingDays)}`;
 });
 
 const isOverdue = computed(() => {
-  if (daysRented.value === null) return false;
-  return daysRented.value > 30;
+  if (!rental.value?.rented_at) return false;
+  return daysRented.value > 30; // Assuming 30 day rental period
 });
 
 const overdueText = computed(() => {
   if (!isOverdue.value) return 'Nema prekoračenja';
+
   const daysOverdue = daysRented.value - 30;
-  return `Prekoračenje od ${daysOverdue} ${daysOverdue === 1 ? 'dan' : 'dana'}`;
+  const formatDays = d => {
+    if (d === 1) return `${d} dan`;
+    if (d >= 2 && d <= 4) return `${d} dana`;
+    return `${d} dana`;
+  };
+
+  return `Prekoračenje od ${formatDays(daysOverdue)}`;
+});
+
+const librarianName = computed(() => {
+  if (!librarian.value) return '-';
+  return `${librarian.value.first_name || ''} ${librarian.value.last_name || ''}`.trim();
+});
+
+const studentName = computed(() => {
+  if (!student.value) return '-';
+  return `${student.value.first_name || ''} ${student.value.last_name || ''}`.trim();
 });
 
 // Handler functions
 const handleDiscard = async () => {
   try {
     discardLoading.value = true;
-    await $axios.post(`/books/${bookId.value}/discard`);
-    
+    await $axios.post(`/rentals/${bookId.value}/discard`);
+
     alert('Knjiga je uspešno otpisana');
     router.back();
   } catch (error) {
@@ -232,7 +305,7 @@ const handleReturn = async () => {
   try {
     returnLoading.value = true;
     await $axios.post(`/rentals/${issueId.value}/return`);
-    
+
     alert('Knjiga je uspešno vraćena');
     refresh();
   } catch (error) {
@@ -247,11 +320,11 @@ const handleDelete = async () => {
   if (!confirm('Da li ste sigurni da želite da izbrišete ovaj zapis?')) {
     return;
   }
-  
+
   try {
     deleteLoading.value = true;
     await $axios.delete(`/rentals/${issueId.value}`);
-    
+
     alert('Zapis je uspešno izbrisan');
     router.push(`/book/${bookId.value}`);
   } catch (error) {
@@ -264,6 +337,7 @@ const handleDelete = async () => {
 </script>
 
 <style scoped>
+/* Your existing styles remain unchanged */
 .page-container {
   display: flex;
   flex-direction: column;
@@ -376,6 +450,19 @@ const handleDelete = async () => {
   gap: 8px;
   margin-top: 24px;
   width: 500px;
+}
+
+.returned-notice {
+  margin-top: 24px;
+  padding: 16px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+}
+
+.returned-notice p {
+  margin: 0 0 12px 0;
+  color: #666;
+  font-size: 14px;
 }
 
 .v-btn {

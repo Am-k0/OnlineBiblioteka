@@ -101,33 +101,7 @@ const calculateExpirationDate = (date) => {
   return d.toISOString().substr(0, 10);
 };
 
-// NAPOMENA: Sve ove funkcije su sada u BookMenu.vue i pozivaju se automatski
-// Ne treba ih definisati ovdje. Zato ih uklanjam.
-/*
-const handleEdit = (item) => {
-  router.push(`/book/${item.id}?edit=true`);
-};
 
-const handleDelete = (item) => {
-  console.log('handleDelete pozvan za item:', item);
-};
-
-const handleOtpisi = (item) => {
-  router.push(`/book/${item.id}/discard`);
-};
-
-const handleIzdaj = (item) => {
-  router.push(`/book/${item.id}/issue`);
-};
-
-const handleVrati = (item) => {
-  router.push(`/book/${item.id}/return`);
-};
-
-const handleRezervisi = (item) => {
-  window.location.reload();
-};
-*/
 
 watch(reservationDate, (newDate) => {
   expirationDate.value = calculateExpirationDate(newDate);
@@ -263,32 +237,6 @@ body {
   justify-content: space-between;
   align-items: center;
 }
-
-/* Ovi stilovi su sada u BookMenu.vue */
-/*
-.header-actions {
-  display: flex;
-  align-items: center;
-  width: 653px;
-  height: 36px;
-  gap: 16px;
-}
-
-.action-btn {
-  font-family: 'Roboto', sans-serif;
-  font-weight: 500;
-  font-size: 14px;
-  line-height: 1;
-  letter-spacing: 1.25px;
-  text-transform: none;
-  height: auto !important;
-  padding: 8px 12px !important;
-}
-
-.active-btn {
-  background-color: rgba(0, 0, 0, 0.04);
-}
-*/
 
 .page-title {
   font-family: 'Roboto', sans-serif !important;

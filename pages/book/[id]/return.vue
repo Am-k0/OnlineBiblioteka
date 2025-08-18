@@ -91,7 +91,6 @@ import { useRoute, useRouter } from 'vue-router';
 import axios from '@/axios';
 import ActionButtons from '@/components/ActionButtons.vue';
 import PaginationFooter from '@/components/PaginationFooter.vue';
-// Import the new BookMenu component
 import BookMenu from '@/components/BookMenu.vue';
 
 const route = useRoute();
@@ -112,7 +111,7 @@ const currentPage = ref(1);
 const totalItems = ref(0);
 
 // API konfiguracija
-const apiBaseUrl = 'http://localhost'; // Vaš API URL
+const apiBaseUrl = 'http://localhost';
 const token = localStorage.getItem('auth_token');
 
 // --- KONFIGURACIJA TABELE ---
@@ -134,7 +133,7 @@ const formatDate = (dateString) => {
 };
 
 const getProfilePictureUrl = (picturePath) => {
-  if (!picturePath) return '/images/default-user-1.jpg'; // Podrazumevani avatar ako backend ne pošalje sliku
+  if (!picturePath) return '/images/default-user-1.jpg';
   if (picturePath.startsWith('http')) return picturePath;
   return `${apiBaseUrl}/storage/${picturePath}`;
 };
@@ -181,13 +180,13 @@ async function fetchIssuedBooks() {
     
     // ISPRAVLJENO: Mapiranje podataka sa backenda na format koji našoj komponenti treba
     issuedBooks.value = rentalsData.map(rental => ({
-      rental_id: rental.id, // Koristimo 'id' koji sada (nadamo se) šalje backend
-      izdato_uceniku: `${rental.rented_by?.name || ''} ${rental.rented_by?.last_name || ''}`.trim() || 'Nepoznat učenik',
-      student_profile_picture: rental.rented_by?.profile_picture || null,
+      rental_id: rental.rental_id,
+      izdato_uceniku: `${rental.rented_by.first_name} ${rental.rented_by.last_name}`,
+      student_profile_picture: rental.rented_by.profile_picture || null, // Ako backend šalje sliku
       datum_izdavanja: rental.rental_date,
       trenutno_zadrzavanje_knjige: calculateCurrentDays(rental.rental_date),
       prekoracenje_u_danima: calculateOverdueDays(rental.rental_date),
-      knjigu_izdao: `${rental.rented_out_by?.name || ''} ${rental.rented_out_by?.last_name || ''}`.trim() || 'Nepoznat izdavalac',
+      knjigu_izdao: `${rental.rented_out_by.first_name} ${rental.rented_out_by.last_name}`,
     }));
     
     totalItems.value = response.data.data?.total || 0;

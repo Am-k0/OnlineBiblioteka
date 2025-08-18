@@ -10,49 +10,8 @@
         </p>
       </div>
       
-      <div class="header-actions" v-if="book">
-        <v-btn variant="text" @click="handleOtpisi(book)" class="action-btn">
-          <template v-slot:prepend>
-            <v-icon icon="mdi-cancel" size="18"></v-icon>
-          </template>
-          Otpiši knjigu
-        </v-btn>
-        
-        <v-btn variant="text" @click="handleIzdaj(book)" class="action-btn">
-          <template v-slot:prepend>
-            <v-icon icon="mdi-book-arrow-right" size="18"></v-icon>
-          </template>
-          Izdaj knjigu
-        </v-btn>
-
-        <v-btn variant="text" @click="handleVrati(book)" class="action-btn">
-          <template v-slot:prepend>
-            <v-icon icon="mdi-book-arrow-left" size="18"></v-icon>
-          </template>
-          Vrati knjigu
-        </v-btn>
-
-        <v-btn variant="text" @click="handleRezervisi(book)" class="action-btn">
-          <template v-slot:prepend>
-            <v-icon icon="mdi-bookmark-outline" size="18"></v-icon>
-          </template>
-          Rezerviši knjigu
-        </v-btn>
-
-        <v-menu offset-y>
-          <template v-slot:activator="{ props }">
-            <v-btn icon="mdi-dots-vertical" variant="text" v-bind="props"></v-btn>
-          </template>
-          <v-list>
-            <v-list-item @click="handleEdit(book)" prepend-icon="mdi-pencil-outline">
-              <v-list-item-title>Izmjeni Podatke</v-list-item-title>
-            </v-list-item>
-            <v-list-item @click="handleDelete(book)" prepend-icon="mdi-delete-outline">
-              <v-list-item-title>Izbriši Knjigu</v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </v-menu>
-      </div>
+      
+      <BookMenu :book="book" :is-active="true" v-if="book" />
     </header>
 
     <div class="header-divider"></div>
@@ -86,7 +45,7 @@
         </v-form>
       </div>
 
-      <BookQuantities v-if="book" :quantities="book" />
+      <BookQuantities v-if="book" :quantities="book" /> 
     </div>
 
     <v-alert v-if="error" type="error" class="ma-4">{{ error }}</v-alert>
@@ -99,6 +58,7 @@ import { useRoute, useRouter } from 'vue-router';
 import axios from '@/axios';
 import ActionButtons from '@/components/ActionButtons.vue';
 import BookQuantities from '@/components/BookQuantities.vue';
+import BookMenu from '@/components/BookMenu.vue'; 
 
 const route = useRoute();
 const router = useRouter();
@@ -135,20 +95,21 @@ const setError = (err) => {
   error.value = err;
 };
 
+
 const handleEdit = (item) => {
   router.push(`/book/${item.id}?edit=true`);
 };
 
 const handleDelete = (item) => {
-  // Implementiraj logiku za brisanje knjige
+  // Otpisi knjigu
 };
 
 const handleOtpisi = (item) => {
-  // Implementiraj logiku za otpisivanje knjige
+  // Otpisi knjigu
 };
 
 const handleIzdaj = (item) => {
-  window.location.reload();
+  // Izdaj knjigu
 };
 
 const handleVrati = (item) => {
@@ -182,7 +143,7 @@ async function fetchBookDetails() {
     if (ukupna_kolicina === 0 || ukupna_kolicina < na_raspolaganju) {
       ukupna_kolicina = na_raspolaganju + rezervisano + izdato + u_prekoracenju;
     } else {
-      na_raspolaganju = ukupna_kolicina - rezervisano - izdato - u_prekoracenju;
+      na_raspolaganju = ukupna_kolicina - rezervisano - izdato - u_prekoracenja;
       na_raspolaganju = Math.max(0, na_raspolaganju);
     }
 

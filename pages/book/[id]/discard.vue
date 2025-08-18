@@ -2,7 +2,7 @@
   <div class="page-container bg-white min-h-screen">
     <header class="app-header">
       <div>
-        <h1 class="page-title">{{ book?.naziv_knjige || 'Učitavam...' }}</h1>
+        <h1 class="page-title">{{ book?.name || 'Učitavam...' }}</h1>
         <p class="page-subtitle" v-if="book">
           <span class="link" @click="router.push('/books')">Evidencija knjiga</span> /
           <span class="link" @click="router.push(`/book/${bookId}`)">KNJIGA-{{ bookId }}</span> /
@@ -17,59 +17,73 @@
     <div class="header-divider"></div>
 
     <div class="page-content">
-      <div class="d-flex align-center justify-space-between mb-4">
-        <h2 class="table-title">Otpiši knjigu</h2>
-      </div>
+      <v-alert v-if="error" type="error" class="mb-4" closable @click:close="error = null">{{ error }}</v-alert>
+      <v-alert v-if="successMessage" type="success" class="mb-4" closable @click:close="successMessage = null">{{ successMessage }}</v-alert>
 
       <v-data-table
         :headers="tableHeaders"
-        :items="issuedBooks"
+        :items="rentedBooks"
         :loading="loading"
         loading-text="Učitavam izdate knjige..."
-        item-value="id"
+        item-value="rental_id"
         hide-default-footer
         hover
-        show-select
         class="no-border-table"
-        :item-class="itemClass"
+        :item-class="() => 'table-row'"
       >
-        <template #item.slika="{ item }">
+        <template #item.rented_by="{ item }">
           <div class="cell-naziv d-flex align-center">
-            <div class="book-cover-wrapper mr-2">
-              <img :src="item.slika" alt="Slika knjige" />
-            </div>
+            <v-avatar size="36" class="mr-3">
+              <v-img :src="defaultUserImage" :alt="`${item.rented_by.first_name} ${item.rented_by.last_name}`"></v-img>
+            </v-avatar>
+            <span class="naziv-text">{{ item.rented_by.first_name }} {{ item.rented_by.last_name }}</span>
           </div>
         </template>
-        <template #item.datum_izdavanja="{ item }">
-          <span>{{ item.datum_izdavanja }}</span>
+        
+        <template #item.rental_date="{ item }">
+          <span class="datum-text">{{ formatDate(item.rental_date) }}</span>
         </template>
-        <template #item.trenutno_zadrzavanje_knjige="{ item }">
-          <span>{{ item.trenutno_zadrzavanje_knjige }}</span>
+        
+        <template #item.active_days="{ item }">
+          <span class="broj-text" :class="{ 'overdue-text': isOverdue(item.active_days) }">{{ formatRetentionDays(item.active_days) }}</span>
         </template>
-        <template #item.prekoracenje_u_danima="{ item }">
-          <span :class="{'overdue-days': item.prekoracenje_u_danima > 0}">{{ item.prekoracenje_u_danima }}</span>
+
+        <template #item.days_overdue="{ item }">
+          <span class="broj-text" :class="{ 'overdue-text': getOverdueDays(item.active_days) > 0 }">
+            {{ getOverdueDays(item.active_days) > 0 ? getOverdueDays(item.active_days) : '0' }}
+          </span>
         </template>
-        <template #item.knjigu_izdao="{ item }">
-          <span>{{ item.knjigu_izdao }}</span>
+
+        <template #item.rented_out_by="{ item }">
+          <span class="naziv-text">{{ item.rented_out_by.first_name }} {{ item.rented_out_by.last_name }}</span>
         </template>
 
         <template #no-data>
-          <div class="text-center py-4">
-            Nema izdatih primeraka ove knjige.
+          <div class="text-center py-8">
+            <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-book-outline</v-icon>
+            <h3 class="text-h6 mb-2 text-grey-darken-1">Nema izdatih knjiga</h3>
+            <p class="text-body-2 text-grey">Trenutno nema izdatih primeraka ove knjige.</p>
           </div>
         </template>
 
         <template #bottom>
           <div class="pagination-and-actions">
             <v-spacer></v-spacer>
-            <ActionButtons @save="handleDiscardAction" @cancel="cancel" :saveText="'Otpiši knjigu'" />
+            <v-btn
+              color="primary"
+              :disabled="!book || book.number_of_copies_available <= 0 || isProcessing"
+              :loading="isProcessing"
+              @click="handleDiscardBook"
+              prepend-icon="mdi-delete-outline"
+            >
+              Otpiši knjigu
+            </v-btn>
           </div>
         </template>
       </v-data-table>
       
-      <v-alert v-if="error" type="error" class="mt-4">{{ error }}</v-alert>
-
       <PaginationFooter
+        v-if="totalItems > 0"
         v-model:itemsPerPage="itemsPerPage"
         v-model:currentPage="currentPage"
         :total-items="totalItems"
@@ -80,12 +94,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from '@/axios';
-import ActionButtons from '@/components/ActionButtons.vue';
 import PaginationFooter from '@/components/PaginationFooter.vue';
-// Uvozimo novu BookMenu komponentu
 import BookMenu from '@/components/BookMenu.vue';
 
 const route = useRoute();
@@ -94,46 +106,50 @@ const router = useRouter();
 // --- STANJE (STATE) ---
 const book = ref(null);
 const bookId = route.params.id;
-const issuedBooks = ref([]);
-const loading = ref(false);
+const rentedBooks = ref([]);
+const loading = ref(true);
+const isProcessing = ref(false);
 const error = ref(null);
+const successMessage = ref(null);
+const defaultUserImage = '/images/default-user-1.jpg';
 
 // Paginacija
 const itemsPerPage = ref(20);
 const currentPage = ref(1);
 const totalItems = ref(0);
 
+// Politika iznajmljivanja (pretpostavljamo 30 dana)
+const rentalPolicyDays = ref(30);
+
 // --- KONFIGURACIJA TABELE ---
 const tableHeaders = [
-  { title: 'Izdato učeniku', key: 'izdato_uceniku', align: 'start', sortable: true },
-  { title: 'Datum izdavanja', key: 'datum_izdavanja', sortable: true },
-  { title: 'Trenutno zadržavanje knjige', key: 'trenutno_zadrzavanje_knjige', sortable: true },
-  { title: 'Prekoračenje u danima', key: 'prekoracenje_u_danima', sortable: true },
-  { title: 'Knjigu izdao', key: 'knjigu_izdao', sortable: true },
+  { title: 'Izdato učeniku', key: 'rented_by', align: 'start', sortable: true },
+  { title: 'Datum izdavanja', key: 'rental_date', sortable: true },
+  { title: 'Trenutno zadržavanje', key: 'active_days', sortable: true },
+  { title: 'Prekoračenje u danima', key: 'days_overdue', align: 'center', sortable: true },
+  { title: 'Knjigu izdao', key: 'rented_out_by', sortable: true },
 ];
 
-const itemClass = () => 'table-row';
-
-// --- FUNKCIJE ---
-
-async function fetchIssuedBooks() {
+// --- API POZIVI ---
+async function fetchRentedBooks() {
   loading.value = true;
   error.value = null;
   
   try {
-    console.log('Simuliram dohvatanje podataka...');
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const mockData = [
-        { id: 1, slika: 'https://i.pravatar.cc/150?img=1', izdato_uceniku: 'Pero Perović', datum_izdavanja: '01.01.2025', trenutno_zadrzavanje_knjige: '2 nedelje i 3 dana', prekoracenje_u_danima: 10, knjigu_izdao: 'Valentina Kaćelan' },
-        { id: 2, slika: 'https://i.pravatar.cc/150?img=8', izdato_uceniku: 'Ana Anić', datum_izdavanja: '15.07.2025', trenutno_zadrzavanje_knjige: '5 dana', prekoracenje_u_danima: 0, knjigu_izdao: 'Valentina Kaćelan' },
-    ];
-    issuedBooks.value = mockData;
-    totalItems.value = mockData.length;
+    const params = {
+      book_id: bookId,
+      page: currentPage.value,
+      per_page: itemsPerPage.value,
+    };
+    const response = await axios.get('/rentals/active', { params });
+    const data = response.data.data;
 
+    rentedBooks.value = data.data;
+    totalItems.value = data.total;
 
   } catch (err) {
     console.error('Greška pri učitavanju izdatih knjiga:', err);
-    error.value = 'Nije moguće učitati podatke. Molimo pokušajte ponovo.';
+    error.value = 'Nije moguće učitati podatke o izdatim knjigama.';
   } finally {
     loading.value = false;
   }
@@ -141,37 +157,109 @@ async function fetchIssuedBooks() {
 
 async function fetchBookDetails() {
   try {
-    // Ovde bi bio poziv ka API-ju za detalje knjige
-    // const res = await axios.get(`/books/${bookId}`);
-    // book.value = { id: res.data.book.id, naziv_knjige: res.data.book.name, };
-    
-    // Simulacija
-    book.value = { id: bookId, naziv_knjige: 'Simulacija Knjige' };
+    const res = await axios.get(`/books/${bookId}`);
+    book.value = res.data.book; 
   } catch (err) {
     console.error('Greška pri učitavanju detalja o knjizi:', err);
-    book.value = { id: bookId, naziv_knjige: 'Knjiga nije pronađena' };
   }
 }
 
-// Handler funkcija za otpis knjige
-const handleDiscardAction = () => {
-  // Logika za otpisivanje izabranih knjiga
-  console.log('Akcija otpisa pokrenuta za izabrane knjige!');
-  
-};
+async function fetchRentalPolicy() {
+  try {
+    const response = await axios.get('/policies/rental_period');
+    rentalPolicyDays.value = response.data.period || 30;
+  } catch (err) {
+    console.error('Greška pri učitavanju politike iznajmljivanja:', err);
+    // Koristimo default vrednost od 30 dana
+  }
+}
+
+// --- AKCIJE ---
+async function handleDiscardBook() {
+  if (!book.value) {
+    error.value = 'Knjiga nije učitana.';
+    return;
+  }
+
+  if (book.value.number_of_copies_available <= 0) {
+    error.value = 'Nema dostupnih primeraka za otpisivanje.';
+    return;
+  }
+
+  isProcessing.value = true;
+  error.value = null;
+  successMessage.value = null;
+
+  try {
+    await axios.post(`/books/${bookId}/discard`, {}, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    successMessage.value = 'Knjiga je uspešno otpisana. Ukupna količina je smanjena za 1.';
+    
+    // Ažuriramo samo količinu knjige
+    if (book.value) {
+      book.value.number_of_copies_available = Math.max(0, book.value.number_of_copies_available - 1);
+      book.value.number_of_copies = Math.max(0, book.value.number_of_copies - 1);
+    }
+
+  } catch (err) {
+    console.error('Greška pri otpisivanju knjige:', err);
+    error.value = err.response?.data?.error || 'Došlo je do greške prilikom otpisivanja knjige.';
+  } finally {
+    isProcessing.value = false;
+  }
+}
+
 const cancel = () => router.back();
 
-// Kada se promeni strana ili broj item-a po strani, pozovi ponovo funkciju za dohvatanje
-watch([currentPage, itemsPerPage], () => {
-  fetchIssuedBooks();
-});
+// --- POMOĆNE FUNKCIJE ---
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
 
-// Kada se komponenta prvi put učita, dohvati podatke
+const formatRetentionDays = (totalDays) => {
+  if (totalDays === null || isNaN(totalDays)) return '-';
+  
+  const weeks = Math.floor(totalDays / 7);
+  const days = totalDays % 7;
+  
+  let parts = [];
+  if (weeks > 0) {
+    let weekWord = weeks === 1 ? 'nedelja' : (weeks > 1 && weeks < 5 ? 'nedelje' : 'nedelja');
+    parts.push(`${weeks} ${weekWord}`);
+  }
+  if (days > 0) {
+    let dayWord = days === 1 ? 'dan' : 'dana';
+    parts.push(`${days} ${dayWord}`);
+  }
+  
+  return parts.join(' i ') || '0 dana';
+};
+
+const isOverdue = (days) => {
+  return days > rentalPolicyDays.value;
+};
+
+const getOverdueDays = (activeDays) => {
+  const overdue = activeDays - rentalPolicyDays.value;
+  return overdue > 0 ? overdue : 0;
+};
+
+// --- HOOKS ---
+watch([currentPage, itemsPerPage], fetchRentedBooks);
+
 onMounted(() => {
   fetchBookDetails();
-  fetchIssuedBooks();
+  fetchRentalPolicy();
+  fetchRentedBooks();
 });
 </script>
+
 <style scoped>
 /* GENERAL STYLES */
 .page-container {
@@ -194,16 +282,11 @@ onMounted(() => {
   font-size: 20px;
   font-weight: 500;
   color: #222;
-  line-height: 100%;
-  letter-spacing: 0.15px;
-  vertical-align: middle;
-  margin: 0;
 }
 
 .page-subtitle {
   font-size: 14px;
   color: #777;
-  margin: 0;
   margin-top: 2px;
 }
 
@@ -216,80 +299,50 @@ onMounted(() => {
   height: 1px;
   background-color: #e0e0e0;
   margin-top: 10px;
-  margin-bottom: 24px;
 }
 
 .page-content {
-  padding: 0 24px;
+  padding: 24px;
   flex-grow: 1;
-}
-
-/* HEADER ACTIONS */
-/* Ovi stilovi su sada u BookMenu.vue, ali ih ostavljam ovde za svaki slucaj da se ne poremeti dizajn */
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.action-btn {
-  font-family: 'Roboto', sans-serif;
-  font-weight: 500;
-  font-size: 14px;
-  line-height: 1;
-  letter-spacing: 1.25px;
-  text-transform: none;
-  height: auto !important;
-  padding: 8px 12px !important;
-}
-
-.active-btn {
-  background-color: rgba(0, 0, 0, 0.04);
+  overflow-y: auto;
 }
 
 /* TABLE STYLES */
-.table-title {
-  font-size: 20px;
-  font-weight: 500;
-  color: #222;
-  margin: 0;
-}
-
 .no-border-table {
   border: none;
   box-shadow: none;
 }
+.no-border-table .v-data-table__wrapper > table > thead > tr > th {
+  border-bottom: 1px solid #e0e0e0 !important;
+}
+.no-border-table .v-data-table__wrapper > table > tbody > tr > td {
+  border-bottom: 1px solid #e0e0e0 !important;
+}
 
 .table-row {
-  height: 56px;
+  height: 64px !important;
 }
 
 .cell-naziv {
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 
-.book-cover-wrapper {
-  width: 32px;
-  height: 52px;
-  overflow: hidden;
-  flex-shrink: 0;
+.naziv-text,
+.datum-text,
+.broj-text {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  color: #212121;
 }
 
-.book-cover-wrapper img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  border-radius: 4px;
-}
-
-.overdue-days {
+.overdue-text {
   color: #CF2A27;
+  font-weight: 500;
 }
 
-/* CUSTOM FOOTER AND ACTIONS */
+/* FOOTER */
 .pagination-and-actions {
   display: flex;
   align-items: center;
@@ -298,7 +351,6 @@ onMounted(() => {
   border-top: 1px solid #e0e0e0;
   background-color: white;
 }
-
 .pagination-footer {
   margin-top: 16px;
 }

@@ -292,8 +292,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import ActionButtons from '@/components/ActionButtons.vue' // Prilagodite putanju ako je potrebno
-import axios from '@/axios' // Prilagodite putanju ako je potrebno
+import ActionButtons from '@/components/ActionButtons.vue'
+import axios from '@/axios'
 
 const tab = ref('one')
 const isSaving = ref(false)
@@ -322,7 +322,6 @@ const book = reactive({
   publisher_id: null
 })
 
-// Definicije padajućih lista
 const uniqueCategories = ref({ data: [] })
 const uniqueGenres = ref({ data: [] })
 const uniqueAuthors = ref({ data: [] })
@@ -346,7 +345,6 @@ const LANGUAGE_OPTIONS = [
   { title: 'Srpski', value: 'srpski' }
 ]
 
-// Učitavanje podataka za padajuće liste
 onMounted(() => {
   fetchRelatedData()
 })
@@ -369,7 +367,6 @@ async function fetchRelatedData() {
   }
 }
 
-// Rukovanje fajlom
 const triggerFileInput = () => {
   fileInput.value.click()
 }
@@ -386,10 +383,9 @@ const handleFileUpload = (e) => {
   }
 }
 
-// Validacija
 const validIsbn = computed(() => {
   const isbn = (book.isbn || '').replace(/[- ]/g, '')
-  return isbn.length === 10 || isbn.length === 13; // Osnovna provera dužine
+  return isbn.length === 10 || isbn.length === 13;
 })
 
 const hasErrorsOnFirstTab = computed(() => {
@@ -415,30 +411,35 @@ async function validateAndSave() {
   await saveBook()
 }
 
-// Glavna funkcija za čuvanje
 async function saveBook() {
   isSaving.value = true
   globalError.value = ''
 
   const formData = new FormData()
 
-  // Dodavanje osnovnih polja
-  Object.keys(book).forEach(key => {
-    const value = book[key]
-    if (key !== 'authors' && key !== 'genres' && key !== 'categories' && value !== null) {
-      formData.append(key, value)
-    }
-  })
+  // Eksplicitno dodavanje svih polja
+  formData.append('name', book.name)
+  formData.append('description', book.description)
+  formData.append('number_of_copies_available', book.number_of_copies_available)
+  formData.append('number_of_pages', book.number_of_pages)
+  formData.append('publication_year', book.publication_year)
+  formData.append('script', book.script)
+  formData.append('binding', book.binding)
+  formData.append('dimensions', book.dimensions)
+  formData.append('language', book.language)
+  formData.append('isbn', book.isbn)
 
-  // Dodavanje nizova (autori, žanrovi, kategorije)
+  if (book.publisher_id) {
+    formData.append('publisher_id', book.publisher_id)
+  }
+
   book.authors.forEach(id => formData.append('authors[]', id))
   book.genres.forEach(id => formData.append('genres[]', id))
   book.categories.forEach(id => formData.append('categories[]', id))
 
-  // *** KLJUČNA ISPRAVKA ***
-  // Slanje slike unutar niza 'images' kako backend očekuje
   if (selectedFile.value) {
     formData.append('images[]', selectedFile.value)
+    formData.append('image_types[]', 'front_cover');
   }
 
   try {
@@ -448,7 +449,6 @@ async function saveBook() {
       }
     })
     
-    // Uspešno kreiranje, preusmeravanje na stranicu knjige
     const bookId = response.data?.book?.id
     if (bookId) {
       router.push(`/book/${bookId}`)
@@ -474,12 +474,12 @@ function cancel() {
   router.push('/books')
 }
 
-// Stilovi (nepromenjeni)
 const fieldStyle = { width: '724px', height: '48px' }
 const textareaStyle = { width: '724px', height: '160px' }
 </script>
 
 <style scoped>
+/* Stilovi su isti kao u prethodnim verzijama, nepromenjeni */
 .page {
   padding: 0;
   background-color: white;

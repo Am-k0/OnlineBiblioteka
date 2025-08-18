@@ -72,26 +72,59 @@
         </v-list>
       </v-menu>
 
-      <div 
-        class="d-flex align-center" 
-        style="
-          height: 40px;
-          padding-left: 8px; 
-          gap: 16px;
-        "
-      >
-        <span class="text-white custom-text-style">bildstudio</span>
-        <v-avatar
-          size="40"
-          image="/images/default-user-1.jpg"
-        ></v-avatar>
-      </div>
+      <v-menu location="bottom">
+        <template v-slot:activator="{ props }">
+          <div 
+            v-bind="props"
+            class="d-flex align-center" 
+            style="
+              height: 40px;
+              padding-left: 8px; 
+              gap: 16px;
+              cursor: pointer;
+            "
+          >
+            <span class="text-white custom-text-style">bildstudio</span>
+            <v-avatar
+              size="40"
+              image="/images/default-user-1.jpg"
+            ></v-avatar>
+          </div>
+        </template>
+        
+        <v-list class="avatar-menu-list">
+          <v-list-item
+            :to="profileLink"
+            active-color="#3392EA"
+            class="custom-list-item"
+          >
+            <template v-slot:prepend>
+              <v-icon icon="mdi-account" size="24"></v-icon>
+            </template>
+            <v-list-item-title class="custom-title">Profil</v-list-item-title>
+          </v-list-item>
+          
+          <v-list-item
+            @click="logout"
+            active-color="#3392EA"
+            class="custom-list-item"
+          >
+            <template v-slot:prepend>
+              <v-icon icon="mdi-logout" size="24"></v-icon>
+            </template>
+            <v-list-item-title class="custom-title">Logout</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
     </div>
   </v-app-bar>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const items = [
   { title: 'Bibliotekar', icon: 'mdi-account', to: '/newLibrarian' },
@@ -99,6 +132,29 @@ const items = [
   { title: 'Knjiga', icon: 'mdi-book-open-page-variant', to: '/newBook' },
   { title: 'Autor', icon: 'mdi-clipboard-text', to: '/newAuthor' },
 ];
+
+const username = ref('korisnik'); // Default vrednost
+onMounted(() => {
+  const user = localStorage.getItem('user');
+  if (user) {
+    try {
+      const parsedUser = JSON.parse(user);
+      username.value = parsedUser.username || 'korisnik';
+    } catch (e) {
+      console.error("Greška pri parsiranju korisničkih podataka iz local storage-a:", e);
+    }
+  }
+});
+
+const profileLink = computed(() => {
+  return `/users/${username.value}`;
+});
+
+const logout = () => {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('user');
+  router.push('/login');
+};
 </script>
 
 <style scoped>
@@ -115,6 +171,12 @@ const items = [
   min-width: 317px !important;
   max-width: 317px !important;
   height: 208px;
+}
+.avatar-menu-list {
+  min-width: 200px !important;
+  max-width: 200px !important;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .custom-list-item {

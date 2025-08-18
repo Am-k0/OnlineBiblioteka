@@ -11,7 +11,7 @@
     <v-divider />
 
     <v-list density="compact" nav class="custom-icon-list">
-      <v-list-item prepend-icon="mdi-view-dashboard" title="Dashboard" to="/dashboard" :class="{ 'active-icon': $route.path === '/dashboard' }" />
+      <v-list-item prepend-icon="mdi-view-dashboard" title="Dashboard" to="/" :class="{ 'active-icon': $route.path === '/' }" />
       <v-list-item prepend-icon="mdi-account" title="Bibliotekari" to="/TheLibrarian" :class="{ 'active-icon': $route.path === '/TheLibrarian' }" />
       <v-list-item prepend-icon="mdi-account-group" title="Učenici" to="/students" :class="{ 'active-icon': $route.path === '/students' }" />
       
