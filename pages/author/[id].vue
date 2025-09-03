@@ -12,7 +12,9 @@
         :item="author"
         entity-name="autora"
         title-property="fullName"
-        :hideViewOption="true"
+        :show-edit="true"
+        :show-delete="true"
+        :show-view="false"
         @edit="editMode = true"
         @delete="handleDelete"
         @error="setError"
@@ -169,12 +171,11 @@ const handleDelete = async () => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  overflow: hidden; /* Glavni kontejner nema skrolovanje */
+  overflow: hidden;
 }
 
 .app-header {
-  /* Smanjen padding na vrhu i dnu */
-  padding: 6px 24px 0 24px; /* Smanjeno sa 24px na 10px top padding */
+  padding: 6px 24px 0 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -195,8 +196,7 @@ const handleDelete = async () => {
   font-size: 14px;
   color: #777;
   margin: 0;
-  /* Smanjena margina između naslova i podnaslova */
-  margin-top: 2px; /* Smanjeno sa 8px na 2px */
+  margin-top: 2px;
 }
 
 .page-subtitle .link {
@@ -208,8 +208,7 @@ const handleDelete = async () => {
 .header-divider {
   height: 1px;
   background-color: #e0e0e0;
-  /* Smanjena margina ispod headera */
-  margin-top: 10px; /* Smanjeno sa 20px na 10px */
+  margin-top: 10px;
   margin-bottom: 24px;
 }
 
@@ -225,7 +224,7 @@ const handleDelete = async () => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-   margin-left: -14px
+  margin-left: -14px
 }
 
 .author-avatar {
@@ -261,7 +260,6 @@ const handleDelete = async () => {
   padding: 8px;
 }
 
-/* New style to remove border for description in view mode */
 .author-description.no-border {
   border: none !important;
   padding: 0 !important;

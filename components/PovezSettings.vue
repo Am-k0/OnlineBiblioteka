@@ -1,38 +1,16 @@
 <template>
   <div class="pa-4">
-    <v-btn
-      color="primary"
-      class="mb-4"
-      @click="handleNewPovez"
-    >
-      <v-icon left>mdi-plus</v-icon>
-      Novi Povez
-    </v-btn>
-
     <v-data-table
       :headers="headers"
       :items="povezi"
       item-value="id"
       hide-default-footer
       hover
-      show-select
       class="no-border-table"
       :item-class="itemClass"
     >
-      <template v-slot:item.data-table-select="{ item }">
-        <div class="h-[56px] flex items-center justify-center">
-          <v-checkbox-btn :value="item.id" class="no-checkbox-border"></v-checkbox-btn>
-        </div>
-      </template>
-
       <template v-slot:item.name="{ item }">
         <span class="naziv-text">{{ item.name }}</span>
-      </template>
-
-      <template v-slot:item.actions="{ item }">
-        <div class="cell-actions flex justify-end">
-         
-        </div>
       </template>
     </v-data-table>
   </div>
@@ -40,27 +18,20 @@
 
 <script setup>
 import { ref } from 'vue';
-import { useRouter } from 'vue-router'; // Uvoz useRouter
 
-const router = useRouter(); // Inicijalizacija routera
-
-// Staticki podaci umjesto API poziva
+// Staticki podaci
 const povezi = ref([
     { id: 1, name: 'Tvrdi povez' },
     { id: 2, name: 'Meki povez' },
+    { id: 3, name: 'Spiralni povez' },
 ]);
 
 const headers = ref([
-  { title: '', key: 'data-table-select', sortable: false, width: '56px' },
   { title: 'Naziv Poveza', key: 'name', value: 'name', align: 'start', sortable: true },
-  { title: '', key: 'actions', align: 'end', sortable: false, width: 'auto' },
 ]);
 
 const itemClass = 'table-row';
 
-
-const handleEdit = (item) => { console.log('Uređivanje poveza:', item.name); };
-const handleDelete = (item) => { console.log('Brisanje poveza:', item.name); };
 </script>
 
 <style scoped>

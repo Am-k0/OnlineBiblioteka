@@ -20,15 +20,22 @@
           variant="outlined"
           hide-details
           class="form-field-name"
+          :error="!!errors.name"
         ></v-text-field>
         <div v-if="errors.name" class="error-message">{{ errors.name }}</div>
 
-        <div class="buttons">
-          <v-btn color="primary" class="save-btn" @click="saveGenre" :loading="loading">
-            Sačuvaj
-          </v-btn>
+        <v-textarea
+          v-model="description"
+          label="Unesite Opis..."
+          variant="outlined"
+          hide-details
+          class="form-field-description"
+          :error="!!errors.description"
+        ></v-textarea>
+        <div v-if="errors.description" class="error-message">{{ errors.description }}</div>
 
-          <v-btn variant="outlined" class="cancel-btn" @click="cancel"> Poništi </v-btn>
+        <div class="form-actions">
+          <ActionButtons @save="saveGenre" @cancel="cancel" :loading="loading" />
         </div>
       </div>
     </div>
@@ -39,32 +46,45 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import ActionButtons from '@/components/ActionButtons.vue'; // Uverite se da je putanja ispravna
 
 const router = useRouter();
 
 const name = ref('');
+const description = ref('');
 const errors = ref({
   name: '',
+  description: ''
 });
 const loading = ref(false);
 
 const saveGenre = async () => {
   errors.value = {
     name: '',
+    description: ''
   };
+
+  let hasErrors = false;
 
   if (!name.value) {
     errors.value.name = 'Morate unijeti naziv žanra!';
-    return;
+    hasErrors = true;
   }
+  
+  if (!description.value) {
+    errors.value.description = 'Morate unijeti opis!';
+    hasErrors = true;
+  }
+
+  if (hasErrors) return;
 
   try {
     loading.value = true;
     const token = localStorage.getItem('auth_token');
 
-    const response = await axios.post(
+    await axios.post(
       'http://localhost/api/genres/create',
-      { name: name.value, description: '' }, // Polje 'description' je required na backendu
+      { name: name.value, description: description.value },
       {
         headers: {
           'Content-Type': 'application/json',
@@ -73,23 +93,30 @@ const saveGenre = async () => {
       }
     );
 
-    if (response.data && response.data.genre && response.data.genre.id) {
-      // Pretpostavljam da postoji ruta za prikaz jednog žanra
-      router.push({ path: '/settings', query: { tab: 'zanrovi' } });
-    } else {
-      throw new Error('Server nije vratio ID novog žanra.');
-    }
+    alert('Žanr uspešno sačuvan!');
+    router.push({ path: '/settings', query: { tab: 'zanrovi' } });
+
   } catch (error) {
     console.error('Greška pri čuvanju žanra:', error);
-    const errorMessage = error.response?.data?.message || error.message;
-    alert('Došlo je do greške pri čuvanju žanra: ' + errorMessage);
+    if (error.response?.status === 422) {
+      const backendErrors = error.response.data;
+      if (backendErrors.name) {
+        errors.value.name = Array.isArray(backendErrors.name) ? backendErrors.name[0] : backendErrors.name;
+      }
+      if (backendErrors.description) {
+        errors.value.description = Array.isArray(backendErrors.description) ? backendErrors.description[0] : backendErrors.description;
+      }
+      alert('Greška validacije. Molimo proverite unete podatke.');
+    } else {
+      const errorMessage = error.response?.data?.message || error.message || 'Nepoznata greška.';
+      alert('Došlo je do greške pri čuvanju žanra: ' + errorMessage);
+    }
   } finally {
     loading.value = false;
   }
 };
 
 const cancel = () => {
-  // Preusmjerava na Settings stranicu i aktivira 'zanrovi' tab
   router.push({ path: '/settings', query: { tab: 'zanrovi' } });
 };
 </script>
@@ -153,7 +180,7 @@ const cancel = () => {
 /* Stilovi za formu */
 .form-section {
   width: 724px;
-  height: 100px;
+  height: 100px; /* Prilagodi visinu ako je potrebno, automatski se prilagođava */
   display: flex;
   flex-direction: column;
 }
@@ -161,6 +188,11 @@ const cancel = () => {
 .form-field-name {
   width: 724px;
   height: 48px;
+  margin-bottom: 16px; /* Dodat margin-bottom da ne budu spojena polja */
+}
+
+.form-field-description {
+  margin-bottom: 16px;
 }
 
 .error-message {
@@ -170,20 +202,11 @@ const cancel = () => {
   margin-bottom: 16px;
 }
 
-.buttons {
+.form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 16px;
   margin-top: 24px;
 }
 
-.cancel-btn {
-  border: 1px solid #3392ea;
-  color: #3392ea;
-  width: 120px;
-}
-
-.save-btn {
-  width: 120px;
-}
 </style>

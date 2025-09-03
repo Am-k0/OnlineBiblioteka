@@ -1,115 +1,106 @@
 <template>
-  <div class="page-layout d-flex">
-    <LoansNavigation />
-    <div class="content-area">
-      <div class="header-section mb-4">
-        <h2>Izdavanje knjiga</h2>
-        <v-text-field
-          v-model="searchQuery"
-          append-inner-icon="mdi-magnify"
-          placeholder="Pretraži knjige..."
-          variant="plain"
-          density="compact"
-          class="search-field"
-          clearable
-          @input="handleSearch"
-        />
-      </div>
-      
-      <div>
-        <v-data-table
-          :headers="visibleHeaders"
-          :items="filteredBooks"
-          :loading="loading"
-          loading-text="Učitavam izdаte knjige..."
-          item-value="id"
-          :items-per-page="itemsPerPage"
-          :page="currentPage"
-          hide-default-footer
-          hover
-          show-select
-          class="no-border-table"
-          :item-class="itemClass"
-        >
-          <template v-slot:item.data-table-select="{ item }">
-            <div class="h-[56px] flex items-center justify-center">
-              <v-checkbox-btn :value="item.id" class="no-checkbox-border"></v-checkbox-btn>
+  <div class="table-container">
+    <div class="header-section">
+      <v-text-field
+        v-model="searchQuery"
+        append-inner-icon="mdi-magnify"
+        placeholder="Pretraži knjige..."
+        variant="plain"
+        density="compact"
+        class="search-field"
+        clearable
+        @input="handleSearch"
+      />
+    </div>
+    
+    <div>
+      <v-data-table
+        :headers="visibleHeaders"
+        :items="filteredBooks"
+        :loading="loading"
+        loading-text="Učitavam izdаte knjige..."
+        item-value="id"
+        :items-per-page="itemsPerPage"
+        :page="currentPage"
+        hide-default-footer
+        hover
+        show-select
+        class="no-border-table"
+        :item-class="itemClass"
+      >
+        <template v-slot:item.data-table-select="{ item }">
+          <div class="h-[56px] flex items-center justify-center">
+            <v-checkbox-btn :value="item.id" class="no-checkbox-border"></v-checkbox-btn>
+          </div>
+        </template>
+
+        <template v-slot:item.naziv_knjige="{ item }">
+          <div class="cell-naziv d-flex align-center">
+            <div class="book-cover-wrapper mr-2">
+              <img :src="item.slika_knjige || defaultBookCover" alt="Slika knjige" />
             </div>
-          </template>
+            <span class="naziv-text">{{ item.naziv_knjige }}</span>
+          </div>
+        </template>
 
-          <template v-slot:item.naziv_knjige="{ item }">
-            <div class="cell-naziv d-flex align-center">
-              <div class="book-cover-wrapper mr-2">
-                <img :src="item.slika_knjige || defaultBookCover" alt="Slika knjige" />
-              </div>
-              <span class="naziv-text">{{ item.naziv_knjige }}</span>
-            </div>
-          </template>
+        <template v-slot:item.izdato_uceniku="{ item }">
+          <span class="naziv-text">{{ item.izdato_uceniku }}</span>
+        </template>
 
-          <template v-slot:item.izdato_uceniku="{ item }">
-            <span class="naziv-text">{{ item.izdato_uceniku }}</span>
-          </template>
+        <template v-slot:item.datum_izdavanja="{ item }">
+          <span class="datum-text">{{ formatDate(item.datum_izdavanja) }}</span>
+        </template>
 
-          <template v-slot:item.datum_izdavanja="{ item }">
-            <span class="datum-text">{{ formatDate(item.datum_izdavanja) }}</span>
-          </template>
+        <template v-slot:item.datum_vracanja="{ item }">
+          <span class="datum-text">{{ calculateReturnDate(item.datum_izdavanja) }}</span>
+        </template>
 
-          <template v-slot:item.datum_vracanja="{ item }">
-            <span class="datum-text">{{ calculateReturnDate(item.datum_izdavanja) }}</span>
-          </template>
+        <template v-slot:item.trenutno_zadrzavanje="{ item }">
+          <span 
+            class="broj-text" 
+            :class="{ 'overdue-text': isOverdue(item.datum_izdavanja) }"
+          >
+            {{ calculateCurrentDuration(item.datum_izdavanja) }}
+          </span>
+        </template>
 
-          <template v-slot:item.trenutno_zadrzavanje="{ item }">
-            <span 
-              class="broj-text" 
-              :class="{ 'overdue-text': isOverdue(item.datum_izdavanja) }"
-            >
-              {{ calculateCurrentDuration(item.datum_izdavanja) }}
-            </span>
-          </template>
+        <template v-slot:item.knjiga_izdao="{ item }">
+          <span class="naziv-text">{{ item.knjiga_izdao }}</span>
+        </template>
 
-          <template v-slot:item.knjiga_izdao="{ item }">
-            <span class="naziv-text">{{ item.knjiga_izdao }}</span>
-          </template>
+        <template v-slot:item.actions="{ item }">
+          <div class="d-flex align-center justify-end">
+            <ActionMenu
+              :item="item"
+              entity-name="knjigu"
+              title-property="naziv_knjige"
+              :show-view="true"
+              :show-vrati="true"
+              :show-otpisi="true"
+              @view="handleView"
+              @vrati="handleReturn"
+              @otpisi="handleOtpis"
+            />
+          </div>
+        </template>
 
-          <template v-slot:item.actions="{ item }">
-            <div class="cell-actions">
-              <ActionMenu
-                :item="item"
-                entity-name="izdatu knjigu"
-                title-property="naziv_knjige"
-                :show-view="true"
-                :show-vrati="true"
-                :show-otpisi="true"
-                :show-izdaj="false"
-                :show-edit="false"
-                :show-delete="false"
-                :show-rezervisi="false"
-                @view="handleView"
-                @otpisi="handleOtpisi"
-                @vrati="handleVrati"
-                @error="setError"
-              />
-            </div>
-          </template>
+        <template #no-data>
+          <v-alert>Nema pronađenih izdatih knjiga.</v-alert>
+        </template>
+      </v-data-table>
 
-          <template #no-data>
-            <v-alert>Nema pronađenih izdatih knjiga.</v-alert>
-          </template>
-        </v-data-table>
+      <PaginationFooter
+        v-model:itemsPerPage="itemsPerPage"
+        v-model:currentPage="currentPage"
+        :total-items="totalItems"
+        class="pagination-footer mt-4"
+        @update:itemsPerPage="handleItemsPerPageChange"
+        @update:currentPage="handlePageChange"
+      />
 
-        <PaginationFooter
-          v-model:itemsPerPage="itemsPerPage"
-          v-model:currentPage="currentPage"
-          :total-items="totalItems"
-          class="pagination-footer mt-4"
-          @update:itemsPerPage="handleItemsPerPageChange"
-          @update:currentPage="handlePageChange"
-        />
-
-        <v-alert v-if="error" type="error" class="mt-4">
-          {{ error }}
-        </v-alert>
-      </div>
+      <v-alert v-if="error" type="error" class="mt-4">
+        {{ error }}
+      </v-alert>
     </div>
   </div>
 </template>
@@ -118,9 +109,8 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
-import LoansNavigation from '@/components/LoansNavigation.vue'
-import ActionMenu from '@/components/ActionMenu.vue'
 import PaginationFooter from '@/components/PaginationFooter.vue'
+import ActionMenu from '@/components/ActionMenu.vue'
 
 const router = useRouter()
 const issuedBooks = ref([])
@@ -133,7 +123,7 @@ const apiBaseUrl = 'http://localhost'
 const itemsPerPage = ref(20)
 const currentPage = ref(1)
 const totalItems = ref(0)
-const rentalPeriodInDays = 30; // Definisanje roka za iznajmljivanje
+const rentalPeriodInDays = 30
 
 const visibleHeaders = ref([
   { title: '', key: 'data-table-select', sortable: false, width: '56px' },
@@ -143,12 +133,8 @@ const visibleHeaders = ref([
   { title: 'Datum vraćanja', key: 'datum_vracanja', sortable: true },
   { title: 'Trenutno zadržavanje knjige', key: 'trenutno_zadrzavanje', sortable: true },
   { title: 'Knjigu izdao', key: 'knjiga_izdao', sortable: true },
-  { title: '', key: 'actions', align: 'end', sortable: false },
+  { title: '', key: 'actions', sortable: false, align: 'end', width: '60px' },
 ])
-
-const props = defineProps({
-  search: { type: String, default: '' },
-})
 
 const setError = (err) => {
   error.value = err
@@ -265,13 +251,10 @@ const fetchIssuedBooks = async (page = 1, perPage = 20, search = '') => {
       params,
     })
     
-    console.log('API Response:', response.data) // Debug log
-    
     const booksData = response.data.data?.data || []
     issuedBooks.value = booksData
     totalItems.value = response.data.data?.total || 0
   } catch (err) {
-    console.error('Fetch error:', err) // Debug log
     error.value = 'Greška pri učitavanju izdatih knjiga: ' +
       (err.response?.data?.message || err.message || 'Nepoznata greška')
     if (err.response?.status === 401) {
@@ -297,6 +280,18 @@ const handlePageChange = (newValue) => {
   fetchIssuedBooks(currentPage.value, itemsPerPage.value, searchQuery.value)
 }
 
+const handleView = (item) => {
+  router.push(`/loan-management/details/${item.id}`);
+}
+
+const handleReturn = (item) => {
+  router.push(`/book/${item.book_id}/return`);
+}
+
+const handleOtpis = (item) => {
+  router.push(`/book/${item.book_id}/discard`);
+}
+
 onMounted(() => { 
   fetchIssuedBooks(currentPage.value, itemsPerPage.value, searchQuery.value) 
 })
@@ -307,9 +302,6 @@ watch([itemsPerPage, currentPage], () => {
 
 const filteredBooks = computed(() => {
   return issuedBooks.value.map(book => {
-    console.log('Processing book:', book) // Debug log
-    
-    // Kreiranje puna imena sa fallback vrijednostima
     const studentFullName = book.rented_by 
       ? `${book.rented_by.first_name || ''} ${book.rented_by.last_name || ''}`.trim()
       : 'Nepoznat učenik'
@@ -321,6 +313,7 @@ const filteredBooks = computed(() => {
     return {
       ...book,
       id: book.rental_id,
+      book_id: book.book_id,
       naziv_knjige: book.book_title || 'Nepoznat naslov',
       izdato_uceniku: studentFullName || 'Nepoznat učenik',
       datum_izdavanja: book.rental_date,
@@ -331,47 +324,20 @@ const filteredBooks = computed(() => {
 })
 
 const itemClass = () => 'table-row'
-
-const handleView = (item) => {
-  if (item && item.id) {
-    router.push(`/loan-management/details/${item.id}`)
-  }
-}
-
-const handleOtpisi = (item) => {
-  if (item && item.book && item.book.id) {
-    router.push(`/book/${item.book.id}/discard`)
-  } else {
-    setError('Greška: ID knjige za otpisivanje nije pronađen.');
-  }
-}
-
-const handleVrati = (item) => {
-  if (item && item.id) {
-    console.log(`Pokušavam da vratim knjigu sa ID-om ${item.id}`);
-  } else {
-    setError('Greška: ID knjige za vraćanje nije pronađen.');
-  }
-}
 </script>
 
 <style scoped>
-/* Vaši stilovi ostaju nepromenjeni */
-.page-layout {
-  display: flex;
-  height: 100vh;
-}
-
-.content-area {
+.table-container {
   flex-grow: 1;
-  padding: 24px;
+  padding: 0 24px 24px 24px; 
+  background-color: #fff;
 }
 
 .header-section {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: -14px; 
 }
 
 .search-field {

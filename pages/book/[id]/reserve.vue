@@ -20,10 +20,10 @@
       <div class="reserve-form-wrapper">
         <h2 class="form-title">Rezerviši knjigu</h2>
 
-        <v-form @submit.prevent="submitReservation">
-          <div class="field-wrapper">
+        <v-form @submit.prevent="submitReservation" ref="form">
+          <div class="field-wrapper" v-if="isLibrarian">
             <v-select
-              v-model="selectedStudent"
+              v-model="selectedStudentId"
               :items="students"
               item-title="name"
               item-value="id"
@@ -33,20 +33,6 @@
               class="form-field-full"
               :rules="[v => !!v || 'Učenik je obavezan']"
             ></v-select>
-          </div>
-
-          <div class="d-flex mt-4">
-            <div class="field-wrapper form-field-full">
-              <v-text-field
-                v-model="reservationDate"
-                label="Datum rezervacije..."
-                type="date"
-                variant="outlined"
-                hide-details="auto"
-                :rules="[v => !!v || 'Datum je obavezan']"
-              ></v-text-field>
-              <div class="form-help-text">Format dd/mm/yyyy</div>
-            </div>
           </div>
           
           <div class="form-actions mt-12">
@@ -63,57 +49,51 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import ActionButtons from '@/components/ActionButtons.vue';
 import BookQuantities from '@/components/BookQuantities.vue';
-// Uvozimo novu BookMenu komponentu
 import BookMenu from '@/components/BookMenu.vue';
 
 const route = useRoute();
 const router = useRouter();
+const form = ref(null);
 
 const book = ref(null);
 const students = ref([]);
-const selectedStudent = ref(null);
-const reservationDate = ref(null);
-const expirationDate = ref(null);
+const selectedStudentId = ref(null);
 const loading = ref(false);
 const error = ref(null);
+const isLibrarian = ref(false);
 
 const bookId = ref(route.params.id);
 
-const getLibrarianId = () => {
+const getLoggedInUser = () => {
     try {
         const user = JSON.parse(localStorage.getItem('user'));
-        return user?.id || null;
+        return user || null;
     } catch (e) {
         console.error('Greška pri parsiranju user objekta iz localStorage-a:', e);
         return null;
     }
 };
 
-const calculateExpirationDate = (date) => {
-  if (!date) return null;
-  const d = new Date(date);
-  d.setDate(d.getDate() + 7);
-  return d.toISOString().substr(0, 10);
-};
-
-
-
-watch(reservationDate, (newDate) => {
-  expirationDate.value = calculateExpirationDate(newDate);
-});
-
 onMounted(() => {
+  const user = getLoggedInUser();
+  if (user && user.role === 'librarian') {
+      isLibrarian.value = true;
+      fetchStudents(); // Pozivamo listu učenika samo ako je bibliotekar
+  } else if (user && user.role === 'student') {
+    // Ako je ulogovan učenik, njegov ID se automatski postavlja za rezervaciju
+    selectedStudentId.value = user.id;
+  }
+
   if (!bookId.value) {
     error.value = 'ID knjige nije pronađen. Proverite URL rutu.';
     return;
   }
   fetchBookDetails();
-  fetchStudents();
 });
 
 async function fetchBookDetails() {
@@ -127,29 +107,14 @@ async function fetchBookDetails() {
         throw new Error('Detalji o knjizi nisu pronađeni. Proverite da li je knjiga obrisana.');
     }
 
-    const rezervisano = rawData.reserved_count || 0;
-    const izdato = rawData.issued_count || 0;
-    const u_prekoracenju = rawData.overdue_count || 0;
-    
-    let ukupna_kolicina = rawData.total_count || 0;
-    let na_raspolaganju = rawData.number_of_copies_available || 0;
-    
-    // Dodatna logika za ispravno računanje količina, slično kao u issue.vue
-    if (ukupna_kolicina === 0 || ukupna_kolicina < na_raspolaganju) {
-      ukupna_kolicina = na_raspolaganju + rezervisano + izdato + u_prekoracenju;
-    } else {
-      na_raspolaganju = ukupna_kolicina - rezervisano - izdato - u_prekoracenju;
-      na_raspolaganju = Math.max(0, na_raspolaganju);
-    }
-    
     book.value = {
       id: rawData.id,
       naziv_knjige: rawData.name,
-      na_raspolaganju: na_raspolaganju,
-      rezervisano: rezervisano,
-      izdato: izdato,
-      u_prekoracenju: u_prekoracenju,
-      ukupna_kolicina: ukupna_kolicina,
+      na_raspolaganju: rawData.number_of_copies_available || 0,
+      rezervisano: rawData.reserved_count || 0,
+      izdato: rawData.issued_count || 0,
+      u_prekoracenju: rawData.overdue_count || 0,
+      ukupna_kolicina: rawData.total_count || 0,
     };
   } catch (err) {
     console.error('Greška pri učitavanju detalja o knjizi:', err);
@@ -162,6 +127,8 @@ async function fetchBookDetails() {
 
 async function fetchStudents() {
   try {
+    // === KLJUČNA IZMENA OVDE ===
+    // Promenjen parametar sa `role: 'student'` na `role_id: 1`
     const res = await api.get('/users', { params: { role_id: 1, per_page: 100 } });
     
     if (res.data?.data?.data) {
@@ -170,7 +137,7 @@ async function fetchStudents() {
           name: `${user.first_name} ${user.last_name}`,
         }));
     } else {
-        throw new Error('Nisu pronađeni podaci o studentima.');
+        throw new Error('Nisu pronađeni podaci o učenicima u odgovoru sa servera.');
     }
   } catch (err) {
     console.error('Greška pri učitavanju učenika:', err);
@@ -179,34 +146,41 @@ async function fetchStudents() {
 }
 
 async function submitReservation() {
-  if (!selectedStudent.value || !reservationDate.value) {
-    alert('Molimo popunite sva obavezna polja.');
-    return;
+  // Ako je bibliotekar, forma mora biti validna (mora izabrati učenika)
+  if (isLibrarian.value) {
+      const { valid } = await form.value.validate();
+      if (!valid) {
+        return;
+      }
   }
   
-  const librarianId = getLibrarianId();
-  if (!librarianId) {
-      alert('ID bibliotekara nije pronađen. Molimo prijavite se ponovo.');
-      return;
-  }
-
   loading.value = true;
   error.value = null;
 
   try {
-    await api.post('/rentals', {
+    const payload = {
       book_id: bookId.value,
-      student_id: selectedStudent.value,
-      librarian_id: librarianId,
-      reservation_date: reservationDate.value,
-      expiration_date: expirationDate.value,
-    });
+    };
+
+    // Ako je bibliotekar, šaljemo ID izabranog učenika
+    // Ako je ulogovan učenik, njegov ID je već postavljen u `selectedStudentId` i biće poslat
+    // Backend će verovatno sam prepoznati ID ulogovanog korisnika ako `student_id` nije eksplicitno poslat
+    if (isLibrarian.value) {
+      payload.student_id = selectedStudentId.value;
+    }
+
+    const res = await api.post('/reservations', payload);
     
-    alert('Knjiga uspešno rezervisana!');
+    // Koristite alert ili neki lepši notification/toast komponentu
+    alert(res.data.message || 'Knjiga je uspešno rezervisana!'); 
     router.push(`/book/${bookId.value}`);
   } catch (err) {
     console.error('Greška pri rezervaciji knjige:', err);
-    error.value = 'Došlo je do greške prilikom rezervacije knjige.';
+    if (err.response && err.response.data && err.response.data.error) {
+        error.value = err.response.data.error;
+    } else {
+        error.value = 'Došlo je do greške prilikom rezervacije knjige.';
+    }
   } finally {
     loading.value = false;
   }
@@ -218,10 +192,6 @@ function cancel() {
 </script>
 
 <style scoped>
-body {
-    overflow: hidden;
-}
-
 .page-container {
   padding: 0;
   background-color: white;
@@ -264,7 +234,7 @@ body {
 .header-divider {
   height: 1px;
   background-color: #e0e0e0;
-  margin-top: 15px;
+  margin-top: 10px;
   margin-bottom: 24px;
 }
 
@@ -288,15 +258,11 @@ body {
 
 .field-wrapper {
   position: relative;
-  margin-bottom: 18px;
+  margin-bottom: 24px;
 }
 
 .form-field-full {
   width: 100%;
-}
-
-.form-field-half {
-  flex: 1 1 50%;
 }
 
 .form-help-text {
@@ -312,20 +278,5 @@ body {
   justify-content: flex-end;
   width: 100%;
   margin-top: 10px !important;
-}
-
-.readonly-field {
-  background-color: transparent;
-  color: #777;
-}
-
-.readonly-field :deep(input) {
-  cursor: default;
-}
-.readonly-field :deep(.v-field__overlay) {
-    background-color: transparent;
-}
-.readonly-field :deep(.v-label--active) {
-    transform: translateY(-50%) scale(0.75);
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <v-card>
+  <div class="book-detail-page-wrapper">
     <div v-if="book" class="book-detail-container">
       <header class="app-header">
         <div>
@@ -8,50 +8,9 @@
             <span class="link" @click="router.push('/books')">Evidencija knjiga</span> / {{ book.naziv_knjige }}
           </p>
         </div>
-        
-        <div class="header-actions" v-if="book">
-          <v-btn variant="text" @click="handleOtpisi" class="action-btn">
-            <template v-slot:prepend>
-              <v-icon icon="mdi-cancel" size="18"></v-icon>
-            </template>
-            Otpiši knjigu
-          </v-btn>
 
-          <v-btn variant="text" @click="handleIzdaj" class="action-btn">
-            <template v-slot:prepend>
-              <v-icon icon="mdi-book-arrow-right" size="18"></v-icon>
-            </template>
-            Izdaj knjigu
-          </v-btn>
+        <BookMenu v-if="book" :book="book" />
 
-          <v-btn variant="text" @click="handleVrati" class="action-btn">
-            <template v-slot:prepend>
-              <v-icon icon="mdi-book-arrow-left" size="18"></v-icon>
-            </template>
-            Vrati knjigu
-          </v-btn>
-
-          <v-btn variant="text" @click="handleRezervisi" class="action-btn">
-            <template v-slot:prepend>
-              <v-icon icon="mdi-bookmark-outline" size="18"></v-icon>
-            </template>
-            Rezerviši knjigu
-          </v-btn>
-
-          <v-menu offset-y>
-            <template v-slot:activator="{ props }">
-              <v-btn icon="mdi-dots-vertical" variant="text" v-bind="props"></v-btn>
-            </template>
-            <v-list>
-              <v-list-item @click="handleEdit" prepend-icon="mdi-pencil-outline">
-                <v-list-item-title>Izmjeni Podatke</v-list-item-title>
-              </v-list-item>
-              <v-list-item @click="handleDelete" prepend-icon="mdi-delete-outline">
-                <v-list-item-title>Izbriši Knjigu</v-list-item-title>
-              </v-list-item>
-            </v-list>
-          </v-menu>
-        </div>
       </header>
 
       <div class="header-divider"></div>
@@ -61,7 +20,7 @@
           <div class="tabs-wrapper">
             <v-tabs
               v-model="tab"
-              background-color="white"
+              background-color="transparent"
               class="custom-tabs"
               slider-color="#3392EA"
               grow
@@ -72,7 +31,7 @@
               <v-tab value="media" class="custom-tab fourth-tab">Multimedija</v-tab>
             </v-tabs>
           </div>
-          
+
           <div class="tab-content-divider full-width-divider"></div>
 
           <v-card-text>
@@ -85,14 +44,17 @@
               </v-window-item>
               <v-window-item value="records">
                 <div class="student-books-wrapper">
-                  <RecordManagement /> 
+                  <RecordManagement />
                 </div>
               </v-window-item>
               <v-window-item value="media">
                 <div class="media-tab-content">
-                  <div class="field-wrapper photo-upload-wrapper" @click="triggerFileInput">
-                    <div class="photo-upload-box">
-                      <v-icon v-if="!book.media || book.media.length === 0" size="large" color="#757575">mdi-image</v-icon>
+                  <div class="dropzone-wrapper" @click="triggerFileInput">
+                    <div class="dropzone-box">
+                      <div class="dropzone-content">
+                        <v-icon size="48" color="#9E9E9E" class="dropzone-icon">mdi-image-outline</v-icon>
+                        <div class="dropzone-text">Drag your files here or click in this area.</div>
+                      </div>
                       <input
                         type="file"
                         ref="fileInput"
@@ -101,33 +63,29 @@
                         style="display: none"
                         multiple
                       />
-                      <div v-if="!book.media || book.media.length === 0" class="upload-text">Dodaj sliku knjige</div>
-                      <div v-if="book.media && book.media.length > 0" class="image-gallery-preview">
-                        <img :src="book.media[0].url" class="image-preview" alt="Slika knjige" />
+                    </div>
+                  </div>
+
+                  <div class="available-images-wrapper">
+                    <div class="available-images-box">
+                      <div v-if="book.media && book.media.length > 0" class="images-container">
+                        <img
+                          v-for="(image, index) in book.media"
+                          :key="index"
+                          :src="image.url"
+                          alt="Slika knjige"
+                          class="available-image"
+                        />
+                      </div>
+                      <div v-else class="no-images-container">
+                        <img :src="defaultBookCover" alt="Default slika knjige" class="available-image" />
                       </div>
                     </div>
                   </div>
 
-                  <div class="available-images-wrapper" v-if="book.media && book.media.length > 1">
-                    <div class="available-images-box">
-                      <img 
-                        v-for="(image, index) in book.media.slice(1)" 
-                        :key="index" 
-                        :src="image.url" 
-                        alt="Dodatna slika knjige" 
-                        class="available-image" 
-                      />
-                    </div>
-                  </div>
-                  <div v-else class="available-images-wrapper">
-                    <div class="available-images-box">
-                      <img :src="defaultBookCover" alt="Default slika knjige" class="available-image" />
-                    </div>
-                  </div>
-
-                  <ActionButtons 
-                    @save="handleSave" 
-                    @cancel="handleCancel" 
+                  <ActionButtons
+                    @save="handleSave"
+                    @cancel="handleCancel"
                     class="media-action-buttons"
                   />
                 </div>
@@ -135,9 +93,9 @@
             </v-window>
           </v-card-text>
         </div>
-        
+
         <div class="right-side-wrapper">
-            <BookQuantities v-if="book" :quantities="book" />
+            <BookQuantities v-if="book" :book-id="book.id" />
         </div>
       </div>
 
@@ -146,7 +104,7 @@
       <p v-if="error">{{ error }}</p>
       <p v-else>Učitavanje podataka o knjizi...</p>
     </div>
-  </v-card>
+  </div>
 </template>
 
 <script setup>
@@ -155,9 +113,10 @@ import { useRoute, useRouter } from 'vue-router'
 import axios from '@/axios'
 import BookDetail from '@/components/BookDetails.vue'
 import BookSpecifications from '~/components/BookSpecifications.vue'
-import RecordManagement from '@/components/RecordManagement.vue' // DODAT IMPORT
+import RecordManagement from '@/components/RecordManagement.vue'
 import BookQuantities from '@/components/BookQuantities.vue'
 import ActionButtons from '@/components/ActionButtons.vue'
+import BookMenu from '@/components/BookMenu.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -170,66 +129,129 @@ const fileInput = ref(null)
 
 const defaultBookCover = '/images/default-book-1.jpg';
 
-const fetchCategoryName = async (id) => {
-  const response = await axios.get(`http://localhost/api/categories/${id}`);
-  return response.data.category.name; 
-};
-
-const fetchGenreName = async (id) => {
-  const response = await axios.get(`http://localhost/api/genres/${id}`);
-  return response.data.genre.name;
-};
-
 const fetchBook = async () => {
   try {
-    const bookResponse = await axios.get(`http://localhost/api/books/${route.params.id}?include=authors,publisher`);
+    const bookResponse = await axios.get(`http://localhost/api/books/${route.params.id}`);
     const bookData = bookResponse.data.book;
 
-    const categoryPromises = (bookData.categories || []).map(id => fetchCategoryName(id));
-    const genrePromises = (bookData.genres || []).map(id => fetchGenreName(id));
-    
-    const categoryNames = await Promise.all(categoryPromises);
-    const genreNames = await Promise.all(genrePromises);
-    
+    console.log('Book data from API:', bookData);
+
+    const [authorsResponse, categoriesResponse, genresResponse, publishersResponse] = await Promise.all([
+      axios.get('http://localhost/api/authors?per_page=100'),
+      axios.get('http://localhost/api/categories'),
+      axios.get('http://localhost/api/genres'),
+      axios.get('http://localhost/api/publishers?per_page=100')
+    ]);
+
+    const authorsMap = new Map();
+    const categoriesMap = new Map();
+    const genresMap = new Map();
+    const publishersMap = new Map();
+
+    const authorList = authorsResponse?.data?.data?.data || authorsResponse?.data?.authors?.data || [];
+    if (Array.isArray(authorList)) {
+      authorList.forEach(author => {
+        authorsMap.set(author.id, `${author.first_name} ${author.last_name}`);
+      });
+    }
+
+    const categoryList = categoriesResponse?.data?.categories?.data || categoriesResponse?.data?.data?.data || [];
+    if (Array.isArray(categoryList)) {
+      categoryList.forEach(category => {
+        categoriesMap.set(category.id, category.name);
+      });
+    }
+
+    const genreList = genresResponse?.data?.genres?.data || genresResponse?.data?.data?.data || [];
+    if (Array.isArray(genreList)) {
+      genreList.forEach(genre => {
+        genresMap.set(genre.id, genre.name);
+      });
+    }
+
+    const publisherList = publishersResponse?.data?.publishers?.data || publishersResponse?.data?.data?.data || [];
+    if (Array.isArray(publisherList)) {
+      publisherList.forEach(publisher => {
+        publishersMap.set(publisher.publisher_id || publisher.id, publisher.publisher_name || publisher.name);
+      });
+    }
+
+    let authorNames = 'Nema podataka';
+    let categoryNames = 'Nema podataka';
+    let genreNames = 'Nema podataka';
+    let publisherName = 'Nema podataka';
+
+    if (bookData.authors && Array.isArray(bookData.authors) && bookData.authors.length > 0) {
+      const names = bookData.authors
+        .map(authorId => authorsMap.get(authorId))
+        .filter(Boolean);
+      if (names.length > 0) {
+        authorNames = names.join(', ');
+      }
+    }
+
+    if (bookData.categories && Array.isArray(bookData.categories) && bookData.categories.length > 0) {
+      const names = bookData.categories
+        .map(categoryId => categoriesMap.get(categoryId))
+        .filter(Boolean);
+      if (names.length > 0) {
+        categoryNames = names.join(', ');
+      }
+    }
+
+    if (bookData.genres && Array.isArray(bookData.genres) && bookData.genres.length > 0) {
+      const names = bookData.genres
+        .map(genreId => genresMap.get(genreId))
+        .filter(Boolean);
+      if (names.length > 0) {
+        genreNames = names.join(', ');
+      }
+    }
+
+    if (bookData.publisher_id) {
+      const name = publishersMap.get(bookData.publisher_id);
+      if (name) {
+        publisherName = name;
+      }
+    }
+
     let pictureUrl = null;
     let media = [];
     try {
       const pictureResponse = await axios.get(`http://localhost/api/books/${route.params.id}/picture`);
       if (pictureResponse.data.picture_url) {
         pictureUrl = `http://localhost/storage/${pictureResponse.data.picture_url}`;
-        // Simuliranje više slika za galeriju
-        media = [
-          { url: pictureUrl, filename: 'tom.jpg' },
-          { url: '/images/default-book-1.jpg', filename: 'tom-cover-2.jpg' }
-        ];
+        media = [{ url: pictureUrl, filename: 'book-cover.jpg' }];
+
+        if (pictureUrl !== defaultBookCover) {
+          media.push({ url: defaultBookCover, filename: 'default-cover.jpg' });
+        }
       }
     } catch (err) {
-      console.log('Nema slike za ovu knjigu');
+      console.log('Nema slike za ovu knjigu ili je došlo do greške pri dohvatanju.');
     }
-    
+
     const rezervisano = bookData.reserved_count || 0;
     const izdato = bookData.issued_count || 0;
     const u_prekoracenju = bookData.overdue_count || 0;
     let ukupna_kolicina = bookData.total_count || 0;
     let na_raspolaganju = bookData.number_of_copies_available || 0;
-    
+
     if (ukupna_kolicina === 0 || ukupna_kolicina < na_raspolaganju) {
       ukupna_kolicina = na_raspolaganju + rezervisano + izdato + u_prekoracenju;
     } else {
       na_raspolaganju = ukupna_kolicina - rezervisano - izdato - u_prekoracenju;
       na_raspolaganju = Math.max(0, na_raspolaganju);
     }
-    
+
     book.value = {
       id: bookData.id,
       naziv_knjige: bookData.name || 'Nepoznat naziv',
-      autori: bookData.authors && bookData.authors.length 
-        ? bookData.authors.map(author => author.name).join(', ')
-        : 'Nema podataka',
-      kategorije: categoryNames.length > 0 ? categoryNames.join(', ') : 'Nema podataka',
-      zanrovi: genreNames.length > 0 ? genreNames.join(', ') : 'Nema podataka',
-      izdavac: bookData.publisher ? bookData.publisher.name : 'Nema podataka',
-      godina_izdavanja: bookData.published_at || 'N/A',
+      autori: authorNames,
+      kategorije: categoryNames,
+      zanrovi: genreNames,
+      izdavac: publisherName,
+      godina_izdavanja: bookData.publication_year || 'N/A',
       opis: bookData.description || 'Nema opisa',
       broj_stranica: bookData.number_of_pages || 'N/A',
       isbn: bookData.isbn || 'N/A',
@@ -240,7 +262,7 @@ const fetchBook = async () => {
       dostupno_primjeraka: na_raspolaganju,
       ukupno_primjeraka: ukupna_kolicina,
       slika_knjige: pictureUrl || defaultBookCover,
-      media: media,
+      media: media.length > 0 ? media : [{ url: defaultBookCover, filename: 'default-cover.jpg' }],
       rawData: bookData,
       na_raspolaganju: na_raspolaganju,
       rezervisano: rezervisano,
@@ -248,7 +270,11 @@ const fetchBook = async () => {
       u_prekoracenju: u_prekoracenju,
       ukupna_kolicina: ukupna_kolicina,
     };
+
+    console.log('Final book object:', book.value);
+
   } catch (err) {
+    console.error('API Error:', err.response?.data || err.message);
     error.value = `Greška pri učitavanju podataka: ${err.message}.`;
   }
 };
@@ -268,7 +294,6 @@ const handleImageChange = async (e) => {
   }
 
   try {
-    // API poziv za upload slika
     console.log('Slanje slika na server...');
   } catch (err) {
     uploadError.value = 'Greška pri otpremanju slike.';
@@ -283,31 +308,15 @@ const handleCancel = () => {
   console.log('Poništene promjene.');
 };
 
-const handleEdit = () => {
-  router.push(`/books/${book.value.id}?edit=true`)
-}
-
-const handleDelete = () => {
-  console.log('Brisanje knjige:', book.value.id);
-}
-
-const handleOtpisi = () => {
-  router.push(`/book/${book.value.id}/discard`);
-}
-const handleIzdaj = () => {
-  router.push(`/book/${book.value.id}/issue`);
-}
-const handleVrati = () => {
-  router.push(`/book/${book.value.id}/return`);
-}
-const handleRezervisi = () => {
-  router.push(`/book/${book.value.id}/reserve`);
-}
-
-onMounted(fetchBook)
+onMounted(fetchBook);
 </script>
 
 <style scoped>
+
+.book-detail-page-wrapper {
+  background-color: white;
+  width: 100%;
+}
 .app-header {
   padding: 6px 24px 0 24px;
   display: flex;
@@ -345,7 +354,7 @@ onMounted(fetchBook)
 }
 
 .book-detail-container {
-  padding: 0; 
+  padding: 0;
   margin-right: auto;
   max-width: 100%;
   position: relative;
@@ -354,7 +363,7 @@ onMounted(fetchBook)
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 16px; 
+  gap: 16px;
 }
 
 .action-btn {
@@ -373,17 +382,22 @@ onMounted(fetchBook)
   display: flex;
   padding: 0 24px;
   align-items: flex-start;
+  position: relative;
 }
 
 .left-side-wrapper {
   flex-grow: 1;
   min-width: 0;
+  max-width: calc(100% - 320px);
 }
 
 .right-side-wrapper {
-  flex: 0 0 280px; 
-  margin-left: 32px;
-  margin-top: -24px; 
+  flex: 0 0 280px;
+  margin-left: 48px;
+  margin-top: -24px;
+  position: absolute;
+  right: 24px;
+  top: 0;
 }
 
 .tab-content-divider {
@@ -394,9 +408,9 @@ onMounted(fetchBook)
 }
 
 .full-width-divider {
-  margin-left: -24px;    
-  margin-right: -48px;   
-  width: calc(100% + 90px); 
+  margin-left: -24px;
+  margin-right: -48px;
+  width: calc(100% + 90px);
   margin-top: 9px;
   height: 1px;
   background-color: #e0e0e0;
@@ -438,81 +452,90 @@ onMounted(fetchBook)
   width: 100%;
 }
 
-.photo-upload-wrapper {
-  width: 100%;
-  max-width: 724px;
+
+.dropzone-wrapper {
+  width: 724px;
   height: 234px;
   margin-bottom: 16px;
 }
 
-.photo-upload-box {
+.dropzone-box {
   width: 100%;
   height: 100%;
-  border: 1px dashed #bdbdbd;
+  border: 2px dashed #BDBDBD;
   border-radius: 4px;
+  background-color: #FFFFFF;
+  cursor: pointer;
+  opacity: 1;
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropzone-box:hover {
+  border-color: #3392EA;
+  background-color: #F8FBFF;
+}
+
+.dropzone-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  background-color: #fafafa;
-  position: relative;
-  overflow: hidden;
-  transition: border-color 0.3s ease;
+  text-align: center;
 }
 
-.photo-upload-box:hover {
-  border-color: #3392ea;
+.dropzone-icon {
+  margin-bottom: 16px;
 }
 
-.upload-text {
-  margin-top: 8px;
+.dropzone-text {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
   color: #757575;
-  font-size: 14px;
+  line-height: 1.4;
 }
-
-.image-gallery-preview {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-
-.image-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
 .available-images-wrapper {
-  width: 100%;
-  max-width: 724px;
+  width: 724px;
   height: 234px;
-  border: 1px solid #ddd;
+  border: 1px solid #E0E0E0;
   border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fafafa;
+  background-color: #FFFFFF;
+  margin-bottom: 24px;
 }
 
 .available-images-box {
   width: 100%;
-  height: 210px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
   padding: 16px;
 }
 
+.images-container {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.no-images-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .available-image {
-  max-width: 200px;
-  max-height: 100%;
+  max-width: 150px;
+  max-height: 200px;
   object-fit: contain;
-  border-radius: 3px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #E0E0E0;
 }
 
 .media-action-buttons {

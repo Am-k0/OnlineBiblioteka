@@ -4,7 +4,7 @@
       <div class="polisa-description">
         <h3 class="polisa-title">{{ policy.name }}</h3>
         <p class="polisa-text">
-          Podesite period važenja za datu polisu. Vrednost se izražava u danima.
+          {{ policy.description }}
         </p>
       </div>
       <div class="polisa-input-group">
@@ -20,6 +20,18 @@
         ></v-text-field>
         <span class="polisa-label">dana</span>
       </div>
+    </div>
+
+    <div v-if="loading" class="text-center pa-4">
+      <v-progress-circular indeterminate color="primary"></v-progress-circular>
+      <p class="mt-2">Učitavaju se podešavanja...</p>
+    </div>
+
+    <div v-else-if="policies.length === 0 && !loading" class="text-center pa-4">
+      <p>Nema dostupnih polisa za podešavanje.</p>
+      <v-btn @click="fetchPolicies" color="primary" variant="outlined" class="mt-2">
+        Pokušaj ponovo
+      </v-btn>
     </div>
     
     <v-snackbar v-model="snackbar.show" :timeout="3000" color="success">
@@ -39,6 +51,7 @@ export default {
   data() {
     return {
       policies: [],
+      loading: false,
       snackbar: {
         show: false,
         text: ''
@@ -50,30 +63,118 @@ export default {
     };
   },
   methods: {
+    transformPolicies(backendPolicies) {
+      // Ispravno mapiranje polisa sa željenim tekstom opisa
+      const policyMapping = {
+        'rental_period': {
+          name: 'Rok vraćanja', // Ispravno ime
+          description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fringilla mauris dolor sed duis quam mi faucibus sit eleifend. Sed lobortis ornare porttitor lectus dictum. Turpis diam non pellentesque nisl rhoncus, vitae amet at placerat.'
+        },
+        'reservation_period': {
+          name: 'Rok za rezervaciju', // Ispravno ime
+          description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fringilla mauris dolor sed duis quam mi faucibus sit eleifend. Sed lobortis ornare porttitor lectus dictum. Turpis diam non pellentesque nisl rhoncus, vitae amet at placerat.'
+        }
+      };
+
+      const transformedPolicies = [];
+      
+      backendPolicies.forEach(policy => {
+        if (policyMapping[policy.name]) {
+          transformedPolicies.push({
+            id: policy.id,
+            name: policyMapping[policy.name].name,
+            description: policyMapping[policy.name].description,
+            period: policy.period,
+            backendName: policy.name
+          });
+        }
+      });
+
+      return transformedPolicies;
+    },
+
+    getToken() {
+      const possibleKeys = [
+        'auth_token',
+        'auth.token',
+        'authToken', 
+        'token',
+        'access_token',
+        'bearerToken'
+      ];
+      
+      for (const key of possibleKeys) {
+        const token = localStorage.getItem(key);
+        if (token) {
+          console.log(`Token found with key: ${key}`);
+          return token;
+        }
+      }
+      
+      for (const key of possibleKeys) {
+        const token = sessionStorage.getItem(key);
+        if (token) {
+          console.log(`Token found in sessionStorage with key: ${key}`);
+          return token;
+        }
+      }
+      
+      console.log('No token found in localStorage or sessionStorage');
+      return null;
+    },
+
     async fetchPolicies() {
+      this.loading = true;
       try {
-        // ISPRAVLJENO: Koristimo 'auth.token' umesto 'authToken'
-        const token = localStorage.getItem('auth.token');
+        const token = this.getToken();
+        
         if (!token) {
-          this.showErrorSnackbar('Niste prijavljeni. Token za autorizaciju nije pronađen.');
+          this.showErrorSnackbar('Niste prijavljeni. Token za autorizaciju nije pronađen. Molimo prijavite se ponovo.');
+          console.error('Token not found. Checked keys:', [
+            'auth.token', 'authToken', 'token', 'access_token', 'bearerToken'
+          ]);
           return;
         }
 
+        console.log('Attempting to fetch policies with token:', token ? token.substring(0, 20) + '...' : 'No token');
+        console.log('Making request to:', 'http://localhost/api/policies');
+
         const response = await axios.get('http://localhost/api/policies', {
           headers: {
-            Authorization: `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
           }
         });
-        this.policies = response.data;
+        
+        const backendPolicies = response.data;
+        this.policies = this.transformPolicies(backendPolicies);
+        console.log('Policies loaded and transformed successfully:', this.policies);
+        
       } catch (error) {
         console.error('Greška pri učitavanju polisa:', error);
-        if (error.response && error.response.status === 401) {
-          this.showErrorSnackbar('Vaša sesija je istekla. Molimo vas da se ponovo prijavite.');
-          // Opcionalno: preusmeriti na login stranu
-          // this.$router.push('/login'); 
+        
+        if (error.response) {
+          console.error('Response status:', error.response.status);
+          console.error('Response data:', error.response.data);
+          
+          if (error.response.status === 401) {
+            this.showErrorSnackbar('Vaša sesija je istekla. Molimo vas da se ponovo prijavite.');
+            this.clearAuthData();
+          } else if (error.response.status === 403) {
+            this.showErrorSnackbar('Nemate dozvolu za pristup ovim podešavanjima.');
+          } else {
+            this.showErrorSnackbar(`Greška servera: ${error.response.status}. ${error.response.data?.message || 'Neočekivana greška.'}`);
+          }
+        } else if (error.request) {
+          console.error('No response received:', error.request);
+          this.showErrorSnackbar('Nije moguće povezati se sa serverom. Proverite da li je server pokrenut.');
         } else {
-          this.showErrorSnackbar('Nije moguće učitati podešavanja.');
+          console.error('Request setup error:', error.message);
+          this.showErrorSnackbar('Greška u konfiguraciji zahteva.');
         }
+      } finally {
+        this.loading = false;
       }
     },
     
@@ -84,32 +185,73 @@ export default {
         return;
       }
 
+      if (policy.isDummy) {
+        this.showErrorSnackbar('Ova polisa još nije implementirana u sistemu.');
+        this.fetchPolicies();
+        return;
+      }
+
       try {
-        // ISPRAVLJENO: Koristimo 'auth.token' umesto 'authToken'
-        const token = localStorage.getItem('auth.token');
+        const token = this.getToken();
+        
         if (!token) {
           this.showErrorSnackbar('Niste prijavljeni. Token za autorizaciju nije pronađen.');
           return;
         }
 
-        await axios.put(`http://localhost/api/policies/${policy.id}`, 
+        console.log(`Updating policy ${policy.id} (${policy.backendName}) with period ${policy.period}`);
+
+        const response = await axios.put(
+          `http://localhost/api/policies/${policy.id}`, 
           { period: policy.period },
           {
             headers: {
-              Authorization: `Bearer ${token}`
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
             }
           }
         );
+        
+        console.log('Policy updated successfully:', response.data);
         this.showSnackbar(`Polisa "${policy.name}" je uspešno ažurirana.`);
+        
       } catch (error) {
         console.error(`Greška pri ažuriranju polise ${policy.id}:`, error);
-        if (error.response && error.response.status === 401) {
-          this.showErrorSnackbar('Vaša sesija je istekla. Molimo vas da se ponovo prijavite.');
+        
+        if (error.response) {
+          if (error.response.status === 401) {
+            this.showErrorSnackbar('Vaša sesija je istekla. Molimo vas da se ponovo prijavite.');
+            this.clearAuthData();
+          } else if (error.response.status === 422) {
+            const validationErrors = error.response.data?.errors || {};
+            const errorMessages = Object.values(validationErrors).flat().join(' ');
+            this.showErrorSnackbar(`Greška validacije: ${errorMessages}`);
+          } else {
+            this.showErrorSnackbar(`Greška pri čuvanju: ${error.response.status}. ${error.response.data?.message || 'Neočekivana greška.'}`);
+          }
         } else {
-          this.showErrorSnackbar('Došlo je do greške prilikom čuvanja.');
+          this.showErrorSnackbar('Nije moguće povezati se sa serverom.');
         }
+        
         this.fetchPolicies();
       }
+    },
+
+    clearAuthData() {
+      const possibleKeys = [
+        'auth_token',
+        'auth.token',
+        'authToken', 
+        'token',
+        'access_token',
+        'bearerToken'
+      ];
+      
+      possibleKeys.forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
     },
 
     showSnackbar(message) {
@@ -122,6 +264,7 @@ export default {
       this.errorSnackbar.show = true;
     }
   },
+  
   created() {
     this.fetchPolicies();
   }
@@ -129,14 +272,15 @@ export default {
 </script>
 
 <style scoped>
-/* Stilovi ostaju nepromenjeni */
 .polisa-row {
   display: flex;
   align-items: center;
   padding: 16px;
   background-color: white;
   border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
+
 .polisa-description {
   width: 320px;
   min-height: 80px;
@@ -145,6 +289,7 @@ export default {
   flex-direction: column;
   justify-content: center;
 }
+
 .polisa-title {
   font-family: 'Roboto', sans-serif;
   font-weight: 500;
@@ -152,7 +297,9 @@ export default {
   line-height: 1.2;
   letter-spacing: 0.15px;
   margin-bottom: 8px;
+  color: rgba(0, 0, 0, 0.87);
 }
+
 .polisa-text {
   font-family: 'Roboto', sans-serif;
   font-weight: 400;
@@ -160,7 +307,9 @@ export default {
   line-height: 1.4;
   letter-spacing: 0.25px;
   color: rgba(0, 0, 0, 0.6);
+  margin: 0;
 }
+
 .polisa-input-group {
   display: flex;
   align-items: center;
@@ -168,9 +317,11 @@ export default {
   width: 250px;
   gap: 16px;
 }
+
 .polisa-text-field {
   width: 100px;
 }
+
 .polisa-label {
   font-family: 'Roboto', sans-serif;
   font-weight: 400;

@@ -243,14 +243,11 @@
                     label="ISBN*"
                     variant="outlined"
                     :style="fieldStyle"
-                    :error="showErrors && (!book.isbn || !validIsbn)"
+                    :error="showErrors && !book.isbn"
                     hide-details="auto"
                   />
                   <div v-if="showErrors && !book.isbn" class="custom-error">
                     Morate unijeti ISBN!
-                  </div>
-                  <div v-else-if="showErrors && book.isbn && !validIsbn" class="custom-error">
-                    Nevažeći ISBN format!
                   </div>
                 </div>
 
@@ -305,15 +302,16 @@ const selectedFile = ref(null)
 const showErrors = ref(false)
 const globalError = ref('')
 
+// AŽURIRANE VREDNOSTI - sada šaljemo engleski nazive backend-u
 const book = reactive({
   name: '',
   description: '',
   number_of_copies_available: null,
   number_of_pages: null,
   publication_year: null,
-  script: 'latin',
-  binding: 'paperback',
-  dimensions: 'A5',
+  script: null,  
+  binding: null,  
+  dimensions: 'A1',
   language: 'crnogorski',
   isbn: '',
   categories: [],
@@ -327,17 +325,19 @@ const uniqueGenres = ref({ data: [] })
 const uniqueAuthors = ref({ data: [] })
 const uniquePublishers = ref({ data: [] })
 
+
 const SCRIPT_OPTIONS = [
-  { title: 'Ćirilica', value: 'cyrillic' },
-  { title: 'Latinica', value: 'latin' }
+  { title: 'Ćirilica', value: 'Ćirilica' },
+  { title: 'Latinica', value: 'Latinica' },
+  { title: 'Arapsko pismo', value: 'Arapsko pismo' }
 ]
 
 const BINDING_OPTIONS = [
-  { title: 'Tvrdi povez', value: 'hardcover' },
-  { title: 'Meki povez', value: 'paperback' }
+  { title: 'Tvrdi povez', value: 'Tvrdi povez' },
+  { title: 'Meki povez', value: 'Meki povez' },
+  { title: 'Spiralni povez', value: 'Spiralni povez' }
 ]
-
-const DIMENSIONS_OPTIONS = ['A4', 'A5', 'A6']
+const DIMENSIONS_OPTIONS = ['A1', 'A2', '21cm x 29.7cm', '15cm x 21cm']
 
 const LANGUAGE_OPTIONS = [
   { title: 'Crnogorski', value: 'crnogorski' },
@@ -357,10 +357,19 @@ async function fetchRelatedData() {
       axios.get('/authors?per_page=100'),
       axios.get('/publishers?per_page=100')
     ])
+    
     uniqueCategories.value.data = categoriesRes.data.categories.data
     uniqueGenres.value.data = genresRes.data.genres.data
-    uniqueAuthors.value.data = authorsRes.data.data.data.map(a => ({ ...a, name: `${a.first_name} ${a.last_name}` }))
-    uniquePublishers.value.data = publishersRes.data.publishers.data
+    uniqueAuthors.value.data = authorsRes.data.data.data.map(a => ({ 
+      ...a, 
+      name: `${a.first_name} ${a.last_name}` 
+    }))
+    
+    uniquePublishers.value.data = publishersRes.data.publishers.data.map(p => ({
+      name: p.publisher_name,
+      id: p.publisher_id
+    }))
+
   } catch (error) {
     globalError.value = 'Greška pri učitavanju podataka za padajuće liste.'
     console.error('Greška pri učitavanju podataka:', error)
@@ -383,17 +392,21 @@ const handleFileUpload = (e) => {
   }
 }
 
-const validIsbn = computed(() => {
-  const isbn = (book.isbn || '').replace(/[- ]/g, '')
-  return isbn.length === 10 || isbn.length === 13;
-})
-
 const hasErrorsOnFirstTab = computed(() => {
-  return !book.name || !book.description || !book.publisher_id || book.authors.length === 0 || !book.publication_year || book.publication_year <= 0 || !book.number_of_copies_available || book.number_of_copies_available <= 0
+  return !book.name || 
+         !book.description || 
+         !book.publisher_id || 
+         book.authors.length === 0 || 
+         !book.publication_year || 
+         book.publication_year <= 0 || 
+         !book.number_of_copies_available || 
+         book.number_of_copies_available <= 0
 })
 
 const hasErrorsOnSecondTab = computed(() => {
-  return !book.number_of_pages || book.number_of_pages <= 0 || !book.isbn || !validIsbn.value
+  return !book.number_of_pages || 
+         book.number_of_pages <= 0 || 
+         !book.isbn
 })
 
 async function validateAndSave() {
@@ -417,32 +430,60 @@ async function saveBook() {
 
   const formData = new FormData()
 
-  // Eksplicitno dodavanje svih polja
+  // Osnovni podaci
   formData.append('name', book.name)
   formData.append('description', book.description)
   formData.append('number_of_copies_available', book.number_of_copies_available)
   formData.append('number_of_pages', book.number_of_pages)
   formData.append('publication_year', book.publication_year)
-  formData.append('script', book.script)
-  formData.append('binding', book.binding)
-  formData.append('dimensions', book.dimensions)
-  formData.append('language', book.language)
   formData.append('isbn', book.isbn)
-
+  
+  // Opcioni podaci - šaljemo engleski nazive
+  if (book.script) {
+    formData.append('script', book.script)
+  }
+  if (book.binding) {
+    formData.append('binding', book.binding)
+  }
+  if (book.dimensions) {
+    formData.append('dimensions', book.dimensions)
+  }
+  if (book.language) {
+    formData.append('language', book.language)
+  }
+  
+  // Publisher
   if (book.publisher_id) {
     formData.append('publisher_id', book.publisher_id)
   }
 
-  book.authors.forEach(id => formData.append('authors[]', id))
-  book.genres.forEach(id => formData.append('genres[]', id))
-  book.categories.forEach(id => formData.append('categories[]', id))
+  // Arrays - many-to-many relations
+  if (book.authors && book.authors.length > 0) {
+    book.authors.forEach(id => formData.append('authors[]', id))
+  }
+  
+  if (book.genres && book.genres.length > 0) {
+    book.genres.forEach(id => formData.append('genres[]', id))
+  }
+  
+  if (book.categories && book.categories.length > 0) {
+    book.categories.forEach(id => formData.append('categories[]', id))
+  }
 
+  // Image
   if (selectedFile.value) {
     formData.append('images[]', selectedFile.value)
-    formData.append('image_types[]', 'front_cover');
+    formData.append('image_types[]', 'front_cover')
   }
 
   try {
+    console.log('Šaljem podatke na backend:', {
+      name: book.name,
+      script: book.script,
+      binding: book.binding,
+      publication_year: book.publication_year
+    });
+    
     const response = await axios.post('/books/create', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -457,11 +498,14 @@ async function saveBook() {
     }
 
   } catch (error) {
-    console.error('Greška pri čuvanju knjige:', error.response?.data || error.message)
+    console.error('Greška pri čuvanju knjige:', error)
+    
     if (error.response?.data?.errors) {
       const errors = error.response.data.errors
       const errorMessages = Object.values(errors).flat()
-      globalError.value = `Došlo je do greške: ${errorMessages.join(' ')}`
+      globalError.value = `Validacijska greška: ${errorMessages.join(', ')}`
+    } else if (error.response?.data?.message) {
+      globalError.value = error.response.data.message
     } else {
       globalError.value = 'Došlo je do neočekivane greške na serveru. Pokušajte ponovo.'
     }
@@ -479,7 +523,6 @@ const textareaStyle = { width: '724px', height: '160px' }
 </script>
 
 <style scoped>
-/* Stilovi su isti kao u prethodnim verzijama, nepromenjeni */
 .page {
   padding: 0;
   background-color: white;

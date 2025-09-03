@@ -1,75 +1,118 @@
 <template>
-  <v-list class="loans-navigation-list" nav>
-    <v-list-item
-      v-for="(item, i) in navigationItems.slice(0, 3)"
-      :key="i"
-      :value="item"
-      active-class="active-item"
-      :to="item.route"
-      class="loans-navigation-item"
-    >
-      <template v-slot:prepend>
-        <v-icon :icon="item.icon" size="24" class="loans-icon"></v-icon>
-      </template>
-      <v-list-item-title class="loans-navigation-title">{{ item.title }}</v-list-item-title>
-    </v-list-item>
-
-    <v-divider class="my-divider" />
-
-    <v-list-item
-      v-for="(item, i) in navigationItems.slice(3)"
-      :key="i + 3"
-      :value="item"
-      active-class="active-item"
-      :to="item.route"
-      class="loans-navigation-item"
-    >
-      <template v-slot:prepend>
-        <v-icon :icon="item.icon" size="24" class="loans-icon"></v-icon>
-      </template>
-      <v-list-item-title class="loans-navigation-title">{{ item.title }}</v-list-item-title>
-    </v-list-item>
-  </v-list>
+  <div class="records-view-container">
+    <div class="records-sidebar">
+      <v-list class="loans-navigation-list" nav>
+        <v-list-item
+          v-for="(item, i) in navigationItems.slice(0, 3)"
+          :key="i"
+          :value="item.value"
+          @click="activeTab = item.value"
+          :class="{ 'active-item': activeTab === item.value }"
+          class="loans-navigation-item"
+        >
+          <template v-slot:prepend>
+            <v-icon :icon="item.icon" size="24" class="loans-icon"></v-icon>
+          </template>
+          <v-list-item-title class="loans-navigation-title">{{ item.title }}</v-list-item-title>
+        </v-list-item>
+        
+        <v-divider class="my-divider" />
+        
+        <v-list-item
+          v-for="(item, i) in navigationItems.slice(3)"
+          :key="i + 3"
+          :value="item.value"
+          @click="activeTab = item.value"
+          :class="{ 'active-item': activeTab === item.value }"
+          class="loans-navigation-item"
+        >
+          <template v-slot:prepend>
+            <v-icon :icon="item.icon" size="24" class="loans-icon"></v-icon>
+          </template>
+          <v-list-item-title class="loans-navigation-title">{{ item.title }}</v-list-item-title>
+        </v-list-item>
+      </v-list>
+    </div>
+    
+    <div class="records-content-wrapper">
+      <component :is="currentTableComponent" class="record-table-component" />
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import IssuedBooksTable from './loan-management/IssuedBooksTable.vue';
+import ReturnedBooksTable from './loan-management/ReturnedBooksTable.vue';
+import OverdueBooksTable from './loan-management/OverdueBooksTable.vue';
+import ActiveReservationsTable from './loan-management/ActiveReservationsTable.vue';
+import ArchivedReservationsTable from './loan-management/ArchivedReservationsTable.vue';
+
+const activeTab = ref('issued');
 
 const navigationItems = [
   {
     title: 'Izdate knjige',
     icon: 'mdi-file-document-outline',
-    route: '/loan-management/issued',
+    value: 'issued',
   },
   {
-    title: 'Vracenje knjige',
+    title: 'Vraćene knjige',
     icon: 'mdi-file-document-outline',
-    route: '/loan-management/returned',
+    value: 'returned',
   },
   {
     title: 'Knjige u prekoračenju',
     icon: 'mdi-alert-outline',
-    route: '/loan-management/overdue',
+    value: 'overdue',
   },
   {
     title: 'Aktivne rezervacije',
     icon: 'mdi-calendar-check-outline',
-    route: '/loan-management/active-reservations',
+    value: 'active_reservations',
   },
   {
     title: 'Arhivirane rezervacije',
     icon: 'mdi-calendar-blank-outline',
-    route: '/loan-management/archived-reservations',
+    value: 'archived_reservations',
   },
 ];
+
+const currentTableComponent = computed(() => {
+  switch (activeTab.value) {
+    case 'issued': return IssuedBooksTable;
+    case 'returned': return ReturnedBooksTable;
+    case 'overdue': return OverdueBooksTable;
+    case 'active_reservations': return ActiveReservationsTable;
+    case 'archived_reservations': return ArchivedReservationsTable;
+    default: return IssuedBooksTable;
+  }
+});
 </script>
 
 <style scoped>
-.loans-navigation-list {
+/* KONTEJNERI */
+.records-view-container {
+  display: flex;
+  width: 100%;
+}
+
+.records-sidebar {
+  flex-shrink: 0;
   width: 247px;
-  background-color: white !important;
   padding: 0;
-  padding-left: 24px;
+  margin-right: 24px;
+}
+
+.records-content-wrapper {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+/* MENI STILIZACIJA */
+.loans-navigation-list {
+  background-color: white !important;
+  padding: 32px 0 0 0px; /* OVDJE JE DODAT GORNJI PADDING */
 }
 
 .loans-navigation-item {
@@ -82,6 +125,7 @@ const navigationItems = [
   font-size: 16px;
   letter-spacing: 0.5px;
   line-height: 100%;
+  cursor: pointer;
 }
 
 .loans-navigation-title {
@@ -93,7 +137,6 @@ const navigationItems = [
 .loans-icon {
   width: 24px;
   height: 24px;
-
 }
 
 .loans-navigation-item:hover {
@@ -112,5 +155,9 @@ const navigationItems = [
 
 .my-divider {
   margin: 0;
+}
+
+.record-table-component {
+  width: 100%;
 }
 </style>

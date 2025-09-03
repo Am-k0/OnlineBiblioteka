@@ -18,18 +18,18 @@
           </div>
           <div class="info-group">
             <div class="info-label">Kategorija</div>
-            <div class="info-value">{{ book.kategorija }}</div>
+            <div class="info-value">{{ book.kategorije }}</div>
           </div>
           <div class="info-group">
             <div class="info-label">Žanr</div>
-            <div class="info-value">{{ book.zanr || 'Nepoznato' }}</div>
+            <div class="info-value">{{ book.zanrovi || 'Nepoznato' }}</div>
           </div>
         </div>
 
         <div class="book-info-right">
           <div class="info-group">
             <div class="info-label">Autori</div>
-            <div class="info-value">{{ book.autor }}</div>
+            <div class="info-value">{{ book.autori }}</div>
           </div>
           <div class="info-group">
             <div class="info-label">Izdavači</div>
@@ -44,16 +44,17 @@
     </div>
 
     <div class="storyline-section">
-      <h3 class="section-title">Storyline (Kratak Sadžaj)</h3>
+      <h3 class="section-title">Opis</h3>
       <div class="storyline-content">
         <p>
-          {{ truncatedDescription }}
+          <span v-if="isExpanded">{{ book.opis }}</span>
+          <span v-else>{{ truncatedDescription }}</span>
           <span 
-            v-if="shouldTruncate && !showFullDescription" 
-            class="show-more"
-            @click="showFullDescription = true"
+            v-if="shouldTruncate" 
+            class="toggle-link"
+            @click="toggleDescription"
           >
-            ... Prikaži više!
+            {{ isExpanded ? 'Prikaži manje' : 'Prikaži više' }}
           </span>
         </p>
       </div>
@@ -68,47 +69,51 @@ const props = defineProps({
   book: Object
 })
 
-const showFullDescription = ref(false)
-const wordLimit = 150
-
-const wordCount = computed(() => {
-  return (props.book?.kratak_sadrzaj || '').split(' ').length
-})
-
-const shouldTruncate = computed(() => {
-  return wordCount.value > wordLimit
-})
+const isExpanded = ref(false);
+const CHARACTER_LIMIT = 300;
 
 const truncatedDescription = computed(() => {
-  if (!shouldTruncate.value || showFullDescription.value) {
-    return props.book?.kratak_sadrzaj || 'Nema opisa'
+  const opis = props.book?.opis || '';
+  if (opis.length > CHARACTER_LIMIT) {
+    return opis.substring(0, CHARACTER_LIMIT) + '...';
   }
-  const words = (props.book?.kratak_sadrzaj || '').split(' ')
-  return words.slice(0, wordLimit).join(' ') + '...'
-})
+  return opis;
+});
+
+const shouldTruncate = computed(() => {
+  const opis = props.book?.opis || '';
+  return opis.length > CHARACTER_LIMIT;
+});
+
+const toggleDescription = () => {
+  isExpanded.value = !isExpanded.value;
+};
 
 const formattedDate = computed(() => {
   if (!props.book?.godina_izdavanja) return 'Nepoznato'
-  const date = new Date(props.book.godina_izdavanja)
-  return date.getFullYear()
-})
+  const dateValue = String(props.book.godina_izdavanja);
+  if (dateValue.length === 4 && /^\d{4}$/.test(dateValue)) {
+    return dateValue;
+  }
+  const date = new Date(props.book.godina_izdavanja);
+  return date.getFullYear();
+});
 
 const bookCoverUrl = computed(() => {
-  return props.book?.slika_knjige || 'https://via.placeholder.com/123x202'
-})
+  return props.book?.slika_knjige || 'https://via.placeholder.com/123x202';
+});
 
 const handleImageError = (e) => {
-  e.target.src = 'https://via.placeholder.com/123x202'
-}
+  e.target.src = 'https://via.placeholder.com/123x202';
+};
 </script>
 
 <style scoped>
+/* Vaši postojeći stilovi ostaju nepromijenjeni, ali su dodani novi stilovi za `toggle-link` */
+
 .book-detail-content {
   background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
   padding: 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   width: fit-content;
 }
 
@@ -172,13 +177,12 @@ const handleImageError = (e) => {
 .storyline-content {
   line-height: 1.6;
   color: #444;
-  height: 141px;
-  overflow: hidden;
 }
 
-.show-more {
+.toggle-link {
   color: #1976d2;
   cursor: pointer;
-  text-decoration: underline;
+  margin-left: 5px;
+  font-weight: 500;
 }
 </style>

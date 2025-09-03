@@ -9,7 +9,7 @@
       <span class="value">{{ book?.pismo || 'N/A' }}</span>
     </div>
     <div class="spec-item">
-      <span class="label">Jezik:</span>
+      <span class="label">Jezik</span>
       <span class="value">{{ book?.jezik || 'N/A' }}</span>
     </div>
     <div class="spec-item">
@@ -21,13 +21,15 @@
       <span class="value">{{ book?.format || 'N/A' }}</span>
     </div>
     <div class="spec-item">
-      <span class="label">International Standard Book Number(ISBN)</span>
+      <span class="label">International Standard Book Number (ISBN)</span>
       <span class="value">{{ book?.isbn || 'N/A' }}</span>
     </div>
   </div>
 </template>
 
 <script setup>
+import { defineProps } from 'vue'
+
 defineProps({
   book: {
     type: Object,
@@ -57,9 +59,8 @@ defineProps({
 }
 
 .label {
- 
   font-size: 14px;
- color: rgba(0, 0, 0, 0.6)
+  color: rgba(0, 0, 0, 0.6)
 }
 
 .value {

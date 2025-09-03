@@ -7,16 +7,31 @@
           <span class="link" @click="handleBackClick">Svi korisnici</span> / Korisničko ime: {{ route.params.username || 'Nije definisano' }}
         </p>
       </div>
-      <ActionMenu
-        v-if="user"
-        :item="user"
-        :hideViewOption="true"
-        :entityName="isStudent ? 'studenta' : 'bibliotekara'"
-        titleProperty="first_name"
-        @edit="handleEdit"
-        @delete="handleDelete"
-        @error="showSnackbar($event, 'error')"
-      />
+      <div class="header-actions">
+        <v-btn
+          v-if="user"
+          @click="handleResetPassword"
+          color="white"
+          class="change-password-btn"
+          small
+          plain
+        >
+          <v-icon left>mdi-lock-reset</v-icon>
+          Promijeni šifru
+        </v-btn>
+        <ActionMenu
+          v-if="user"
+          :item="user"
+          :showView="false"
+          :showEdit="true"
+          :showDelete="true"
+          :entityName="isStudent ? 'studenta' : 'bibliotekara'"
+          titleProperty="first_name"
+          @edit="handleEdit"
+          @delete="handleDelete"
+          @error="showSnackbar($event, 'error')"
+        />
+      </div>
     </header>
 
     <div class="header-divider"></div>
@@ -29,7 +44,7 @@
         grow
         class="custom-tabs"
         slider-color="#3392EA"
-        style="width: 368px; height: 48px; margin-bottom: 0;"
+        style="width: 368px; height: 48px; margin-bottom: 24px;"
       >
         <v-tab value="one" :class="tab === 'one' ? 'active-tab' : 'inactive-tab'">Osnovni detalji</v-tab>
         <v-tab value="two" :class="tab === 'two' ? 'active-tab' : 'inactive-tab'">
@@ -37,14 +52,14 @@
         </v-tab>
       </v-tabs>
 
-      <v-window v-model="tab" class="window-content" style="margin-top: 0;">
-        <v-window-item value="one">
-          <div v-if="loading" class="text-center mt-5">
+      <v-window v-if="isStudent" v-model="tab" class="window-content">
+        <v-window-item value="one" class="tab-content">
+          <div v-if="loading" class="loading-container">
             <v-progress-circular indeterminate color="primary"></v-progress-circular>
             <p class="mt-2">Učitavam korisnika...</p>
           </div>
 
-          <v-alert v-else-if="globalError" type="error" class="error-message mt-4">
+          <v-alert v-else-if="globalError" type="error" class="error-message">
             {{ globalError }}
             <div class="mt-2">
               <v-btn @click="globalError = null; fetchUser()" color="white" small>Pokušaj ponovo</v-btn>
@@ -93,10 +108,67 @@
           </p>
         </v-window-item>
 
-        <v-window-item v-if="user && isStudent" value="two">
-          <StudentRecordManagement />
+        <v-window-item value="two" class="tab-content">
+          <div class="student-record-wrapper">
+            <StudentRecordManagement />
+          </div>
         </v-window-item>
       </v-window>
+
+      <div v-else>
+        <div v-if="loading" class="loading-container">
+          <v-progress-circular indeterminate color="primary"></v-progress-circular>
+          <p class="mt-2">Učitavam korisnika...</p>
+        </div>
+
+        <v-alert v-else-if="globalError" type="error" class="error-message">
+          {{ globalError }}
+          <div class="mt-2">
+            <v-btn @click="globalError = null; fetchUser()" color="white" small>Pokušaj ponovo</v-btn>
+            <v-btn @click="handleBackClick" color="white" small class="ml-2">Nazad na listu</v-btn>
+          </div>
+        </v-alert>
+
+        <div v-else-if="user" class="user-details-section">
+          <img :src="getProfilePictureUrl(user.profile_picture)" :alt="`Avatar ${isStudent ? 'studenta' : 'bibliotekara'}`" class="user-avatar" />
+
+          <div class="user-info-form-wrapper">
+            <div class="user-field">
+              <span class="user-label">Ime i Prezime</span>
+              <div class="user-value">{{ user.first_name }} {{ user.last_name }}</div>
+            </div>
+            
+            <div class="user-field">
+              <span class="user-label">Email</span>
+              <div class="user-value">{{ user.email }}</div>
+            </div>
+            
+            <div class="user-field">
+              <span class="user-label">Korisničko ime</span>
+              <div class="user-value">{{ user.username }}</div>
+            </div>
+            
+            <div class="user-field">
+              <span class="user-label">JMBG</span>
+              <div class="user-value">{{ user.jmbg || 'Nije unet' }}</div>
+            </div>
+
+            <div class="user-field">
+              <span class="user-label">Broj logovanja</span>
+              <div class="user-value">{{ user.login_count ?? 0 }}</div>
+            </div>
+            
+            <div class="user-field">
+              <span class="user-label">Poslednji put logovan/a</span>
+              <div class="user-value">{{ formatDate(user.updated_at) }}</div>
+            </div>
+          </div>
+        </div>
+
+        <p v-else-if="!user && !loading && !globalError" class="no-user-message">
+          Korisnik nije pronađen ili podaci nisu učitani.
+        </p>
+      </div>
     </div>
 
     <v-snackbar
@@ -252,6 +324,14 @@ const handleDelete = async (item: User) => {
   }
 }
 
+const handleResetPassword = () => {
+  if (route.params.username) {
+    router.push(`/reset-password`)
+  } else {
+    showSnackbar('Korisničko ime nije definisano.', 'error')
+  }
+}
+
 const handleBackClick = () => {
   if (isStudent.value) {
     router.push('/students')
@@ -278,14 +358,16 @@ watch(() => route.params.username, (newUsername) => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  overflow: hidden; 
+  overflow: hidden;
 }
+
 .app-header {
   padding: 6px 24px 0 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .page-title {
   font-family: 'Roboto', sans-serif !important;
   font-size: 20px;
@@ -296,185 +378,175 @@ watch(() => route.params.username, (newUsername) => {
   vertical-align: middle;
   margin: 0;
 }
+
 .page-subtitle {
   font-size: 14px;
   color: #777;
   margin: 0;
   margin-top: 2px;
 }
+
 .page-subtitle .link {
   color: #1976d2;
   cursor: pointer;
   text-decoration: underline;
 }
+
 .header-divider {
   height: 1px;
   background-color: #e0e0e0;
   margin-top: 10px;
   margin-bottom: 24px;
 }
+
 .page-content {
-  padding: 0 24px;
-  flex-grow: 1;
-  display: flex; 
-  flex-direction: column;
+  padding: 0 24px 24px 24px;
+  flex: 1;
+  display: block !important;
+  overflow-y: auto;
+  height: 100%;
 }
+
 .custom-tabs {
   background-color: white !important;
   box-shadow: none !important; 
   border-radius: 0 !important; 
 }
+
 .active-tab {
   text-transform: none !important;
   font-weight: 600;
   color: #3392EA !important;
 }
+
 .inactive-tab {
   text-transform: none !important;
   font-weight: 600;
   color: #444444;
 }
+
 .v-tabs-slider {
   background-color: #3392EA !important;
 }
+
 .window-content {
-  flex-grow: 1;
+  width: 100%;
+  display: block !important;
+}
+
+.tab-content {
+  display: block !important;
+  width: 100%;
+}
+
+.window-content .v-window-item {
+  display: none !important;
+}
+
+.window-content .v-window-item--active {
+  display: block !important;
+}
+
+.window-content .v-window__container {
+  height: auto !important;
+  display: block !important;
+}
+
+.loading-container {
   display: flex;
   flex-direction: column;
-  padding-bottom: 24px;
+  align-items: flex-start;
+  padding: 20px 0;
 }
+
 .user-details-section { 
   background-color: #fff;
   border-radius: 0; 
   box-shadow: none; 
   padding: 0; 
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  width: 100%; 
+  width: 100%;
+  margin: 0;
+  display: block !important;
 }
+
 .user-avatar {
   width: 160px;
   height: 160px;
   object-fit: cover;
   border-radius: 4px;
   margin-bottom: 16px;
-  align-self: flex-start;
+  display: block;
+  float: none;
 }
+
 .user-info-form-wrapper {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start; 
-  gap: 16px; 
+  max-width: 500px;
+  display: block !important;
 }
+
 .user-field {
-  margin-bottom: 8px;
+  width: 100%;
+  margin-bottom: 16px;
+  display: block;
 }
+
 .user-label {
   display: block;
   color: #888;
   font-size: 15px;
   margin-bottom: 2px;
 }
+
 .user-value {
   font-weight: 400;
   color: #222;
   font-size: 16px;
   word-break: break-all;
 }
-.label {
-  font-size: 14px;
-  color: rgba(0, 0, 0, 0.6);
-  margin-top: 8px;
-  margin-bottom: 4px;
-  width: 100%;
-  text-align: left;
-}
-.user-input {
-  width: 100%;
-  padding: 8px;
-  font-size: 16px;
-  border: 1px solid #ddd; 
-  border-radius: 4px;
-  margin-bottom: 12px;
-}
+
 .error-message {
   color: red;
   background-color: #ffebee;
   border-left: 5px solid #ef5350;
   padding: 12px;
-  margin-top: 16px;
   border-radius: 4px;
+  width: 100%;
+  display: block;
+  margin-top: 0;
 }
+
 .no-user-message {
   color: #555;
-  margin-top: 16px;
   font-style: italic;
+  display: block;
+  margin-top: 0;
 }
-.iznajmljivanje-layout {
-  display: flex;
-  flex-grow: 1;
-}
-.side-menu {
-  width: 247px;
-  min-width: 247px;
-  max-width: 247px;
-  height: auto; 
-  background: #fafbfc;
-  padding-top: 12px;
-  padding-bottom: 0;
-  display: flex;
-  flex-direction: column;
-  box-shadow: none; 
-  border-radius: 0; 
-}
-.side-menu-item {
-  display: flex;
-  align-items: center;
-  height: 40px;
-  min-height: 40px;
-  max-height: 40px;
-  padding: 0 8px 0 8px;
-  cursor: pointer;
-  background: transparent;
-  margin-bottom: 0;
-}
-.side-menu-text {
-  font-weight: 400;
-  font-size: 16px;
-  line-height: 100%;
-  letter-spacing: 0.5px;
-  color: #222;
-  margin-left: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.side-menu-item.v-list-item--active,
-.side-menu-item.v-list-item--active .v-icon {
-  background: #e3f2fd !important;
-  color: #1976d2 !important;
-}
-.menu-divider-wrap {
+
+.student-record-wrapper {
   width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 12px 0 16px 0;
-}
-.custom-divider {
-  width: 200px;
-  height: 1px;
-  background: #e0e0e0;
+  display: block !important;
   margin: 0;
+  padding: 0;
 }
-.main-content {
-  flex: 1;
-  padding: 24px;
-  background: #fff;
+
+.header-actions {
   display: flex;
-  flex-direction: column;
-  overflow-y: auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.change-password-btn {
+  height: 36px !important;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.15px;
+  color: #1976d2;
+  box-shadow: none;
+}
+
+.change-password-btn .v-icon {
+  margin-right: 8px;
+  color: #1976d2;
 }
 </style>

@@ -37,8 +37,10 @@
         <div class="cell-actions flex justify-end">
           <ActionMenu
             :item="item"
-            entity-name="kategorije"
-            :title-property="item.name"
+            entity-name="kategoriju"
+            title-property="name"
+            :show-edit="true"
+            :show-delete="true"
             @edit="handleEdit"
             @delete="handleDelete"
             @error="setError"
@@ -126,7 +128,6 @@ const fetchKategorije = async () => {
       params,
     });
 
-    // Prilagođavanje na strukturu odgovora iz PHP-a
     const apiData = response.data.categories;
     kategorije.value = apiData.data;
     totalItems.value = apiData.total;
@@ -154,13 +155,11 @@ const handlePageChange = (newValue) => {
 };
 
 const handleNewCategory = () => {
-  // Povezivanje dugmeta sa formom za kreiranje kategorije
-  router.push('/category');
+  router.push('/category/category'); 
 };
 
 const handleEdit = (item) => {
-  // Dodajte logiku za uređivanje, npr. router.push(`/settings/category/${item.id}`);
-  console.log('Uređivanje kategorije:', item);
+  router.push(`/category/${item.id}/edit`);
 };
 
 const handleDelete = async (item) => {

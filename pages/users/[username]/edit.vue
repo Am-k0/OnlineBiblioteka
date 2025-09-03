@@ -104,32 +104,6 @@
             ></v-text-field>
             <div v-if="localError.korisnickoIme" class="error-message">{{ localError.korisnickoIme }}</div>
   
-            <v-text-field
-              v-model="password"
-              label="Nova šifra (opciono)..."
-              variant="outlined"
-              :type="vidljivoLozinka ? 'text' : 'password'"
-              :append-inner-icon="vidljivoLozinka ? 'mdi-eye-off' : 'mdi-eye'"
-              @click:append-inner="vidljivoLozinka = !vidljivoLozinka"
-              hide-details
-              class="form-field"
-              :error="!!localError.password"
-            ></v-text-field>
-            <div v-if="localError.password" class="error-message">{{ localError.password }}</div>
-  
-            <v-text-field
-              v-model="ponoviLozinku"
-              label="Ponovi novu šifru..."
-              variant="outlined"
-              :type="vidljivoPonoviLozinku ? 'text' : 'password'"
-              :append-inner-icon="vidljivoPonoviLozinku ? 'mdi-eye-off' : 'mdi-eye'"
-              @click:append-inner="vidljivoPonoviLozinku = !vidljivoPonoviLozinku"
-              hide-details
-              class="form-field"
-              :error="!!localError.ponoviLozinku"
-            ></v-text-field>
-            <div v-if="localError.ponoviLozinku" class="error-message">{{ localError.ponoviLozinku }}</div>
-  
             <div v-if="displayGlobalError" class="error-message global-error">{{ displayGlobalError }}</div>
   
             <ActionButtons
@@ -151,7 +125,6 @@ import ActionButtons from '~/components/ActionButtons.vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/axios'
 
-// Dodaj meta informacije za stranicu
 definePageMeta({
   layout: 'loan-management'
 })
@@ -159,7 +132,6 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 
-// Reactive data
 const slikaUrl = ref('')
 const fotografija = ref<File | null>(null)
 const firstName = ref('')
@@ -167,11 +139,11 @@ const lastName = ref('')
 const jmbg = ref('')
 const email = ref('')
 const korisnickoIme = ref('')
-const password = ref('')
-const ponoviLozinku = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
-const vidljivoLozinka = ref(false)
-const vidljivoPonoviLozinku = ref(false)
+// const password = ref('') // Zakomentarisano
+// const ponoviLozinku = ref('') // Zakomentarisano
+// const vidljivoLozinka = ref(false) // Zakomentarisano
+// const vidljivoPonoviLozinku = ref(false) // Zakomentarisano
 const loading = ref(false)
 const pageLoading = ref(true)
 const fetchError = ref<string | null>(null)
@@ -189,14 +161,13 @@ const localError = ref({
   jmbg: '',
   email: '',
   korisnickoIme: '',
-  password: '',
-  ponoviLozinku: '',
+  // password: '', // Zakomentarisano
+  // ponoviLozinku: '', // Zakomentarisano
   opsta: ''
 })
 
 const displayGlobalError = ref<string | null>(null)
 
-// Methods
 const samoBrojevi = (evt: KeyboardEvent) => {
   const charCode = evt.which ? evt.which : evt.keyCode
   if (charCode > 31 && (charCode < 48 || charCode > 57)) {
@@ -236,8 +207,8 @@ const clearErrors = () => {
     jmbg: '',
     email: '',
     korisnickoIme: '',
-    password: '',
-    ponoviLozinku: '',
+    // password: '', // Zakomentarisano
+    // ponoviLozinku: '', // Zakomentarisano
     opsta: ''
   }
   displayGlobalError.value = null
@@ -246,227 +217,146 @@ const clearErrors = () => {
 const validateForm = () => {
   let hasErrors = false
   clearErrors()
-  
-  if (!firstName.value.trim()) {
-    localError.value.firstName = 'Morate uneti ime!'
-    hasErrors = true
-  }
-  
-  if (!lastName.value.trim()) {
-    localError.value.lastName = 'Morate uneti prezime!'
-    hasErrors = true
-  }
-  
-  if (!jmbg.value.trim()) {
-    localError.value.jmbg = 'Morate uneti JMBG!'
-    hasErrors = true
-  } else if (jmbg.value.length !== 13) {
-    localError.value.jmbg = 'JMBG mora imati tačno 13 cifara!'
-    hasErrors = true
-  }
-  
-  if (!email.value.trim()) {
-    localError.value.email = 'Morate uneti e-mail!'
-    hasErrors = true
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
-    localError.value.email = 'Unesite validan e-mail format!'
-    hasErrors = true
-  }
-  
-  if (password.value) {
-    if (password.value.length < 8) {
-      localError.value.password = 'Šifra mora imati najmanje 8 karaktera!'
-      hasErrors = true
-    }
-    if (password.value !== ponoviLozinku.value) {
-      localError.value.ponoviLozinku = 'Šifre se ne poklapaju!'
-      hasErrors = true
-    }
-  } else if (ponoviLozinku.value) {
-    localError.value.password = 'Morate uneti i novu šifru!'
-    hasErrors = true
-  }
-  
+  if (!firstName.value.trim()) { localError.value.firstName = 'Morate uneti ime!'; hasErrors = true }
+  if (!lastName.value.trim()) { localError.value.lastName = 'Morate uneti prezime!'; hasErrors = true }
+  if (!jmbg.value.trim()) { localError.value.jmbg = 'Morate uneti JMBG!'; hasErrors = true }
+  else if (jmbg.value.length !== 13) { localError.value.jmbg = 'JMBG mora imati tačno 13 cifara!'; hasErrors = true }
+  if (!email.value.trim()) { localError.value.email = 'Morate uneti e-mail!'; hasErrors = true }
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) { localError.value.email = 'Unesite validan e-mail format!'; hasErrors = true }
+  // Zakomentarisana validacija za šifru
+  // if (password.value) {
+  //   if (password.value.length < 8) { localError.value.password = 'Šifra mora imati najmanje 8 karaktera!'; hasErrors = true }
+  //   if (password.value !== ponoviLozinku.value) { localError.value.ponoviLozinku = 'Šifre se ne poklapaju!'; hasErrors = true }
+  // } else if (ponoviLozinku.value) {
+  //   localError.value.password = 'Morate uneti i novu šifru!'; hasErrors = true
+  // }
   return !hasErrors
 }
 
 const fetchUserData = async () => {
-  const username = route.params.username as string
-  if (!username) {
-    fetchError.value = 'Korisničko ime nije definisano u URL-u.'
-    pageLoading.value = false
-    return
-  }
-
-  pageLoading.value = true
-  fetchError.value = null
-  
+  const username = route.params.username as string;
+  if (!username) { fetchError.value = 'Korisničko ime nije definisano u URL-u.'; pageLoading.value = false; return; }
+  pageLoading.value = true;
+  fetchError.value = null;
+  // password.value = ''; // Zakomentarisano
+  // ponoviLozinku.value = ''; // Zakomentarisano
   try {
-    const response = await api.get(`/users/${username}`)
-    console.log('API Response:', response.data) // Debug log
-    
-    // Proveravaj različite formate odgovora
-    let user = null
-    if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-      // Ako je odgovor niz sa korisnikom
-      user = response.data[0]
-    } else if (response.data && response.data.data) {
-      // Ako je odgovor objekat sa data svojstvom
-      user = response.data.data
-    } else if (response.data && response.data.id) {
-      // Ako je odgovor direktno korisnik
-      user = response.data
-    }
-    
-    if (!user) {
-      throw new Error('API je vratio neispravan format podataka.')
-    }
-    
-    // Popuni formu sa podacima korisnika
-    userId.value = user.id
-    firstName.value = user.first_name || ''
-    lastName.value = user.last_name || ''
-    korisnickoIme.value = user.username || ''
-    jmbg.value = user.jmbg || ''
-    email.value = user.email || ''
-    selectedRole.value = user.role_id
-    
-    // Postavi sliku profila
+    const response = await api.get(`/users/${username}`);
+    let user = null;
+    if (response.data && Array.isArray(response.data) && response.data.length > 0) user = response.data[0];
+    else if (response.data && response.data.data) user = response.data.data;
+    else if (response.data && response.data.id) user = response.data;
+    if (!user) throw new Error('API je vratio neispravan format podataka.');
+    userId.value = user.id;
+    firstName.value = user.first_name || '';
+    lastName.value = user.last_name || '';
+    korisnickoIme.value = user.username || '';
+    jmbg.value = user.jmbg || '';
+    email.value = user.email || '';
+    selectedRole.value = user.role_id;
     if (user.profile_picture) {
-      slikaUrl.value = user.profile_picture.startsWith('http') 
-        ? user.profile_picture
-        : `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/storage/${user.profile_picture}`
+      slikaUrl.value = user.profile_picture.startsWith('http') ? user.profile_picture : `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/storage/${user.profile_picture}`;
     } else {
-      slikaUrl.value = '/images/default-user-1.jpg'
+      slikaUrl.value = '/images/default-user-1.jpg';
     }
-    
   } catch (error: any) {
-    console.error('Failed to fetch user data:', error)
+    console.error('Failed to fetch user data:', error);
     if (error.response) {
-      if (error.response.status === 404) {
-        fetchError.value = 'Korisnik nije pronađen. Molimo provjerite da li korisničko ime postoji.'
-      } else if (error.response.status === 403) {
-        fetchError.value = 'Nemate dozvolu za pristup ovom korisniku.'
-      } else {
-        fetchError.value = `Došlo je do greške (${error.response.status}): ${error.response.data?.message || 'Nepoznata greška'}`
-      }
+      if (error.response.status === 404) fetchError.value = 'Korisnik nije pronađen. Molimo provjerite da li korisničko ime postoji.';
+      else if (error.response.status === 403) fetchError.value = 'Nemate dozvolu za pristup ovom korisniku.';
+      else fetchError.value = `Došlo je do greške (${error.response.status}): ${error.response.data?.message || 'Nepoznata greška'}`;
     } else {
-      fetchError.value = 'Došlo je do greške prilikom učitavanja podataka. Molimo provjerite mrežnu vezu i URL adrese.'
+      fetchError.value = 'Došlo je do greške prilikom učitavanja podataka. Molimo provjerite mrežnu vezu i URL adrese.';
     }
   } finally {
-    pageLoading.value = false
+    pageLoading.value = false;
   }
 }
 
 const handleSave = async () => {
-  if (!validateForm()) {
-    return
-  }
-  
-  if (!korisnickoIme.value) {
-    displayGlobalError.value = 'Korisničko ime nije dostupno.'
-    return
-  }
-  
-  // Kreiranje FormData objekta za slanje podataka
-  const formData = new FormData()
-  
-  // Dodaj osnovne podatke
-  formData.append('first_name', firstName.value.trim())
-  formData.append('last_name', lastName.value.trim())
-  formData.append('email', email.value.trim())
-  formData.append('jmbg', jmbg.value.trim())
-  
-  // Dodaj password samo ako je unesen
-  if (password.value) {
-    formData.append('password', password.value)
-  }
-  
-  // Dodaj sliku ako je uploadovana nova
-  if (fotografija.value) {
-    formData.append('profile_picture', fotografija.value)
-  }
-  
+  if (!validateForm()) return;
+
+  loading.value = true;
+  displayGlobalError.value = null;
+
   try {
-    loading.value = true
-    
-    // Pozovi PATCH endpoint za update korisnika
-    const response = await api.patch(`/user/update`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
-    
-    if (response.status === 200) {
-      displayGlobalError.value = null
-      // Preusmeravaj na prikaz korisnika
-      router.push(`/users/${korisnickoIme.value}`)
+    const dataToUpdate = {
+      first_name: firstName.value.trim(),
+      last_name: lastName.value.trim(),
+      email: email.value.trim(),
+      jmbg: jmbg.value.trim(),
+    };
+    await api.patch('/user/update', dataToUpdate);
+
+    if (fotografija.value) {
+      const pictureFormData = new FormData();
+      pictureFormData.append('profile_picture', fotografija.value);
+      await api.post('/user/update-profile-picture', pictureFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
     }
+
+    // Zakomentarisana logika za promenu šifre
+    // if (password.value) {
+    //     console.warn("Backend ne podržava promenu šifre preko /user/update rute.");
+    //     displayGlobalError.value = "Podaci su sačuvani, ali šifra nije promenjena jer backend to ne podržava."
+    // }
+
+    if(!displayGlobalError.value){
+        router.push(`/users/${korisnickoIme.value}`);
+    }
+
   } catch (error: any) {
-    console.error('Error updating user:', error)
+    console.error('Error updating user:', error);
     if (error.response) {
       if (error.response.status === 422) {
-        const backendErrors = error.response.data.errors
-        // Mapiranje backend grešaka na frontend
-        localError.value = {
-          firstName: backendErrors?.first_name?.[0] || '',
-          lastName: backendErrors?.last_name?.[0] || '',
-          jmbg: backendErrors?.jmbg?.[0] || '',
-          email: backendErrors?.email?.[0] || '',
-          korisnickoIme: backendErrors?.username?.[0] || '',
-          password: backendErrors?.password?.[0] || '',
-          ponoviLozinku: '',
-          opsta: backendErrors?.profile_picture?.[0] || ''
-        }
-        displayGlobalError.value = 'Uneseni podaci su neispravni. Molimo provjerite greške u poljima.'
+        const backendErrors = error.response.data.errors || error.response.data;
+        localError.value.firstName = backendErrors?.first_name?.[0] || '';
+        localError.value.lastName = backendErrors?.last_name?.[0] || '';
+        localError.value.jmbg = backendErrors?.jmbg?.[0] || '';
+        localError.value.email = backendErrors?.email?.[0] || '';
+        localError.value.opsta = backendErrors?.profile_picture?.[0] || '';
+        displayGlobalError.value = 'Uneseni podaci su neispravni. Molimo proverite greške.';
       } else {
-        displayGlobalError.value = `Došlo je do greške (${error.response.status}): ${error.response.data?.message || 'Nepoznata greška'}`
+        displayGlobalError.value = `Došlo je do greške (${error.response.status}): ${error.response.data?.message || 'Nepoznata greška'}`;
       }
     } else {
-      displayGlobalError.value = 'Došlo je do neočekivane greške. Molimo provjerite mrežnu vezu.'
+      displayGlobalError.value = 'Došlo je do neočekivane greške. Molimo proverite mrežnu vezu.';
     }
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
+
 
 const handleCancel = () => {
   router.push(`/users/${korisnickoIme.value}`)
 }
 
 const handleBackClick = () => {
-  if (selectedRole.value === 1) {
-    router.push('/students');
-  } else if (selectedRole.value === 2) {
-    router.push('/thelibrarian');
-  } else {
-    router.push('/users');
-  }
+  if (selectedRole.value === 1) router.push('/students');
+  else if (selectedRole.value === 2) router.push('/thelibrarian');
+  else router.push('/users');
 }
 
-// Watcher za ažuriranje globalne greške
 watch(() => displayGlobalError.value, (newVal) => {
   if (newVal) {
-    setTimeout(() => {
-      displayGlobalError.value = null
-    }, 5000)
+    setTimeout(() => { displayGlobalError.value = null; }, 5000);
   }
 })
 
-// Lifecycle hook za učitavanje podataka pri ulasku na stranicu
 onMounted(() => {
   fetchUserData()
 })
 
-// Watcher za promenu username parametra
 watch(() => route.params.username, (newUsername) => {
-  if (newUsername) {
-    fetchUserData()
-  }
+  if (newUsername) fetchUserData();
 })
+
 </script>
 
 <style scoped>
+/* Tvoji stilovi ostaju nepromenjeni */
 .page-container {
   padding: 0;
   background-color: white;

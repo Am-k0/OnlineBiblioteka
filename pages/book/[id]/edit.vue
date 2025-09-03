@@ -5,7 +5,6 @@
         <h1 class="page-title">{{ book.name || 'Izmjena knjige' }}</h1>
         <div class="breadcrumbs">
           <router-link to="/books" class="breadcrumb-link">Evidencija knjiga</router-link>
-         
           <span>/ Izmijena knjige</span>
         </div>
       </div>
@@ -26,7 +25,7 @@
             <v-window v-model="tab">
               <v-window-item value="one">
                 <div class="tab-content form-content" :class="{ 'form-content--error': showErrors && hasErrorsOnFirstTab }">
-                  <div v-if="globalError" class="custom-error" style="font-weight: bold">
+                  <div v-if="globalError" class="custom-error" style="font-weight: bold; margin-bottom: 1rem;">
                     {{ globalError }}
                   </div>
                   <div class="field-wrapper">
@@ -107,8 +106,8 @@
                       v-model="book.publisher_id"
                       label="Izaberite izdavača*"
                       :items="uniquePublishers.data"
-                      item-title="name"
-                      item-value="id"
+                      item-title="publisher_name"
+                      item-value="publisher_id"
                       variant="outlined"
                       :style="fieldStyle"
                       :error="showErrors && !book.publisher_id"
@@ -219,14 +218,11 @@
                       label="ISBN*"
                       variant="outlined"
                       :style="fieldStyle"
-                      :error="showErrors && (!book.isbn || !validIsbn)"
+                      :error="showErrors && !book.isbn"
                       hide-details="auto"
                     />
                     <div v-if="showErrors && !book.isbn" class="custom-error">
                       Morate unijeti ISBN!
-                    </div>
-                    <div v-else-if="showErrors && book.isbn && !validIsbn" class="custom-error">
-                      Nevažeći ISBN format!
                     </div>
                   </div>
                   <div class="form-actions">
@@ -313,14 +309,14 @@ const uniqueAuthors = ref({ data: [] })
 const uniquePublishers = ref({ data: [] })
 
 const SCRIPT_OPTIONS = [
-  { title: 'Ćirilica', value: 'cyrillic' },
-  { title: 'Latinica', value: 'latin' },
-  { title: 'Arapsko pismo', value: 'arabic' }
+  { title: 'Ćirilica', value: 'Ćirilica' },
+  { title: 'Latinica', value: 'Latinica' },
+  { title: 'Arapsko pismo', value: 'Arapsko pismo' }
 ]
 const BINDING_OPTIONS = [
-  { title: 'Tvrdi povez', value: 'hardcover' },
-  { title: 'Meki povez', value: 'paperback' },
-  { title: 'Spiralni povez', value: 'spiral-bound' }
+  { title: 'Tvrdi povez', value: 'Tvrdi povez' },
+  { title: 'Meki povez', value: 'Meki povez' },
+  { title: 'Spiralni povez', value: 'Spiralni povez' }
 ]
 const DIMENSIONS_OPTIONS = [
   'A1', 'A2', 'A3', 'A4', 'A5', 'A6',
@@ -333,10 +329,7 @@ const DIMENSIONS_OPTIONS = [
 const LANGUAGE_OPTIONS = [
   { title: 'Crnogorski', value: 'crnogorski' },
   { title: 'Engleski', value: 'engleski' },
-  { title: 'Srpski', value: 'srpski' },
-  { title: 'Hrvatski', value: 'hrvatski' },
-  { title: 'Bosanski', value: 'bosanski' },
-  { title: 'Ostalo', value: 'ostalo' }
+  { title: 'Srpski', value: 'srpski' }
 ]
 
 onMounted(async () => {
@@ -380,8 +373,20 @@ async function fetchBookData() {
     book.number_of_pages = data.number_of_pages ?? null
     book.publication_year = data.publication_year ?? null
     book.isbn = data.isbn || ''
-    book.script = data.script || ''
-    book.binding = data.binding || ''
+
+    const scriptMap = {
+      cyrillic: 'Ćirilica',
+      latin: 'Latinica',
+      arabic: 'Arapsko pismo'
+    }
+    const bindingMap = {
+      hardcover: 'Tvrdi povez',
+      paperback: 'Meki povez',
+      'spiral-bound': 'Spiralni povez'
+    }
+    book.script = scriptMap[data.script] || ''
+    book.binding = bindingMap[data.binding] || ''
+
     book.dimensions = data.dimensions || ''
     book.language = data.language || ''
     book.publisher_id = data.publisher_id ?? null
@@ -414,24 +419,6 @@ const handleFileUpload = (e) => {
   }
 }
 
-const validIsbn = computed(() => {
-  const isbnCleaned = (book.isbn || '').replace(/[- ]/g, '')
-  if (!isbnCleaned) return false
-  if (isbnCleaned.length === 10) {
-    let sum = 0
-    for (let i = 0; i < 9; i++) sum += parseInt(isbnCleaned[i]) * (10 - i)
-    const lastChar = isbnCleaned[9]
-    sum += ((lastChar === 'X' || lastChar === 'x') ? 10 : parseInt(lastChar))
-    return (sum % 11 === 0)
-  } else if (isbnCleaned.length === 13) {
-    let sum = 0
-    for (let i = 0; i < 12; i++) sum += parseInt(isbnCleaned[i]) * (i % 2 === 0 ? 1 : 3)
-    const checkDigit = (10 - (sum % 10)) % 10
-    return checkDigit === parseInt(isbnCleaned[12])
-  }
-  return false
-})
-
 const hasErrorsOnFirstTab = computed(() => {
   return (
     !book.name ||
@@ -444,12 +431,12 @@ const hasErrorsOnFirstTab = computed(() => {
     book.number_of_copies_available <= 0
   )
 })
+
 const hasErrorsOnSecondTab = computed(() => {
   return (
     !book.number_of_pages ||
     book.number_of_pages <= 0 ||
-    !book.isbn ||
-    !validIsbn.value
+    !book.isbn
   )
 })
 
@@ -491,9 +478,9 @@ async function saveBook() {
     if (book.binding) formData.append('binding', book.binding)
     if (book.dimensions) formData.append('dimensions', book.dimensions)
     if (book.publisher_id) formData.append('publisher_id', book.publisher_id)
-    if (book.categories && book.categories.length > 0) book.categories.forEach((id, index) => formData.append(`categories[${index}]`, id))
-    if (book.genres && book.genres.length > 0) book.genres.forEach((id, index) => formData.append(`genres[${index}]`, id))
-    if (book.authors && book.authors.length > 0) book.authors.forEach((id, index) => formData.append(`authors[${index}]`, id))
+    if (book.categories && book.categories.length > 0) book.categories.forEach((id) => formData.append(`categories[]`, id))
+    if (book.genres && book.genres.length > 0) book.genres.forEach((id) => formData.append(`genres[]`, id))
+    if (book.authors && book.authors.length > 0) book.authors.forEach((id) => formData.append(`authors[]`, id))
     if (selectedFile.value) {
       formData.append('image', selectedFile.value)
     }

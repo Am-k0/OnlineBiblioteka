@@ -294,11 +294,11 @@ onMounted(() => {
   color: #1976d2;
   cursor: pointer;
 }
-
 .header-divider {
   height: 1px;
   background-color: #e0e0e0;
-  margin-top: 10px;
+  margin-top: 5px;
+  margin-bottom: 24px;
 }
 
 .page-content {

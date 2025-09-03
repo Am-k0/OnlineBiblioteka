@@ -53,12 +53,8 @@
         <div v-if="errors.description" class="error-message">{{ errors.description }}</div>
         <div v-if="errors.icon" class="error-message">{{ errors.icon }}</div>
 
-        <div class="buttons">
-          <v-btn color="primary" class="save-btn" @click="saveCategory" :loading="loading">
-            Sačuvaj
-          </v-btn>
-
-          <v-btn variant="outlined" class="cancel-btn" @click="cancel"> Poništi </v-btn>
+        <div class="form-actions">
+          <ActionButtons @save="saveCategory" @cancel="cancel" :loading="loading" />
         </div>
       </div>
     </div>
@@ -69,6 +65,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import ActionButtons from '@/components/ActionButtons.vue'; // Uverite se da je putanja ispravna
 
 const router = useRouter();
 
@@ -342,24 +339,9 @@ const cancel = () => {
   margin-bottom: 16px;
 }
 
-.buttons {
+.form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 16px;
   margin-top: auto;
-}
-
-.cancel-btn {
-  border: 1px solid #3392ea;
-  color: #3392ea;
-  width: 120px;
-}
-
-.save-btn {
-  width: 120px;
-}
-
-.form-field-description.v-textarea textarea {
-  height: 100% !important;
 }
 </style>

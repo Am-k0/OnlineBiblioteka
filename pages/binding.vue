@@ -95,9 +95,7 @@ const cancel = () => {
 </script>
 
 <style scoped>
-/*
-  Stilovi su isti kao i za formu za žanr i izdavača
-*/
+
 .page-container {
   padding: 0;
   background-color: white;

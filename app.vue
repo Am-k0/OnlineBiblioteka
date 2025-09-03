@@ -19,7 +19,12 @@ import SideBar from '~/components/sidebar.vue'
 const route = useRoute()
 
 
-const showLayout = computed(() => route.path !== '/login')
+const showLayout = computed(() => {
+  // Definirajte putanje na kojima ne želite prikazati layout
+  const noLayoutRoutes = ['/login', '/forgotpassword'];
+  return !noLayoutRoutes.includes(route.path);
+});
+
 
 </script>
 

@@ -139,11 +139,11 @@ const handlePageChange = (newValue) => {
 };
 
 const handleNewIzdavac = () => {
-  router.push('/publisher');
+  router.push('/publisher/publisher');
 };
 
-const handleEdit = (item) => { 
-  console.log('Uređivanje izdavača:', item); 
+const handleEdit = (item) => {
+  router.push(`/publisher/${item.id}/edit`);
 };
 
 const handleDelete = async (item) => {
@@ -153,11 +153,14 @@ const handleDelete = async (item) => {
     const token = localStorage.getItem('auth_token');
     if (!token) throw new Error('Niste prijavljeni');
 
-    await axios.delete(`${apiBaseUrl}/api/publishers/${item.id}/destroy`, {
+ 
+    await axios.delete(`${apiBaseUrl}/api/publishers/${item.id}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     
+    
     await fetchIzdavaci();
+    alert('Izdavač uspešno obrisan!');
   } catch (err) {
     setError('Greška pri brisanju izdavača: ' + (err.response?.data?.message || err.message || 'Nepoznata greška'));
   } finally {

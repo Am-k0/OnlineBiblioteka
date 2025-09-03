@@ -37,8 +37,10 @@
         <div class="cell-actions flex justify-end">
           <ActionMenu
             :item="item"
-            entity-name="žanra"
-            :title-property="item.name"
+            entity-name="žanr"
+            title-property="name"
+            :show-edit="true"
+            :show-delete="true"
             @edit="handleEdit"
             @delete="handleDelete"
             @error="setError"
@@ -112,7 +114,6 @@ const fetchGenres = async () => {
       params,
     });
     
-    // Prilagođavanje na strukturu odgovora iz PHP-a
     const apiData = response.data.genres;
     zanrovi.value = apiData.data;
     totalItems.value = apiData.total;
@@ -138,11 +139,11 @@ const handlePageChange = (newValue) => {
 };
 
 const handleNewGenre = () => {
-  router.push('/genre');
+  router.push('/genre/genre');
 };
 
 const handleEdit = (item) => {
-  console.log('Uređivanje žanra:', item);
+  router.push(`/genre/${item.id}/edit`);
 };
 
 const handleDelete = async (item) => {

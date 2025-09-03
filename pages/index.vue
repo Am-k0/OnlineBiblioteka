@@ -1,17 +1,74 @@
-<script setup>
+<template>
+  <div class="page-container bg-white min-h-screen">
+    <header class="app-header">
+      <h1 class="page-title">Dashboard</h1>
+    </header>
 
+    <div class="header-divider"></div>
+
+    <div class="page-content">
+      <v-container fluid>
+        <v-row>
+          <v-col cols="12" md="7">
+            <DashboardAktivnosti />
+          </v-col>
+
+          <v-col cols="12" md="5">
+            <v-row>
+              <v-col cols="12">
+                <DashboardRezervacije />
+              </v-col>
+              <v-col cols="12">
+                <DashboardStatistika />
+              </v-col>
+            </v-row>
+          </v-col>
+        </v-row>
+      </v-container>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import DashboardAktivnosti from '~/components/dashboard/DashboardAktivnosti.vue';
+import DashboardRezervacije from '~/components/dashboard/DashboardRezervacije.vue';
+import DashboardStatistika from '~/components/dashboard/DashboardStatistika.vue';
 </script>
 
-<template>
- <div class="container">
-    <h1>Welcome to My Nuxt App</h1>
-    <p>This is the home page.</p>
-    <h1 class="text-3xl font-bold underline">    Hello world!  </h1>
+<style scoped>
+.page-container {
+  padding: 0;
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden; 
+}
 
+.app-header {
+  padding: 24px 24px 0 24px;
+}
 
-  </div>   
+.page-title {
+  font-family: 'Roboto', sans-serif !important;
+  font-size: 20px;
+  font-weight: 500;
+  color: #222;
+  line-height: 100%;
+  letter-spacing: 0.15px;
+  vertical-align: middle;
+  margin: 0;
+}
 
+.header-divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin-top: 20px;
+  margin-bottom: 24px;
+}
 
-  
-</template>
-  
+.page-content {
+  padding: 0 24px;
+  flex-grow: 1;
+}
+</style>
