@@ -26,10 +26,6 @@
                 class="tab-content form-content"
                 :class="{ 'form-content--error': showErrors && hasErrorsOnFirstTab }"
               >
-                <div v-if="globalError" class="custom-error" style="font-weight: bold; margin-bottom: 1rem;">
-                  {{ globalError }}
-                </div>
-
                 <div class="field-wrapper">
                   <v-text-field
                     v-model="book.name"
@@ -283,10 +279,31 @@
         </v-form>
       </v-card-text>
     </v-card>
+    
+    <v-snackbar
+      v-model="errorSnackbar.show"
+      color="error"
+      :timeout="5000"
+      top
+    >
+      {{ errorSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="errorSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth', 'auth-librarian']
+})
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ActionButtons from '@/components/ActionButtons.vue'
@@ -300,17 +317,21 @@ const form = ref(null)
 const imageUrl = ref('')
 const selectedFile = ref(null)
 const showErrors = ref(false)
-const globalError = ref('')
 
-// AŽURIRANE VREDNOSTI - sada šaljemo engleski nazive backend-u
+// Snackbar za greške s poslužitelja
+const errorSnackbar = ref({
+  show: false,
+  text: ''
+})
+
 const book = reactive({
   name: '',
   description: '',
   number_of_copies_available: null,
   number_of_pages: null,
   publication_year: null,
-  script: null,  
-  binding: null,  
+  script: null,
+  binding: null,
   dimensions: 'A1',
   language: 'crnogorski',
   isbn: '',
@@ -324,7 +345,6 @@ const uniqueCategories = ref({ data: [] })
 const uniqueGenres = ref({ data: [] })
 const uniqueAuthors = ref({ data: [] })
 const uniquePublishers = ref({ data: [] })
-
 
 const SCRIPT_OPTIONS = [
   { title: 'Ćirilica', value: 'Ćirilica' },
@@ -357,22 +377,23 @@ async function fetchRelatedData() {
       axios.get('/authors?per_page=100'),
       axios.get('/publishers?per_page=100')
     ])
-    
+
     uniqueCategories.value.data = categoriesRes.data.categories.data
     uniqueGenres.value.data = genresRes.data.genres.data
-    uniqueAuthors.value.data = authorsRes.data.data.data.map(a => ({ 
-      ...a, 
-      name: `${a.first_name} ${a.last_name}` 
+    uniqueAuthors.value.data = authorsRes.data.data.data.map(a => ({
+      ...a,
+      name: `${a.first_name} ${a.last_name}`
     }))
-    
+
     uniquePublishers.value.data = publishersRes.data.publishers.data.map(p => ({
       name: p.publisher_name,
       id: p.publisher_id
     }))
 
   } catch (error) {
-    globalError.value = 'Greška pri učitavanju podataka za padajuće liste.'
     console.error('Greška pri učitavanju podataka:', error)
+    const errorMessage = error.response?.data?.message || 'Greška pri učitavanju podataka za padajuće liste.';
+    showErrorSnackbar(errorMessage);
   }
 }
 
@@ -393,32 +414,34 @@ const handleFileUpload = (e) => {
 }
 
 const hasErrorsOnFirstTab = computed(() => {
-  return !book.name || 
-         !book.description || 
-         !book.publisher_id || 
-         book.authors.length === 0 || 
-         !book.publication_year || 
-         book.publication_year <= 0 || 
-         !book.number_of_copies_available || 
-         book.number_of_copies_available <= 0
+  return !book.name ||
+    !book.description ||
+    !book.publisher_id ||
+    book.authors.length === 0 ||
+    !book.publication_year ||
+    book.publication_year <= 0 ||
+    !book.number_of_copies_available ||
+    book.number_of_copies_available <= 0
 })
 
 const hasErrorsOnSecondTab = computed(() => {
-  return !book.number_of_pages || 
-         book.number_of_pages <= 0 || 
-         !book.isbn
+  return !book.number_of_pages ||
+    book.number_of_pages <= 0 ||
+    !book.isbn
 })
 
 async function validateAndSave() {
   showErrors.value = true
-  globalError.value = ''
+  errorSnackbar.value.show = false;
 
   if (hasErrorsOnFirstTab.value) {
     tab.value = 'one'
+    showErrorSnackbar('Molimo ispunite sva obavezna polja na prvom koraku.');
     return
   }
   if (hasErrorsOnSecondTab.value) {
     tab.value = 'two'
+    showErrorSnackbar('Molimo ispunite sva obavezna polja na drugom koraku.');
     return
   }
   await saveBook()
@@ -426,7 +449,7 @@ async function validateAndSave() {
 
 async function saveBook() {
   isSaving.value = true
-  globalError.value = ''
+  errorSnackbar.value.show = false;
 
   const formData = new FormData()
 
@@ -437,8 +460,8 @@ async function saveBook() {
   formData.append('number_of_pages', book.number_of_pages)
   formData.append('publication_year', book.publication_year)
   formData.append('isbn', book.isbn)
-  
-  // Opcioni podaci - šaljemo engleski nazive
+
+  // Opcioni podaci
   if (book.script) {
     formData.append('script', book.script)
   }
@@ -451,7 +474,7 @@ async function saveBook() {
   if (book.language) {
     formData.append('language', book.language)
   }
-  
+
   // Publisher
   if (book.publisher_id) {
     formData.append('publisher_id', book.publisher_id)
@@ -461,11 +484,11 @@ async function saveBook() {
   if (book.authors && book.authors.length > 0) {
     book.authors.forEach(id => formData.append('authors[]', id))
   }
-  
+
   if (book.genres && book.genres.length > 0) {
     book.genres.forEach(id => formData.append('genres[]', id))
   }
-  
+
   if (book.categories && book.categories.length > 0) {
     book.categories.forEach(id => formData.append('categories[]', id))
   }
@@ -477,19 +500,12 @@ async function saveBook() {
   }
 
   try {
-    console.log('Šaljem podatke na backend:', {
-      name: book.name,
-      script: book.script,
-      binding: book.binding,
-      publication_year: book.publication_year
-    });
-    
     const response = await axios.post('/books/create', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     })
-    
+
     const bookId = response.data?.book?.id
     if (bookId) {
       router.push(`/book/${bookId}`)
@@ -499,16 +515,15 @@ async function saveBook() {
 
   } catch (error) {
     console.error('Greška pri čuvanju knjige:', error)
-    
+    let errorMessage = 'Došlo je do neočekivane greške na serveru. Pokušajte ponovo.';
     if (error.response?.data?.errors) {
       const errors = error.response.data.errors
       const errorMessages = Object.values(errors).flat()
-      globalError.value = `Validacijska greška: ${errorMessages.join(', ')}`
+      errorMessage = `Validacijska greška: ${errorMessages.join(', ')}`;
     } else if (error.response?.data?.message) {
-      globalError.value = error.response.data.message
-    } else {
-      globalError.value = 'Došlo je do neočekivane greške na serveru. Pokušajte ponovo.'
+      errorMessage = error.response.data.message;
     }
+    showErrorSnackbar(errorMessage);
   } finally {
     isSaving.value = false
   }
@@ -518,11 +533,17 @@ function cancel() {
   router.push('/books')
 }
 
+function showErrorSnackbar(message) {
+  errorSnackbar.value.text = message;
+  errorSnackbar.value.show = true;
+}
+
 const fieldStyle = { width: '724px', height: '48px' }
 const textareaStyle = { width: '724px', height: '160px' }
 </script>
 
 <style scoped>
+/* Tvoji stilovi ostaju nepromenjeni */
 .page {
   padding: 0;
   background-color: white;

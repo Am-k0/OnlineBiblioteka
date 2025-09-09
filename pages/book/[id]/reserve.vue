@@ -44,11 +44,48 @@
       <BookQuantities v-if="book" :quantities="book" />
     </div>
 
-    <v-alert v-if="error" type="error" class="ma-4">{{ error }}</v-alert>
+    <v-snackbar
+      v-model="successSnackbar.show"
+      color="#3392EA"
+      :timeout="3000"
+      top
+    >
+      {{ successSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="successSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
+    
+    <v-snackbar
+      v-model="errorSnackbar.show"
+      color="error"
+      :timeout="5000"
+      top
+    >
+      {{ errorSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="errorSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth']
+})
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
@@ -64,10 +101,21 @@ const book = ref(null);
 const students = ref([]);
 const selectedStudentId = ref(null);
 const loading = ref(false);
-const error = ref(null);
 const isLibrarian = ref(false);
 
 const bookId = ref(route.params.id);
+
+// Snackbar state za uspjeh
+const successSnackbar = ref({
+  show: false,
+  text: '',
+});
+
+// Snackbar state za greške
+const errorSnackbar = ref({
+  show: false,
+  text: '',
+});
 
 const getLoggedInUser = () => {
     try {
@@ -83,14 +131,13 @@ onMounted(() => {
   const user = getLoggedInUser();
   if (user && user.role === 'librarian') {
       isLibrarian.value = true;
-      fetchStudents(); // Pozivamo listu učenika samo ako je bibliotekar
+      fetchStudents();
   } else if (user && user.role === 'student') {
-    // Ako je ulogovan učenik, njegov ID se automatski postavlja za rezervaciju
     selectedStudentId.value = user.id;
   }
 
   if (!bookId.value) {
-    error.value = 'ID knjige nije pronađen. Proverite URL rutu.';
+    showErrorSnackbar('ID knjige nije pronađen. Provjerite URL rutu.');
     return;
   }
   fetchBookDetails();
@@ -98,13 +145,12 @@ onMounted(() => {
 
 async function fetchBookDetails() {
   loading.value = true;
-  error.value = null;
   try {
     const res = await api.get(`/books/${bookId.value}`);
     const rawData = res.data?.book;
     
     if (!rawData) {
-        throw new Error('Detalji o knjizi nisu pronađeni. Proverite da li je knjiga obrisana.');
+        throw new Error('Detalji o knjizi nijesu pronađeni. Provjerite je li knjiga obrisana.');
     }
 
     book.value = {
@@ -118,7 +164,7 @@ async function fetchBookDetails() {
     };
   } catch (err) {
     console.error('Greška pri učitavanju detalja o knjizi:', err);
-    error.value = 'Greška pri učitavanju detalja o knjizi. Proverite da li postoji knjiga sa ovim ID-em.';
+    showErrorSnackbar('Greška pri učitavanju detalja o knjizi. Provjerite postoji li knjiga sa ovim ID-om.');
     book.value = { naziv_knjige: 'Knjiga nije pronađena' };
   } finally {
     loading.value = false;
@@ -127,8 +173,6 @@ async function fetchBookDetails() {
 
 async function fetchStudents() {
   try {
-    // === KLJUČNA IZMENA OVDE ===
-    // Promenjen parametar sa `role: 'student'` na `role_id: 1`
     const res = await api.get('/users', { params: { role_id: 1, per_page: 100 } });
     
     if (res.data?.data?.data) {
@@ -137,54 +181,68 @@ async function fetchStudents() {
           name: `${user.first_name} ${user.last_name}`,
         }));
     } else {
-        throw new Error('Nisu pronađeni podaci o učenicima u odgovoru sa servera.');
+        throw new Error('Nijesu pronađeni podaci o učenicima u odgovoru sa servera.');
     }
   } catch (err) {
     console.error('Greška pri učitavanju učenika:', err);
-    error.value = 'Greška pri učitavanju učenika.';
+    showErrorSnackbar('Greška pri učitavanju učenika.');
   }
 }
 
 async function submitReservation() {
-  // Ako je bibliotekar, forma mora biti validna (mora izabrati učenika)
   if (isLibrarian.value) {
       const { valid } = await form.value.validate();
       if (!valid) {
+        showErrorSnackbar('Učenik je obavezan!');
         return;
       }
   }
   
   loading.value = true;
-  error.value = null;
+  successSnackbar.value.show = false;
+  errorSnackbar.value.show = false;
 
   try {
     const payload = {
       book_id: bookId.value,
     };
 
-    // Ako je bibliotekar, šaljemo ID izabranog učenika
-    // Ako je ulogovan učenik, njegov ID je već postavljen u `selectedStudentId` i biće poslat
-    // Backend će verovatno sam prepoznati ID ulogovanog korisnika ako `student_id` nije eksplicitno poslat
     if (isLibrarian.value) {
       payload.student_id = selectedStudentId.value;
     }
 
     const res = await api.post('/reservations', payload);
     
-    // Koristite alert ili neki lepši notification/toast komponentu
-    alert(res.data.message || 'Knjiga je uspešno rezervisana!'); 
-    router.push(`/book/${bookId.value}`);
+    showSuccessSnackbar(`Knjiga je uspješno rezervisana!`); 
+    
+    selectedStudentId.value = null;
+    form.value.reset();
+    
+    await fetchBookDetails();
+
   } catch (err) {
     console.error('Greška pri rezervaciji knjige:', err);
+    let errorMessage = 'Došlo je do greške prilikom rezervacije knjige.';
     if (err.response && err.response.data && err.response.data.error) {
-        error.value = err.response.data.error;
-    } else {
-        error.value = 'Došlo je do greške prilikom rezervacije knjige.';
+        errorMessage = err.response.data.error;
+    } else if (err.response && err.response.data && err.response.data.message) {
+        errorMessage = err.response.data.message;
     }
+    showErrorSnackbar(errorMessage);
   } finally {
     loading.value = false;
   }
 }
+
+const showSuccessSnackbar = (message) => {
+  successSnackbar.value.text = message;
+  successSnackbar.value.show = true;
+};
+
+const showErrorSnackbar = (message) => {
+  errorSnackbar.value.text = message;
+  errorSnackbar.value.show = true;
+};
 
 function cancel() {
   router.back();
@@ -192,6 +250,7 @@ function cancel() {
 </script>
 
 <style scoped>
+/* CSS stilovi ostaju nepromenjeni */
 .page-container {
   padding: 0;
   background-color: white;

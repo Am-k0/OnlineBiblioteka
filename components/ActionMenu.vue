@@ -30,6 +30,17 @@
           </template>
           <v-list-item-title class="dropdown-text">Izmijeni {{ entityName }}</v-list-item-title>
         </v-list-item>
+        
+        <v-list-item
+          v-if="showCancel"
+          @click="handleCancel"
+          class="dropdown-item cancel-item"
+        >
+          <template v-slot:prepend>
+            <v-icon size="24" class="dropdown-icon">mdi-cancel</v-icon>
+          </template>
+          <v-list-item-title class="dropdown-text">Otkaži rezervaciju</v-list-item-title>
+        </v-list-item>
 
         <template v-if="showOtpisi || showIzdaj || showVrati || showRezervisi">
           <v-divider class="my-1"></v-divider>
@@ -151,8 +162,12 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn color="grey-darken-1" variant="text" @click="deleteDialog = false">Otkaži</v-btn>
-          <v-btn color="red-darken-1" variant="text" @click="confirmDelete">Obriši</v-btn>
+          <v-btn variant="text" @click="deleteDialog = false" color="#3392EA">
+            Poništi
+          </v-btn>
+          <v-btn variant="text" @click="confirmDelete" color="#3392EA">
+            Izbriši
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -166,13 +181,14 @@ const props = defineProps({
   item: { type: Object, required: true },
   entityName: { type: String, default: 'knjigu' },
   titleProperty: { type: String, default: 'naziv_knjige' },
-  showView: { type: Boolean, default: false }, // OVDJE JE PROMENJENA PODRAZUMEVANA VREDNOST
+  showView: { type: Boolean, default: false }, 
   showEdit: { type: Boolean, default: false },
   showDelete: { type: Boolean, default: false },
   showOtpisi: { type: Boolean, default: false },
   showIzdaj: { type: Boolean, default: false },
   showVrati: { type: Boolean, default: false },
   showRezervisi: { type: Boolean, default: false },
+  showCancel: { type: Boolean, default: false },
   inlineLayout: { type: Boolean, default: false }
 })
 
@@ -184,6 +200,7 @@ const emit = defineEmits([
   'izdaj',
   'vrati',
   'rezervisi',
+  'cancel',
   'error'
 ])
 
@@ -200,6 +217,7 @@ const handleIzdaj = () => { emit('izdaj', props.item) }
 const handleVrati = () => { emit('vrati', props.item) }
 const handleRezervisi = () => { emit('rezervisi', props.item) }
 const handleDelete = () => { deleteDialog.value = true }
+const handleCancel = () => { emit('cancel', props.item) }
 
 const confirmDelete = () => {
   emit('delete', props.item)
@@ -237,3 +255,4 @@ const confirmDelete = () => {
   padding: 8px;
 }
 </style>
+

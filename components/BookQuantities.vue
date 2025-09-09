@@ -1,5 +1,5 @@
 <template>
-  <div class="quantities-panel ml-8">
+  <div class="quantities-panel ml-3">
     <v-card class="quantities-card" flat>
       <v-card-text>
         <h3 class="panel-title">Količine</h3>

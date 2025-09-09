@@ -1,5 +1,13 @@
 <template>
   <div>
+    <div
+      v-if="actionMenuLoading"
+      class="loading-overlay"
+      :class="{
+        'loading-overlay--active': actionMenuLoading
+      }"
+    ></div>
+
     <v-data-table
       :headers="visibleHeaders"
       :items="filteredAutori"
@@ -40,12 +48,13 @@
             entity-name="autora"
             title-property="name"
             :show-view="true"
-            :show-edit="true"
-            :show-delete="true"
+            :show-edit="user?.role === 'librarian'"
+            :show-delete="user?.role === 'librarian'"
             @view="handleView"
             @edit="handleEdit"
             @delete="handleDelete"
-            @error="setError"
+            @error="showErrorSnackbar"
+            @update:loading="updateLoading"
           />
         </div>
       </template>
@@ -60,9 +69,23 @@
       @update:currentPage="handlePageChange"
     />
 
-    <v-alert v-if="error" type="error" class="mt-4">
-      {{ error }}
-    </v-alert>
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
@@ -76,7 +99,7 @@ import PaginationFooter from './PaginationFooter.vue'
 const router = useRouter()
 const autori = ref([])
 const loading = ref(false)
-const error = ref(null)
+const actionMenuLoading = ref(false)
 
 const defaultAvatar = '/images/default-author-1.jpg'
 
@@ -96,19 +119,46 @@ const props = defineProps({
   search: { type: String, default: '' },
 })
 
+const emit = defineEmits(['delete-success']);
+
+// Snackbar za greške i uspješne poruke
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 5000,
+});
+
+// === USER ROLE (preuzimanje iz localStorage) ===
+const user = ref(null)
+onMounted(() => {
+  if (process.client) {
+    const storedUser = localStorage.getItem('user')
+    user.value = storedUser ? JSON.parse(storedUser) : null
+  }
+})
+
 const getRandomAuthorImage = () => {
   return defaultAvatar
 }
 
-const setError = (err) => {
-  error.value = err
-  setTimeout(() => error.value = null, 5000)
-}
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = null; // Bez tajmera
+  snackbar.value.show = true;
+};
+
+const showSuccessSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'success';
+  snackbar.value.timeout = 5000;
+  snackbar.value.show = true;
+};
 
 const fetchAuthors = async () => {
   loading.value = true
-  error.value = null
-
+  
   try {
     const token = localStorage.getItem('auth_token')
     if (!token) throw new Error('Niste prijavljeni')
@@ -122,15 +172,17 @@ const fetchAuthors = async () => {
     const response = await axios.get(`${apiBaseUrl}/api/authors`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        Accept: 'application/json'
+        Accept: 'application/json',
       },
       params,
     })
     autori.value = response.data.data?.data || []
     totalItems.value = response.data.data?.total || 0
   } catch (err) {
-    error.value = 'Greška pri učitavanju autora: ' +
+    showErrorSnackbar(
+      'Greška pri učitavanju autora: ' +
       (err.response?.data?.message || err.message || 'Nepoznata greška')
+    )
     if (err.response?.status === 401) {
       router.push('/login')
     }
@@ -149,15 +201,24 @@ const handlePageChange = (newValue) => {
   fetchAuthors()
 }
 
-onMounted(() => { fetchAuthors() })
-watch(() => props.search, () => { currentPage.value = 1; fetchAuthors() })
+onMounted(() => {
+  fetchAuthors()
+})
+watch(
+  () => props.search,
+  () => {
+    currentPage.value = 1
+    fetchAuthors()
+  }
+)
 
 const filteredAutori = computed(() => {
-  return autori.value.map(a => {
+  return autori.value.map((a) => {
     const fullDescription = a.description || a.biography || ''
-    const shortDescription = fullDescription.length > 150
-      ? fullDescription.substring(0, 150) + '...'
-      : fullDescription
+    const shortDescription =
+      fullDescription.length > 150
+        ? fullDescription.substring(0, 150) + '...'
+        : fullDescription
     return {
       ...a,
       name: a.name || `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim(),
@@ -169,14 +230,12 @@ const filteredAutori = computed(() => {
 
 const itemClass = 'table-row'
 
-
 const handleEdit = (item) => {
   router.push({
     path: `/author/${item.id}`,
-    query: { edit: true }
+    query: { edit: true },
   })
 }
-
 
 const handleView = (item) => {
   router.push(`/author/${item.id}`)
@@ -184,27 +243,28 @@ const handleView = (item) => {
 
 const handleDelete = async (item) => {
   try {
-    if (!confirm(`Da li ste sigurni da želite da obrišete autora "${item.name}"?`)) return
-    loading.value = true
     const token = localStorage.getItem('auth_token')
-
-    await axios.delete(`${apiBaseUrl}/api/authors/${item.id}/destroy`, {
-      headers: { Authorization: `Bearer ${token}` }
+    const response = await axios.delete(`${apiBaseUrl}/api/authors/${item.id}/destroy`, {
+      headers: { Authorization: `Bearer ${token}` },
     })
+    
+    showSuccessSnackbar(response.data.message || `Autor "${item.name}" je uspješno obrisan!`);
+    
     await fetchAuthors()
   } catch (err) {
-    setError(
+    showErrorSnackbar(
       'Greška pri brisanju autora: ' +
-        (err.response?.data?.message || err.message || 'Nepoznata greška')
+      (err.response?.data?.message || err.message || 'Nepoznata greška')
     )
-  } finally {
-    loading.value = false
   }
+}
+
+const updateLoading = (value) => {
+  actionMenuLoading.value = value
 }
 </script>
 
 <style scoped>
-
 .no-border-table .v-data-table__wrapper table,
 .no-border-table .v-data-table__wrapper table thead,
 .no-border-table .v-data-table__wrapper table tbody,
@@ -246,7 +306,8 @@ const handleDelete = async (item) => {
   padding-right: 16px !important;
 }
 
-.naziv-text, .opis-text {
+.naziv-text,
+.opis-text {
   font-family: Roboto, sans-serif;
   font-weight: 400;
   font-size: 14px;
@@ -259,5 +320,21 @@ const handleDelete = async (item) => {
 
 .cell-name {
   height: 56px;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+  z-index: 999;
+  display: none;
+}
+
+.loading-overlay--active {
+  display: block;
 }
 </style>

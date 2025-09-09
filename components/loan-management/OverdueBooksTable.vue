@@ -52,7 +52,7 @@
         </template>
 
         <template v-slot:item.prekoracenje_u_danima="{ item }">
-          <span class="broj-text overdue-text">{{ item.prekoracenje_u_danima }}</span>
+          <span class="broj-text overdue-text">{{ item.prekoracenje_u_danima }} dana</span>
         </template>
 
         <template v-slot:item.trenutno_zadrzavanje="{ item }">
@@ -68,13 +68,20 @@
               :show-view="true"
               :show-vrati="false"
               :show-otpisi="false"
+              :show-izdaj="false"
+              :show-rezervisi="false"
               @view="handleView"
+              @error="showErrorSnackbar"
             />
-          </div>
+            </div>
         </template>
 
         <template #no-data>
-          <v-alert>Nema pronađenih knjiga u prekoračenju.</v-alert>
+          <div class="text-center py-8">
+            <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-timer-off-outline</v-icon>
+            <h3 class="text-h6 mb-2 text-grey-darken-1">Trenutno nema knjiga u prekoračenju</h3>
+            <p class="text-body-2 text-grey">Sve izdate knjige su vraćene na vrijeme.</p>
+          </div>
         </template>
       </v-data-table>
 
@@ -86,11 +93,25 @@
         @update:itemsPerPage="handleItemsPerPageChange"
         @update:currentPage="handlePageChange"
       />
-
-      <v-alert v-if="error" type="error" class="mt-4">
-        {{ error }}
-      </v-alert>
     </div>
+
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
@@ -104,15 +125,23 @@ import ActionMenu from '@/components/ActionMenu.vue'
 const router = useRouter()
 const overdueBooks = ref([])
 const loading = ref(false)
-const error = ref(null)
 const searchQuery = ref('')
 const defaultBookCover = '/images/default-book-1.jpg'
 const apiBaseUrl = 'http://localhost'
+
+const userRole = ref(null);
 
 const itemsPerPage = ref(20)
 const currentPage = ref(1)
 const totalItems = ref(0)
 const rentalPeriodInDays = 30
+
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 5000,
+});
 
 const visibleHeaders = ref([
   { title: '', key: 'data-table-select', sortable: false, width: '56px' },
@@ -124,10 +153,12 @@ const visibleHeaders = ref([
   { title: '', key: 'actions', sortable: false, align: 'end', width: '60px' },
 ])
 
-const setError = (err) => {
-  error.value = err
-  setTimeout(() => error.value = null, 5000)
-}
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = null;
+  snackbar.value.show = true;
+};
 
 const formatDate = (dateString) => {
   if (!dateString) return '-'
@@ -147,30 +178,44 @@ const formatHoldDuration = (totalDays) => {
   if (totalDays === null || totalDays === undefined || isNaN(totalDays)) return '-'
   if (totalDays < 0) totalDays = 0
 
+  let years = Math.floor(totalDays / 365)
+  totalDays %= 365
   let months = Math.floor(totalDays / 30)
-  let remainingDaysAfterMonths = totalDays % 30
-  let weeks = Math.floor(remainingDaysAfterMonths / 7)
-  let days = remainingDaysAfterMonths % 7
+  totalDays %= 30
+  let weeks = Math.floor(totalDays / 7)
+  let days = totalDays % 7
 
   let parts = []
+  if (years > 0) {
+    let yearWord = 'godina'
+    if (years === 1) yearWord = 'godina'
+    else if (years >= 2 && years <= 4) yearWord = 'godine'
+    else yearWord = 'godina'
+    parts.push(`${years} ${yearWord}`)
+  }
   if (months > 0) {
     let monthWord = 'mjesec'
-    if (months > 1 && months < 5) monthWord += 'a'
-    else if (months >= 5) monthWord += 'i'
+    if (months === 1) monthWord = 'mjesec'
+    else if (months >= 2 && months <= 4) monthWord = 'mjeseca'
+    else monthWord = 'mjeseci'
     parts.push(`${months} ${monthWord}`)
   }
   if (weeks > 0) {
     let weekWord = 'nedelja'
-    if (weeks > 1 && weeks < 5) weekWord += 'e'
+    if (weeks === 1) weekWord = 'nedelja'
+    else if (weeks >= 2 && weeks <= 4) weekWord = 'nedelje'
+    else weekWord = 'nedelja'
     parts.push(`${weeks} ${weekWord}`)
   }
   if (days > 0) {
     let dayWord = 'dan'
-    if (days > 1 && days < 5) dayWord += 'a'
+    if (days === 1) dayWord = 'dan'
+    else if (days >= 2 && days <= 4) dayWord = 'dana'
+    else dayWord = 'dana'
     parts.push(`${days} ${dayWord}`)
   }
 
-  return parts.join(' i ') || '0 dana'
+  return parts.join(', ') || '0 dana'
 }
 
 const getImageUrl = (book) => {
@@ -183,7 +228,6 @@ const getImageUrl = (book) => {
 
 const fetchOverdueBooks = async (page = 1, perPage = 20, search = '') => {
   loading.value = true
-  error.value = null
 
   try {
     const token = localStorage.getItem('auth_token')
@@ -207,8 +251,8 @@ const fetchOverdueBooks = async (page = 1, perPage = 20, search = '') => {
     overdueBooks.value = booksData
     totalItems.value = response.data.data?.total || 0
   } catch (err) {
-    error.value = 'Greška pri učitavanju knjiga u prekoračenju: ' +
-      (err.response?.data?.message || err.message || 'Nepoznata greška')
+    showErrorSnackbar('Greška pri učitavanju knjiga u prekoračenju: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'))
     if (err.response?.status === 401) {
       router.push('/login')
     }
@@ -232,12 +276,19 @@ const handlePageChange = (newValue) => {
   fetchOverdueBooks(currentPage.value, itemsPerPage.value, searchQuery.value)
 }
 
-// Funkcija za navigaciju na stranicu sa detaljima
 const handleView = (item) => {
-  router.push(`/loan-management/details/${item.id}`);
+  if (item && item.id) {
+    router.push(`/loan-management/details/${item.id}`)
+  }
 }
 
-onMounted(() => { 
+onMounted(() => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const user = JSON.parse(localStorage.getItem('user'))
+    if (user && user.role) {
+      userRole.value = user.role
+    }
+  }
   fetchOverdueBooks(currentPage.value, itemsPerPage.value, searchQuery.value) 
 })
 
@@ -254,6 +305,7 @@ const filteredBooks = computed(() => {
     return {
       ...book,
       id: book.rental_id,
+      book_id: book.book_id,
       naziv_knjige: book.book_title || 'Nepoznat naslov',
       datum_izdavanja: book.rental_date,
       izdato_uceniku: studentFullName || 'Nepoznat učenik',

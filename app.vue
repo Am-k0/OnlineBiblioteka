@@ -20,8 +20,8 @@ const route = useRoute()
 
 
 const showLayout = computed(() => {
-  // Definirajte putanje na kojima ne želite prikazati layout
-  const noLayoutRoutes = ['/login', '/forgotpassword'];
+  
+  const noLayoutRoutes = ['/login', '/forgotpassword', '/reset-password'];
   return !noLayoutRoutes.includes(route.path);
 });
 

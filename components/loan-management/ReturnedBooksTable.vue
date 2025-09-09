@@ -70,15 +70,22 @@
               entity-name="knjigu"
               title-property="naziv_knjige"
               :show-view="true"
+              :show-izdaj="false"
               :show-vrati="false"
+              :show-rezervisi="false"
               :show-otpisi="false"
               @view="handleView"
+              @error="showErrorSnackbar"
             />
           </div>
         </template>
 
         <template #no-data>
-          <v-alert>Nema pronađenih vraćenih knjiga.</v-alert>
+          <div class="text-center py-8">
+            <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-book-arrow-right-outline</v-icon>
+            <h3 class="text-h6 mb-2 text-grey-darken-1">Trenutno nema vraćenih knjiga</h3>
+            <p class="text-body-2 text-grey">Nema podataka o vraćenim knjigama u sistemu.</p>
+          </div>
         </template>
       </v-data-table>
 
@@ -90,11 +97,19 @@
         @update:itemsPerPage="handleItemsPerPageChange"
         @update:currentPage="handlePageChange"
       />
-
-      <v-alert v-if="error" type="error" class="mt-4">
-        {{ error }}
-      </v-alert>
     </div>
+
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:actions>
+        <v-btn color="white" variant="text" @click="snackbar.show = false">Zatvori</v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
@@ -108,14 +123,23 @@ import ActionMenu from '@/components/ActionMenu.vue'
 const router = useRouter()
 const returnedBooks = ref([])
 const loading = ref(false)
-const error = ref(null)
 const searchQuery = ref('')
 const defaultBookCover = '/images/default-book-1.jpg'
 const apiBaseUrl = 'http://localhost'
+const userRole = ref(null);
 
 const itemsPerPage = ref(20)
 const currentPage = ref(1)
 const totalItems = ref(0)
+
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 5000,
+});
+
+const isLibrarian = computed(() => userRole.value === 'librarian')
 
 const visibleHeaders = ref([
   { title: '', key: 'data-table-select', sortable: false, width: '56px' },
@@ -128,10 +152,12 @@ const visibleHeaders = ref([
   { title: '', key: 'actions', sortable: false, align: 'end', width: '60px' },
 ])
 
-const setError = (err) => {
-  error.value = err
-  setTimeout(() => error.value = null, 5000)
-}
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = null; 
+  snackbar.value.show = true;
+};
 
 const formatDate = (dateString) => {
   if (!dateString) return '-'
@@ -154,7 +180,6 @@ const calculateHoldDuration = (issueDateString, returnDateString) => {
     const returnDate = new Date(returnDateString)
     const diffTime = Math.abs(returnDate - issueDate)
     const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
     if (isNaN(totalDays)) return '-'
 
     const weeks = Math.floor(totalDays / 7)
@@ -162,15 +187,11 @@ const calculateHoldDuration = (issueDateString, returnDateString) => {
 
     let result = ''
     if (weeks > 0) {
-      result += `${weeks} nedelja`
-      if (weeks >= 2 && weeks <= 4) result += 'e'
-      else if (weeks > 4) result += 'a'
+      result += `${weeks} nedelj${weeks === 1 ? 'a' : (weeks >= 2 && weeks <= 4 ? 'e' : 'a')}`
     }
     if (days > 0) {
       if (weeks > 0) result += ' i '
-      result += `${days} dan`
-      if (days >= 2 && days <= 4) result += 'a'
-      else if (days > 4) result += 'a'
+      result += `${days} dan${days === 1 ? '' : (days >= 2 && days <= 4 ? 'a' : 'a')}`
     }
     return result || '0 dana'
   } catch (err) {
@@ -181,25 +202,17 @@ const calculateHoldDuration = (issueDateString, returnDateString) => {
 const getImageUrl = (book) => {
   const bookData = book.book || book
   if (!bookData || !bookData.images) return undefined
-  
   const image = (bookData.images || []).find(img => img.type === 'front_cover')
   return image ? `${apiBaseUrl}/storage/${image.path}` : undefined
 }
 
 const fetchReturnedBooks = async (page = 1, perPage = 20, search = '') => {
   loading.value = true
-  error.value = null
-
   try {
     const token = localStorage.getItem('auth_token')
     if (!token) throw new Error('Niste prijavljeni')
-
-    const params = {
-      per_page: perPage,
-      page: page,
-    }
+    const params = { per_page: perPage, page: page }
     if (search) params.search_value = search
-
     const response = await axios.get(`${apiBaseUrl}/api/rentals/returned`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -207,13 +220,12 @@ const fetchReturnedBooks = async (page = 1, perPage = 20, search = '') => {
       },
       params,
     })
-    
     const booksData = response.data.data?.data || []
     returnedBooks.value = booksData
     totalItems.value = response.data.data?.total || 0
   } catch (err) {
-    error.value = 'Greška pri učitavanju vraćenih knjiga: ' +
-      (err.response?.data?.message || err.message || 'Nepoznata greška')
+    showErrorSnackbar('Greška pri učitavanju vraćenih knjiga: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'))
     if (err.response?.status === 401) {
       router.push('/login')
     }
@@ -222,48 +234,57 @@ const fetchReturnedBooks = async (page = 1, perPage = 20, search = '') => {
   }
 }
 
+// Routing akcije
+const handleView = (item) => {
+  router.push(`/loan-management/details/${item.id}`)
+}
+// Funkcije za ostale akcije su uklonjene jer više nisu potrebne
+// const handleIzdaj = (item) => { ... }
+// const handleVrati = (item) => { ... }
+// const handleRezervisi = (item) => { ... }
+// const handleOtpisi = (item) => { ... }
+
 const handleSearch = () => {
   currentPage.value = 1
   fetchReturnedBooks(currentPage.value, itemsPerPage.value, searchQuery.value)
 }
-
 const handleItemsPerPageChange = (newValue) => {
   itemsPerPage.value = newValue
   fetchReturnedBooks(currentPage.value, itemsPerPage.value, searchQuery.value)
 }
-
 const handlePageChange = (newValue) => {
   currentPage.value = newValue
   fetchReturnedBooks(currentPage.value, itemsPerPage.value, searchQuery.value)
 }
 
-const handleView = (item) => {
-  router.push(`/loan-management/details/${item.id}`);
-}
-
-onMounted(() => { 
-  fetchReturnedBooks(currentPage.value, itemsPerPage.value, searchQuery.value) 
+onMounted(() => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const user = localStorage.getItem('user')
+    if (user) {
+      userRole.value = JSON.parse(user).role
+    }
+  }
+  fetchReturnedBooks(currentPage.value, itemsPerPage.value, searchQuery.value)
 })
 
 watch([itemsPerPage, currentPage], () => {
-  if(!loading.value) {
-     fetchReturnedBooks(currentPage.value, itemsPerPage.value, searchQuery.value)
+  if (!loading.value) {
+    fetchReturnedBooks(currentPage.value, itemsPerPage.value, searchQuery.value)
   }
 })
 
 const filteredBooks = computed(() => {
   return returnedBooks.value.map(book => {
-    const studentName = book.returned_by 
+    const studentName = book.returned_by
       ? `${book.returned_by.first_name || ''} ${book.returned_by.last_name || ''}`.trim()
       : 'Nepoznat učenik'
-    
-    const librarianName = book.rented_out_by 
+    const librarianName = book.rented_out_by
       ? `${book.rented_out_by.first_name || ''} ${book.rented_out_by.last_name || ''}`.trim()
       : 'Nepoznat bibliotekar'
-
     return {
       ...book,
       id: book.rental_id,
+      book_id: book.book_id,
       naziv_knjige: book.book_title || 'Nepoznat naslov',
       izdato_uceniku: studentName || 'Nepoznat učenik',
       datum_izdavanja: book.rental_date,
@@ -299,25 +320,23 @@ const itemClass = () => 'table-row'
   border: none !important;
   box-shadow: none !important;
 }
-
 .search-field .v-field__outline {
   display: none;
 }
-
 .search-field .v-field__prepend-inner {
   padding-left: 0;
   margin-right: 8px;
 }
-
 .search-field .v-field__input {
   padding-left: 0;
 }
-
 .no-border-table {
   border: none;
   box-shadow: none;
 }
-
+.no-border-table :deep(th) {
+  white-space: nowrap !important;
+}
 .no-border-table .v-data-table__wrapper table,
 .no-border-table .v-data-table__wrapper table thead,
 .no-border-table .v-data-table__wrapper table tbody,
@@ -328,42 +347,35 @@ const itemClass = () => 'table-row'
   border-bottom: none !important;
   box-shadow: none !important;
 }
-
 .table-row {
   height: 56px !important;
 }
-
 .v-data-table > .v-data-table__wrapper > table > tbody > tr > td:nth-child(1),
 .v-data-table > .v-data-table__wrapper > table > thead > tr > th:nth-child(1) {
   width: 56px !important;
   padding-left: 16px !important;
   padding-right: 0px !important;
 }
-
 .v-data-table > .v-data-table__wrapper > table > tbody > tr > td:nth-last-child(1),
 .v-data-table > .v-data-table__wrapper > table > thead > tr > th:nth-last-child(1) {
   padding-right: 16px !important;
 }
-
 .cell-naziv {
   width: 100%;
   overflow: hidden;
 }
-
 .book-cover-wrapper {
   width: 32px;
   height: 52px;
   overflow: hidden;
   flex-shrink: 0;
 }
-
 .book-cover-wrapper img {
   width: 32px;
   height: 52px;
   object-fit: cover;
   display: block;
 }
-
 .naziv-text,
 .datum-text,
 .broj-text {
@@ -376,7 +388,6 @@ const itemClass = () => 'table-row'
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .cell-actions {
   display: flex;
   justify-content: flex-end;

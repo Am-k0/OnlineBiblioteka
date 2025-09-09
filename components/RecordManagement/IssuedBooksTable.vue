@@ -50,22 +50,24 @@
                 entity-name="izdatu knjigu"
                 title-property="naziv_knjige"
                 :show-view="true"
-                :show-vrati="true"
-                :show-otpisi="true"
+                :show-vrati="false"
+                :show-otpisi="false"
                 :show-izdaj="false"
                 :show-edit="false"
                 :show-delete="false"
                 :show-rezervisi="false"
                 @view="handleView"
-                @otpisi="handleOtpisi"
-                @vrati="handleVrati"
-                @error="setError"
+                @error="showErrorSnackbar"
               />
             </div>
           </template>
 
           <template #no-data>
-            <v-alert>Nema pronađenih izdatih knjiga za ovu knjigu.</v-alert>
+            <div class="text-center py-8">
+              <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-book-remove-outline</v-icon>
+              <h3 class="text-h6 mb-2 text-grey-darken-1">Nema pronađenih izdatih kopija za ovu knjigu</h3>
+              <p class="text-body-2 text-grey">Trenutno ne postoje izdate kopije ove knjige.</p>
+            </div>
           </template>
         </v-data-table>
 
@@ -77,12 +79,26 @@
           @update:itemsPerPage="handleItemsPerPageChange"
           @update:currentPage="handlePageChange"
         />
-
-        <v-alert v-if="error" type="error" class="mt-4">
-          {{ error }}
-        </v-alert>
       </div>
     </div>
+
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
@@ -98,9 +114,7 @@ const router = useRouter();
 
 const issuedBooks = ref([]);
 const loading = ref(false);
-const error = ref(null);
 const searchQuery = ref('');
-const defaultBookCover = '/images/default-book-1.jpg';
 const apiBaseUrl = 'http://localhost';
 const rentalPeriodInDays = 30;
 
@@ -108,6 +122,14 @@ const itemsPerPage = ref(20);
 const currentPage = ref(1);
 const totalItems = ref(0);
 const selectedItems = ref([]);
+
+// Snackbar state
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 5000,
+});
 
 const visibleHeaders = ref([
   { title: '', key: 'data-table-select', sortable: false, width: '56px' },
@@ -118,9 +140,11 @@ const visibleHeaders = ref([
   { title: '', key: 'actions', align: 'end', sortable: false },
 ]);
 
-const setError = (err) => {
-  error.value = err;
-  setTimeout(() => error.value = null, 5000);
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = null; // Bez tajmera
+  snackbar.value.show = true;
 };
 
 const formatDate = (dateString) => {
@@ -187,7 +211,6 @@ const isOverdue = (issueDateString) => {
   }
 };
 
-
 const handleSearch = () => {
   currentPage.value = 1;
   fetchIssuedBooks(currentPage.value, itemsPerPage.value, searchQuery.value);
@@ -195,7 +218,6 @@ const handleSearch = () => {
 
 const fetchIssuedBooks = async (page = 1, perPage = 20, search = '') => {
   loading.value = true;
-  error.value = null;
 
   try {
     const token = localStorage.getItem('auth_token');
@@ -236,8 +258,8 @@ const fetchIssuedBooks = async (page = 1, perPage = 20, search = '') => {
     totalItems.value = response.data.data?.total || 0;
   } catch (err) {
     console.error('Greška pri učitavanju izdatih knjiga:', err);
-    error.value = 'Greška pri učitavanju izdatih knjiga: ' +
-      (err.response?.data?.message || err.message || 'Nepoznata greška');
+    showErrorSnackbar('Greška pri učitavanju izdatih knjiga: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'));
     if (err.response?.status === 401) {
       router.push('/login');
     }
@@ -256,24 +278,12 @@ const handlePageChange = (newValue) => {
   fetchIssuedBooks(currentPage.value, itemsPerPage.value, searchQuery.value);
 };
 
-const handleView = () => {};
+const handleView = (item) => {
+  router.push(`/loan-management/details/${item.id}`); 
+}
 
-const handleOtpisi = () => {
-  const bookId = route.params.id;
-  if (bookId) {
-    router.push(`/book/${bookId}/discard`);
-  } else {
-    setError('Greška: ID knjige za otpisivanje nije pronađen.');
-  }
-};
-
-const handleVrati = (item) => {
-  if (item && item.id) {
-    router.push(`/loan/${item.id}/return`);
-  } else {
-    setError('Greška: ID najma za vraćanje nije pronađen.');
-  }
-};
+// Uklonjene su funkcije handleOtpisi i handleVrati jer više nisu potrebne
+// s obzirom na to da su opcije za otpis i vraćanje uklonjene iz menija.
 
 onMounted(() => {
   fetchIssuedBooks(currentPage.value, itemsPerPage.value, searchQuery.value);
@@ -285,7 +295,6 @@ watch([itemsPerPage, currentPage, searchQuery], () => {
 </script>
 
 <style scoped>
-/* Vaši stilovi ostaju nepromenjeni */
 .page-layout {
   display: flex;
   flex-direction: column;

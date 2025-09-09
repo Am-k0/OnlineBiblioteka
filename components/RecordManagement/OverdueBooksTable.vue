@@ -1,327 +1,286 @@
 <template>
-  <div class="page-layout d-flex flex-column">
-    <div class="content-area">
-      <div>
-        <v-data-table
-          v-model:selected="selectedItems"
-          :headers="visibleHeaders"
-          :items="formattedBooks"
-          :loading="loading"
-          loading-text="Učitavam knjige u prekoračenju..."
-          item-value="id"
-          :items-per-page="itemsPerPage"
-          :page="currentPage"
-          hide-default-footer
-          hover
-          show-select
-          class="no-border-table"
-          :item-class="itemClass"
-        >
-          <template v-slot:item.data-table-select="{ item }">
-            <div class="h-[56px] flex items-center justify-center">
-              <v-checkbox-btn :value="item.id" class="no-checkbox-border"></v-checkbox-btn>
-            </div>
-          </template>
+  <div class="table-container">
+    <div>
+      <v-data-table
+        :headers="visibleHeaders"
+        :items="filteredBooks"
+        :loading="loading"
+        loading-text="Učitavam knjige u prekoračenju..."
+        item-value="id"
+        :items-per-page="itemsPerPage"
+        :page="currentPage"
+        hide-default-footer
+        hover
+        show-select
+        class="no-border-table"
+        :item-class="itemClass"
+      >
+        <template v-slot:item.data-table-select="{ item }">
+          <div class="h-[56px] flex items-center justify-center">
+            <v-checkbox-btn :value="item.id" class="no-checkbox-border"></v-checkbox-btn>
+          </div>
+        </template>
+        
+        <template v-slot:item.izdato_uceniku="{ item }">
+          <span class="naziv-text">{{ item.izdato_uceniku }}</span>
+        </template>
 
-          <template v-slot:item.izdato_uceniku="{ item }">
-            <span class="naziv-text">{{ item.izdato_uceniku }}</span>
-          </template>
+        <template v-slot:item.datum_izdavanja="{ item }">
+          <span class="datum-text">{{ formatDate(item.datum_izdavanja) }}</span>
+        </template>
+        
+        <template v-slot:item.prekoracenje_u_danima="{ item }">
+          <span class="broj-text overdue-text">{{ item.prekoracenje_u_danima }} dana</span>
+        </template>
 
-          <template v-slot:item.datum_izdavanja="{ item }">
-            <span class="datum-text">{{ formatDate(item.datum_izdavanja) }}</span>
-          </template>
+        <template v-slot:item.trenutno_zadrzavanje="{ item }">
+          <span class="broj-text">{{ item.trenutno_zadrzavanje }}</span>
+        </template>
+        
+        <template v-slot:item.actions="{ item }">
+          <div class="d-flex align-center justify-end">
+            <ActionMenu
+              :item="item"
+              entity-name="knjigu"
+              title-property="naziv_knjige"
+              @view="handleView"
+              :show-view="true"
+              :show-delete="false"
+              :show-otpisi="false"
+              :show-izdaj="false"
+              :show-vrati="false"
+              :show-rezervisi="false"
+            />
+          </div>
+        </template>
 
-          <template v-slot:item.prekoracenje_u_danima="{ item }">
-            <span class="broj-text overdue-text">{{ item.prekoracenje_u_danima }}</span>
-          </template>
+        <template #no-data>
+          <div class="text-center py-8">
+            <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-timer-off-outline</v-icon>
+            <h3 class="text-h6 mb-2 text-grey-darken-1">Trenutno nema kopija ove knjige u prekoračenju</h3>
+            <p class="text-body-2 text-grey">Sve izdate knjige su vraćene na vrijeme.</p>
+          </div>
+        </template>
+      </v-data-table>
 
-          <template v-slot:item.trenutno_zadrzavanje="{ item }">
-            <span class="broj-text">{{ item.trenutno_zadrzavanje }}</span>
-          </template>
-
-          <template v-slot:item.actions="{ item }">
-            <div class="cell-actions">
-              <ActionMenu
-                :item="item"
-                entity-name="knjigu u prekoračenju"
-                title-property="naziv_knjige"
-                :show-view="true"
-                :show-vrati="true"
-                :show-otpisi="true"
-                :show-izdaj="false"
-                :show-edit="false"
-                :show-delete="false"
-                :show-rezervisi="false"
-                @view="handleView"
-                @otpisi="handleOtpisi"
-                @vrati="handleVrati"
-                @error="setError"
-              />
-            </div>
-          </template>
-
-          <template #no-data>
-            <v-alert>Nema pronađenih knjiga u prekoračenju.</v-alert>
-          </template>
-        </v-data-table>
-
-        <PaginationFooter
-          v-model:itemsPerPage="itemsPerPage"
-          v-model:currentPage="currentPage"
-          :total-items="totalItems"
-          class="pagination-footer mt-4"
-          @update:itemsPerPage="handleItemsPerPageChange"
-          @update:currentPage="handlePageChange"
-        />
-
-        <v-alert v-if="error" type="error" class="mt-4">
-          {{ error }}
-        </v-alert>
-      </div>
+      <PaginationFooter
+        v-model:itemsPerPage="itemsPerPage"
+        v-model:currentPage="currentPage"
+        :total-items="totalItems"
+        class="pagination-footer mt-4"
+        @update:itemsPerPage="handleItemsPerPageChange"
+        @update:currentPage="handlePageChange"
+      />
     </div>
+
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import axios from '@/axios';
-import ActionMenu from '@/components/ActionMenu.vue';
-import PaginationFooter from '@/components/PaginationFooter.vue';
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import axios from 'axios'
+import PaginationFooter from '@/components/PaginationFooter.vue'
+import ActionMenu from '@/components/ActionMenu.vue'
 
-const route = useRoute();
-const router = useRouter();
-const overdueBooks = ref([]);
-const loading = ref(false);
-const error = ref(null);
-const searchQuery = ref('');
-const apiBaseUrl = 'http://localhost';
+const router = useRouter()
+const overdueBooks = ref([])
+const loading = ref(false)
+const apiBaseUrl = 'http://localhost'
 
-// Paginacija
-const itemsPerPage = ref(20);
-const currentPage = ref(1);
-const totalItems = ref(0);
-const selectedItems = ref([]);
+const itemsPerPage = ref(20)
+const currentPage = ref(1)
+const totalItems = ref(0)
+
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 5000,
+});
 
 const visibleHeaders = ref([
   { title: '', key: 'data-table-select', sortable: false, width: '56px' },
-  { title: 'Datum izdavanja', key: 'datum_izdavanja', sortable: false },
-  { title: 'Izdato uceniku', key: 'izdato_uceniku', sortable: false },
-  { title: 'Prekoracenje u danima', key: 'prekoracenje_u_danima', sortable: false },
-  { title: 'Trenutno zadrzavanje knjige', key: 'trenutno_zadrzavanje', sortable: false },
-  { title: '', key: 'actions', align: 'end', sortable: false },
-]);
+  { title: 'Izdato učeniku', key: 'izdato_uceniku', sortable: true },
+  { title: 'Datum izdavanja', key: 'datum_izdavanja', sortable: true },
+  { title: 'Prekoračenje u danima', key: 'prekoracenje_u_danima', align: 'center', sortable: true },
+  { title: 'Trenutno zadržavanje knjige', key: 'trenutno_zadrzavanje', sortable: true },
+  { title: '', key: 'actions', sortable: false, align: 'end', width: '60px' },
+])
 
-const setError = (err) => {
-  error.value = err;
-  setTimeout(() => error.value = null, 5000);
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = 5000;
+  snackbar.value.show = true;
+};
+
+const showSuccessSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'success';
+  snackbar.value.timeout = 5000;
+  snackbar.value.show = true;
 };
 
 const formatDate = (dateString) => {
-  if (!dateString) return '-';
+  if (!dateString) return '-'
   try {
-    const date = new Date(dateString);
+    const date = new Date(dateString)
     return date.toLocaleDateString('sr-RS', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric',
-    });
+      year: 'numeric'
+    })
   } catch (err) {
-    return dateString;
+    return dateString
   }
-};
+}
 
-const calculateOverdueDays = (issueDateString) => {
-  if (!issueDateString) return 0;
-  try {
-    const issueDate = new Date(issueDateString);
-    const currentDate = new Date();
-    const rentalPeriodInDays = 30; // Pretpostavljeni rok za vraćanje
+const formatHoldDuration = (totalDays) => {
+  if (totalDays === null || totalDays === undefined || isNaN(totalDays)) return '-'
+  if (totalDays < 0) totalDays = 0
 
-    const diffTime = currentDate.getTime() - issueDate.getTime();
-    const totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
-    const overdueDays = totalDays > rentalPeriodInDays ? totalDays - rentalPeriodInDays : 0;
-    return overdueDays;
+  let years = Math.floor(totalDays / 365)
+  totalDays %= 365
+  let months = Math.floor(totalDays / 30)
+  totalDays %= 30
+  let weeks = Math.floor(totalDays / 7)
+  let days = totalDays % 7
 
-  } catch (err) {
-    return 0;
+  let parts = []
+  if (years > 0) {
+    let yearWord = 'godina'
+    if (years === 1) yearWord = 'godina'
+    else if (years >= 2 && years <= 4) yearWord = 'godine'
+    else yearWord = 'godina'
+    parts.push(`${years} ${yearWord}`)
   }
-};
-
-const formatHoldDuration = (issueDateString) => {
-  if (!issueDateString) return '0 dana';
-  try {
-    const issueDate = new Date(issueDateString);
-    const currentDate = new Date();
-    const diffTime = currentDate.getTime() - issueDate.getTime();
-    let totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    if (totalDays <= 0) return '0 dana';
-
-    const years = Math.floor(totalDays / 365);
-    totalDays %= 365;
-    const months = Math.floor(totalDays / 30);
-    totalDays %= 30;
-    const weeks = Math.floor(totalDays / 7);
-    const days = totalDays % 7;
-
-    const parts = [];
-    if (years > 0) {
-      parts.push(`${years} godin${years === 1 ? 'a' : (years >= 2 && years <= 4 ? 'e' : 'a')}`);
-    }
-    if (months > 0) {
-      parts.push(`${months} mjesec${months === 1 ? '' : (months >= 2 && months <= 4 ? 'a' : 'i')}`);
-    }
-    if (weeks > 0) {
-      parts.push(`${weeks} nedelj${weeks === 1 ? 'a' : (weeks >= 2 && weeks <= 4 ? 'e' : 'a')}`);
-    }
-    if (days > 0) {
-      parts.push(`${days} dan${days === 1 ? '' : (days >= 2 && days <= 4 ? 'a' : 'a')}`);
-    }
-
-    return parts.join(', ') || '0 dana';
-  } catch (err) {
-    return '0 dana';
+  if (months > 0) {
+    let monthWord = 'mjesec'
+    if (months === 1) monthWord = 'mjesec'
+    else if (months >= 2 && months <= 4) monthWord = 'mjeseca'
+    else monthWord = 'mjeseci'
+    parts.push(`${months} ${monthWord}`)
   }
-};
+  if (weeks > 0) {
+    let weekWord = 'nedelja'
+    if (weeks === 1) weekWord = 'nedelja'
+    else if (weeks >= 2 && weeks <= 4) weekWord = 'nedelje'
+    else weekWord = 'nedelja'
+    parts.push(`${weeks} ${weekWord}`)
+  }
+  if (days > 0) {
+    let dayWord = 'dan'
+    if (days === 1) dayWord = 'dan'
+    else if (days >= 2 && days <= 4) dayWord = 'dana'
+    else dayWord = 'dana'
+    parts.push(`${days} ${dayWord}`)
+  }
 
-const fetchOverdueBooks = async (page = 1, perPage = 20, search = '') => {
-  loading.value = true;
-  error.value = null;
+  return parts.join(', ') || '0 dana'
+}
+
+const fetchOverdueBooks = async (page = 1, perPage = 20) => {
+  loading.value = true
 
   try {
-    const token = localStorage.getItem('auth_token');
-    if (!token) throw new Error('Niste prijavljeni');
-
-    const bookId = route.params.id;
-    if (!bookId) {
-      throw new Error('ID knjige nije pronađen u URL-u.');
-    }
+    const token = localStorage.getItem('auth_token')
+    if (!token) throw new Error('Niste prijavljeni')
 
     const params = {
       per_page: perPage,
       page: page,
-      book_id: bookId, // Dodat je ID knjige u params
-    };
-    if (search) params.search_value = search;
+    }
 
     const response = await axios.get(`${apiBaseUrl}/api/rentals/overdue`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json'
+      },
       params,
-    });
+    })
     
-    const booksData = response.data.data?.data || [];
-    overdueBooks.value = booksData;
-    totalItems.value = response.data.data?.total || 0;
+    const booksData = response.data.data?.data || []
+    overdueBooks.value = booksData
+    totalItems.value = response.data.data?.total || 0
   } catch (err) {
-    error.value = 'Greška pri učitavanju knjiga u prekoračenju: ' +
-      (err.response?.data?.message || err.message || 'Nepoznata greška');
+    showErrorSnackbar('Greška pri učitavanju knjiga u prekoračenju: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'))
     if (err.response?.status === 401) {
-      router.push('/login');
+      router.push('/login')
     }
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
-
-const handleSearch = () => {
-  currentPage.value = 1;
-  fetchOverdueBooks(currentPage.value, itemsPerPage.value, searchQuery.value);
-};
+}
 
 const handleItemsPerPageChange = (newValue) => {
-  itemsPerPage.value = newValue;
-  currentPage.value = 1;
-  fetchOverdueBooks(currentPage.value, itemsPerPage.value, searchQuery.value);
-};
+  itemsPerPage.value = newValue
+  fetchOverdueBooks(currentPage.value, itemsPerPage.value)
+}
 
 const handlePageChange = (newValue) => {
-  currentPage.value = newValue;
-  fetchOverdueBooks(currentPage.value, itemsPerPage.value, searchQuery.value);
-};
+  currentPage.value = newValue
+  fetchOverdueBooks(currentPage.value, itemsPerPage.value)
+}
 
-onMounted(() => {
-  fetchOverdueBooks(currentPage.value, itemsPerPage.value, searchQuery.value);
-});
+const handleView = (item) => {
+  router.push(`/loan-management/details/${item.id}`); 
+}
 
-watch([itemsPerPage, currentPage, searchQuery], () => {
-  fetchOverdueBooks(currentPage.value, itemsPerPage.value, searchQuery.value);
-});
+onMounted(() => { 
+  fetchOverdueBooks(currentPage.value, itemsPerPage.value) 
+})
 
-const formattedBooks = computed(() => {
-  return overdueBooks.value.map(rental => {
-    const studentFullName = rental.rented_by
-      ? `${rental.rented_by.first_name || ''} ${rental.rented_by.last_name || ''}`.trim()
-      : 'Nepoznat učenik';
+watch([itemsPerPage, currentPage], () => {
+  fetchOverdueBooks(currentPage.value, itemsPerPage.value)
+})
+
+const filteredBooks = computed(() => {
+  return overdueBooks.value.map(book => {
+    const student = book.rented_by
+    const studentFullName = student 
+      ? `${student.name || ''} ${student.last_name || ''}`.trim()
+      : 'Nepoznat učenik'
 
     return {
-      id: rental.rental_id,
-      naziv_knjige: rental.book_title || 'Nepoznat naslov',
+      ...book,
+      id: book.rental_id,
+      book_id: book.book_id,
+      naziv_knjige: book.book_title || 'Nepoznat naslov',
+      datum_izdavanja: book.rental_date,
       izdato_uceniku: studentFullName,
-      datum_izdavanja: rental.rental_date,
-      prekoracenje_u_danima: calculateOverdueDays(rental.rental_date),
-      trenutno_zadrzavanje: formatHoldDuration(rental.rental_date),
-    };
-  });
-});
+      prekoracenje_u_danima: book.days_overdue || 0,
+      trenutno_zadrzavanje: formatHoldDuration(book.total_rental_days),
+    }
+  })
+})
 
-const itemClass = () => 'table-row';
-
-// Handleri za akcije iz menija
-const handleView = (item) => {
-  if (item && item.id) {
-    router.push(`/loan-management/details/${item.id}`);
-  }
-};
-const handleIzdaj = (item) => {
-  if (item && item.id) {
-    console.log('Izdaj knjigu:', item);
-  }
-};
-const handleVrati = (item) => {
-  if (item && item.id) {
-    router.push(`/loan/${item.id}/return`);
-  }
-};
-const handleRezervisi = (item) => {
-  if (item && item.id) {
-    router.push(`/loan/${item.id}/reserve`);
-  }
-};
-const handleOtpisi = (item) => {
-  if (item && item.id) {
-    router.push(`/book/${item.book_id}/discard`);
-  }
-};
-const handleDelete = (item) => {
-  if (item && item.id) {
-    console.log('Obriši knjigu:', item);
-  }
-};
+const itemClass = () => 'table-row'
 </script>
 
 <style scoped>
-/* Vaši stilovi ostaju nepromenjeni */
-.page-layout {
-  display: flex;
-  flex-direction: column;
-}
-
-.content-area {
+.table-container {
   flex-grow: 1;
-  padding: 24px;
-}
-
-.header-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.search-field {
-  max-width: 300px;
+  padding: 0 24px 24px 24px;
+  background-color: #fff;
 }
 
 .no-border-table {
@@ -329,39 +288,31 @@ const handleDelete = (item) => {
   box-shadow: none;
 }
 
-.no-border-table .v-data-table__wrapper table {
-  border-collapse: collapse;
-}
-
-.no-border-table .v-data-table__wrapper > table > thead > tr > th,
-.no-border-table .v-data-table__wrapper > table > tbody > tr > td {
-  border-bottom: 1px solid #E0E0E0 !important;
+.no-border-table .v-data-table__wrapper table,
+.no-border-table .v-data-table__wrapper table thead,
+.no-border-table .v-data-table__wrapper table tbody,
+.no-border-table .v-data-table__wrapper table tr,
+.no-border-table .v-data-table__wrapper table th,
+.no-border-table .v-data-table__wrapper table td {
+  border: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
 }
 
 .table-row {
   height: 56px !important;
 }
 
-.cell-naziv {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  overflow: hidden;
+.v-data-table > .v-data-table__wrapper > table > tbody > tr > td:nth-child(1),
+.v-data-table > .v-data-table__wrapper > table > thead > tr > th:nth-child(1) {
+  width: 56px !important;
+  padding-left: 16px !important;
+  padding-right: 0px !important;
 }
 
-.book-cover-wrapper {
-  width: 32px;
-  height: 48px;
-  overflow: hidden;
-  flex-shrink: 0;
-  border-radius: 2px;
-  margin-right: 12px;
-}
-
-.book-cover-wrapper img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.v-data-table > .v-data-table__wrapper > table > tbody > tr > td:nth-last-child(1),
+.v-data-table > .v-data-table__wrapper > table > thead > tr > th:nth-last-child(1) {
+  padding-right: 16px !important;
 }
 
 .naziv-text,
@@ -375,7 +326,6 @@ const handleDelete = (item) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #212121;
 }
 
 .cell-actions {

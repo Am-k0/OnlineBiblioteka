@@ -18,14 +18,6 @@
           <p class="mt-2">Učitavam podatke korisnika...</p>
         </div>
         
-        <div v-else-if="fetchError" class="error-message global-error">
-          {{ fetchError }}
-          <div class="mt-2">
-            <v-btn @click="fetchUserData" color="white" small>Pokušaj ponovo</v-btn>
-            <v-btn @click="handleBackClick" color="white" small class="ml-2">Nazad</v-btn>
-          </div>
-        </div>
-        
         <div v-else class="form-section">
           <div class="photo-section">
             <div class="photo-upload-box" @click="triggerFileInput">
@@ -104,8 +96,6 @@
             ></v-text-field>
             <div v-if="localError.korisnickoIme" class="error-message">{{ localError.korisnickoIme }}</div>
   
-            <div v-if="displayGlobalError" class="error-message global-error">{{ displayGlobalError }}</div>
-  
             <ActionButtons
               @save="handleSave"
               @cancel="handleCancel"
@@ -116,6 +106,24 @@
         </div>
       </div>
     </div>
+
+    <v-snackbar
+      v-model="errorSnackbar.show"
+      color="error"
+      :timeout="5000"
+      top
+    >
+      {{ errorSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="errorSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
@@ -140,14 +148,16 @@ const jmbg = ref('')
 const email = ref('')
 const korisnickoIme = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
-// const password = ref('') // Zakomentarisano
-// const ponoviLozinku = ref('') // Zakomentarisano
-// const vidljivoLozinka = ref(false) // Zakomentarisano
-// const vidljivoPonoviLozinku = ref(false) // Zakomentarisano
+
 const loading = ref(false)
 const pageLoading = ref(true)
-const fetchError = ref<string | null>(null)
 const userId = ref<number | null>(null)
+
+// Snackbar za greške s poslužitelja
+const errorSnackbar = ref({
+  show: false,
+  text: '',
+});
 
 const selectedRole = ref<number | null>(null)
 const roleOptions = ref([
@@ -161,12 +171,8 @@ const localError = ref({
   jmbg: '',
   email: '',
   korisnickoIme: '',
-  // password: '', // Zakomentarisano
-  // ponoviLozinku: '', // Zakomentarisano
   opsta: ''
 })
-
-const displayGlobalError = ref<string | null>(null)
 
 const samoBrojevi = (evt: KeyboardEvent) => {
   const charCode = evt.which ? evt.which : evt.keyCode
@@ -207,11 +213,9 @@ const clearErrors = () => {
     jmbg: '',
     email: '',
     korisnickoIme: '',
-    // password: '', // Zakomentarisano
-    // ponoviLozinku: '', // Zakomentarisano
     opsta: ''
   }
-  displayGlobalError.value = null
+  errorSnackbar.value.show = false
 }
 
 const validateForm = () => {
@@ -223,23 +227,19 @@ const validateForm = () => {
   else if (jmbg.value.length !== 13) { localError.value.jmbg = 'JMBG mora imati tačno 13 cifara!'; hasErrors = true }
   if (!email.value.trim()) { localError.value.email = 'Morate uneti e-mail!'; hasErrors = true }
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) { localError.value.email = 'Unesite validan e-mail format!'; hasErrors = true }
-  // Zakomentarisana validacija za šifru
-  // if (password.value) {
-  //   if (password.value.length < 8) { localError.value.password = 'Šifra mora imati najmanje 8 karaktera!'; hasErrors = true }
-  //   if (password.value !== ponoviLozinku.value) { localError.value.ponoviLozinku = 'Šifre se ne poklapaju!'; hasErrors = true }
-  // } else if (ponoviLozinku.value) {
-  //   localError.value.password = 'Morate uneti i novu šifru!'; hasErrors = true
-  // }
   return !hasErrors
 }
 
+const showErrorSnackbar = (message: string) => {
+  errorSnackbar.value.text = message;
+  errorSnackbar.value.show = true;
+};
+
 const fetchUserData = async () => {
   const username = route.params.username as string;
-  if (!username) { fetchError.value = 'Korisničko ime nije definisano u URL-u.'; pageLoading.value = false; return; }
+  if (!username) { showErrorSnackbar('Korisničko ime nije definisano u URL-u.'); pageLoading.value = false; return; }
   pageLoading.value = true;
-  fetchError.value = null;
-  // password.value = ''; // Zakomentarisano
-  // ponoviLozinku.value = ''; // Zakomentarisano
+  clearErrors();
   try {
     const response = await api.get(`/users/${username}`);
     let user = null;
@@ -262,11 +262,11 @@ const fetchUserData = async () => {
   } catch (error: any) {
     console.error('Failed to fetch user data:', error);
     if (error.response) {
-      if (error.response.status === 404) fetchError.value = 'Korisnik nije pronađen. Molimo provjerite da li korisničko ime postoji.';
-      else if (error.response.status === 403) fetchError.value = 'Nemate dozvolu za pristup ovom korisniku.';
-      else fetchError.value = `Došlo je do greške (${error.response.status}): ${error.response.data?.message || 'Nepoznata greška'}`;
+      if (error.response.status === 404) showErrorSnackbar('Korisnik nije pronađen. Molimo provjerite da li korisničko ime postoji.');
+      else if (error.response.status === 403) showErrorSnackbar('Nemate dozvolu za pristup ovom korisniku.');
+      else showErrorSnackbar(`Došlo je do greške (${error.response.status}): ${error.response.data?.message || 'Nepoznata greška'}`);
     } else {
-      fetchError.value = 'Došlo je do greške prilikom učitavanja podataka. Molimo provjerite mrežnu vezu i URL adrese.';
+      showErrorSnackbar('Došlo je do greške prilikom učitavanja podataka. Molimo provjerite mrežnu vezu i URL adrese.');
     }
   } finally {
     pageLoading.value = false;
@@ -274,10 +274,13 @@ const fetchUserData = async () => {
 }
 
 const handleSave = async () => {
-  if (!validateForm()) return;
+  if (!validateForm()) {
+    showErrorSnackbar('Molimo ispravite unete podatke.');
+    return;
+  }
 
   loading.value = true;
-  displayGlobalError.value = null;
+  clearErrors();
 
   try {
     const dataToUpdate = {
@@ -302,9 +305,7 @@ const handleSave = async () => {
     //     displayGlobalError.value = "Podaci su sačuvani, ali šifra nije promenjena jer backend to ne podržava."
     // }
 
-    if(!displayGlobalError.value){
-        router.push(`/users/${korisnickoIme.value}`);
-    }
+    router.push(`/users/${korisnickoIme.value}`);
 
   } catch (error: any) {
     console.error('Error updating user:', error);
@@ -316,12 +317,12 @@ const handleSave = async () => {
         localError.value.jmbg = backendErrors?.jmbg?.[0] || '';
         localError.value.email = backendErrors?.email?.[0] || '';
         localError.value.opsta = backendErrors?.profile_picture?.[0] || '';
-        displayGlobalError.value = 'Uneseni podaci su neispravni. Molimo proverite greške.';
+        showErrorSnackbar('Uneseni podaci su neispravni. Molimo proverite greške.');
       } else {
-        displayGlobalError.value = `Došlo je do greške (${error.response.status}): ${error.response.data?.message || 'Nepoznata greška'}`;
+        showErrorSnackbar(`Došlo je do greške (${error.response.status}): ${error.response.data?.message || 'Nepoznata greška'}`);
       }
     } else {
-      displayGlobalError.value = 'Došlo je do neočekivane greške. Molimo proverite mrežnu vezu.';
+      showErrorSnackbar('Došlo je do neočekivane greške. Molimo proverite mrežnu vezu.');
     }
   } finally {
     loading.value = false;
@@ -339,12 +340,6 @@ const handleBackClick = () => {
   else router.push('/users');
 }
 
-watch(() => displayGlobalError.value, (newVal) => {
-  if (newVal) {
-    setTimeout(() => { displayGlobalError.value = null; }, 5000);
-  }
-})
-
 onMounted(() => {
   fetchUserData()
 })
@@ -352,7 +347,6 @@ onMounted(() => {
 watch(() => route.params.username, (newUsername) => {
   if (newUsername) fetchUserData();
 })
-
 </script>
 
 <style scoped>

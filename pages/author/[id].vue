@@ -1,5 +1,12 @@
 <template>
   <div class="page-container bg-white min-h-screen">
+    <div
+      v-if="actionMenuLoading"
+      class="loading-overlay"
+      :class="{
+        'loading-overlay--active': actionMenuLoading
+      }"
+    ></div>
     <header class="app-header">
       <div>
         <h1 class="page-title">{{ fullName }}</h1>
@@ -8,7 +15,7 @@
         </p>
       </div>
       <ActionMenu
-        v-if="author"
+        v-if="author && userRole === 'librarian'"
         :item="author"
         entity-name="autora"
         title-property="fullName"
@@ -18,10 +25,17 @@
         @edit="editMode = true"
         @delete="handleDelete"
         @error="setError"
+        @update:loading="updateLoading"
+        @update:error="updateError"
       />
     </header>
 
-    <div class="header-divider"></div>
+    <div
+      class="header-divider"
+      :class="{
+        'header-divider--student': userRole === 'student'
+      }"
+    ></div>
 
     <div class="page-content">
       <div v-if="author" class="author-card">
@@ -53,6 +67,9 @@
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth']
+})
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ActionMenu from '~/components/ActionMenu.vue'
@@ -67,7 +84,11 @@ const author = ref(null)
 const error = ref(null)
 const editMode = ref(false)
 const loading = ref(false)
+const actionMenuLoading = ref(false)
 const form = ref({ first_name: '', last_name: '', biography: '' })
+
+const user = process.client ? JSON.parse(localStorage.getItem('user') || 'null') : null
+const userRole = user?.role || 'student'
 
 const fullName = computed(() =>
   author.value
@@ -142,24 +163,38 @@ const saveAuthor = async () => {
   }
 }
 
-const setError = (msg) => { error.value = msg }
+const setError = (msg) => {
+  error.value = msg
+}
 
 const handleDelete = async () => {
-  if (!confirm('Da li ste sigurni da želite da obrišete autora?')) return
   try {
-    await axios.delete(
+    const response = await axios.delete(
       `http://localhost/api/authors/${author.value.id}/destroy`,
       { headers: getAuthHeader() }
-    )
-    router.push('/authors')
+    );
+    
+    localStorage.setItem('deleteSuccessMessage', response.data.message || `Autor ${fullName.value} je uspješno obrisan.`);
+    
+    router.push({ path: '/authors', query: { refresh: 'authors' } });
   } catch (err) {
-    let msg = 'Greška pri brisanju autora.'
+    let msg = 'Greška pri brisanju autora.';
     if (err.response?.data?.error) {
-      msg += ' ' + Object.values(err.response.data.error).flat().join(' ')
+      msg += ' ' + Object.values(err.response.data.error).flat().join(' ');
     } else if (err.response?.data?.message) {
-      msg += ' ' + err.response.data.message
+      msg += ' ' + err.response.data.message;
     }
-    setError(msg)
+    setError(msg);
+  }
+}
+
+const updateLoading = (value) => {
+  actionMenuLoading.value = value
+}
+
+const updateError = (value) => {
+  if (value) {
+    error.value = value
   }
 }
 </script>
@@ -172,6 +207,7 @@ const handleDelete = async () => {
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+  position: relative;
 }
 
 .app-header {
@@ -179,6 +215,7 @@ const handleDelete = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  z-index: 10;
 }
 
 .page-title {
@@ -210,11 +247,17 @@ const handleDelete = async () => {
   background-color: #e0e0e0;
   margin-top: 10px;
   margin-bottom: 24px;
+  z-index: 10;
+}
+
+.header-divider--student {
+  margin-top: 15px;
 }
 
 .page-content {
   padding: 0 24px;
   flex-grow: 1;
+  z-index: 10;
 }
 
 .author-card {
@@ -285,5 +328,21 @@ const handleDelete = async () => {
 .error-message {
   color: red;
   margin-top: 16px;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+  z-index: 999;
+  display: none;
+}
+
+.loading-overlay--active {
+  display: block;
 }
 </style>

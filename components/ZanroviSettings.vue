@@ -43,7 +43,7 @@
             :show-delete="true"
             @edit="handleEdit"
             @delete="handleDelete"
-            @error="setError"
+            @error="showErrorSnackbar"
           />
         </div>
       </template>
@@ -58,9 +58,23 @@
       @update:currentPage="handlePageChange"
     />
 
-    <v-alert v-if="error" type="error" class="mt-4">
-      {{ error }}
-    </v-alert>
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="5000"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
@@ -74,12 +88,17 @@ import PaginationFooter from '../components/PaginationFooter.vue';
 const router = useRouter();
 const zanrovi = ref([]);
 const loading = ref(false);
-const error = ref(null);
 const apiBaseUrl = 'http://localhost';
 
 const itemsPerPage = ref(20);
 const currentPage = ref(1);
 const totalItems = ref(0);
+
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+});
 
 const headers = ref([
   { title: '', key: 'data-table-select', sortable: false, width: '56px' },
@@ -89,14 +108,20 @@ const headers = ref([
 
 const itemClass = 'table-row';
 
-const setError = (err) => {
-  error.value = err;
-  setTimeout(() => error.value = null, 5000);
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.show = true;
+};
+
+const showSuccessSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'success';
+  snackbar.value.show = true;
 };
 
 const fetchGenres = async () => {
   loading.value = true;
-  error.value = null;
   try {
     const token = localStorage.getItem('auth_token');
     if (!token) throw new Error('Niste prijavljeni');
@@ -119,7 +144,7 @@ const fetchGenres = async () => {
     totalItems.value = apiData.total;
     
   } catch (err) {
-    setError('Greška pri učitavanju žanrova: ' + (err.response?.data?.message || err.message || 'Nepoznata greška'));
+    showErrorSnackbar('Greška pri učitavanju žanrova: ' + (err.response?.data?.message || err.message || 'Nepoznata greška'));
     if (err.response?.status === 401) {
       router.push('/login');
     }
@@ -147,16 +172,22 @@ const handleEdit = (item) => {
 };
 
 const handleDelete = async (item) => {
+  loading.value = true;
   try {
-    if (!confirm(`Da li ste sigurni da želite da obrišete žanr "${item.name}"?`)) return;
-    loading.value = true;
     const token = localStorage.getItem('auth_token');
     await axios.delete(`${apiBaseUrl}/api/genres/${item.id}/destroy`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    await fetchGenres();
+    
+    const index = zanrovi.value.findIndex(z => z.id === item.id);
+    if (index !== -1) {
+      zanrovi.value.splice(index, 1);
+      totalItems.value = Math.max(0, totalItems.value - 1);
+    }
+    
+    showSuccessSnackbar(`Žanr "${item.name}" je uspješno obrisan!`);
   } catch (err) {
-    setError('Greška pri brisanju žanra: ' + (err.response?.data?.message || err.message || 'Nepoznata greška'));
+    showErrorSnackbar('Greška pri brisanju žanra: ' + (err.response?.data?.message || err.message || 'Nepoznata greška'));
   } finally {
     loading.value = false;
   }

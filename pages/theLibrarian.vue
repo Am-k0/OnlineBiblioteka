@@ -47,10 +47,30 @@
         @retry-fetch="fetchUsers"
         :hide-table-borders="true" />
     </div>
+
+    <v-snackbar
+      v-model="snackbar.show"
+      color="#3392EA"
+      :timeout="snackbar.timeout"
+    >
+      {{ snackbar.message }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth', 'auth-librarian']
+})
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import UsersTable from '~/components/usersTable.vue' 
@@ -65,6 +85,17 @@ const currentPage = ref(1)
 const itemsPerPage = ref(20)
 const totalItems = ref(0)
 const errorMessage = ref(null)
+
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: '#3392EA',
+  timeout: 3000,
+});
+
+const showSnackbar = (message, timeout = 1500) => {
+  snackbar.value = { show: true, message, color: '#3392EA', timeout };
+};
 
 const roleMap = {
   1: 'Učenik',       
@@ -123,6 +154,16 @@ const fetchUsers = async () => {
 onMounted(() => {
   console.log('[LibrarianPage] Komponenta montirana. Pokrećem dohvatanje bibliotekara.');
   fetchUsers();
+
+  const message = localStorage.getItem('deleteSuccessMessage');
+  const timeout = localStorage.getItem('deleteSnackbarTimeout');
+
+  if (message) {
+    showSnackbar(message, parseInt(timeout || '1500', 10));
+    localStorage.removeItem('deleteSuccessMessage');
+    localStorage.removeItem('deleteSnackbarColor');
+    localStorage.removeItem('deleteSnackbarTimeout');
+  }
 });
 
 watch([currentPage, itemsPerPage], () => {
@@ -174,7 +215,11 @@ const handleDeleteUser = async (user) => {
     loading.value = true;
     await api.delete(`/users`, { data: { users_id: [user.id] } }); 
     console.log('[LibrarianPage] Korisnik uspešno obrisan:', user);
-    fetchUsers(); 
+    
+    const successMessage = `${user.first_name} ${user.last_name} je uspješno obrisan!`;
+    showSnackbar(successMessage, 1500);
+    fetchUsers();
+
   } catch (error) {
     console.error('[LibrarianPage] Greška pri brisanju korisnika:', error);
     if (error.response) {

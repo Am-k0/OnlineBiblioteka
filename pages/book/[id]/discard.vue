@@ -17,9 +17,6 @@
     <div class="header-divider"></div>
 
     <div class="page-content">
-      <v-alert v-if="error" type="error" class="mb-4" closable @click:close="error = null">{{ error }}</v-alert>
-      <v-alert v-if="successMessage" type="success" class="mb-4" closable @click:close="successMessage = null">{{ successMessage }}</v-alert>
-
       <v-data-table
         :headers="tableHeaders"
         :items="rentedBooks"
@@ -73,7 +70,7 @@
               color="primary"
               :disabled="!book || book.number_of_copies_available <= 0 || isProcessing"
               :loading="isProcessing"
-              @click="handleDiscardBook"
+              @click="showDiscardDialog"
               prepend-icon="mdi-delete-outline"
             >
               Otpiši knjigu
@@ -90,10 +87,67 @@
         class="pagination-footer mt-4"
       />
     </div>
+
+    <v-dialog v-model="discardDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-h5">Potvrdi otpis</v-card-title>
+        <v-card-text>
+          Da li ste sigurni da želite otpisati ovaj primerak knjige "{{ book?.name }}"?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="grey-darken-1" variant="text" @click="discardDialog = false">
+            Poništi
+          </v-btn>
+          <v-btn color="red-darken-1" variant="text" @click="confirmDiscard">
+            Otpiši
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-snackbar
+      v-model="snackbar.show"
+      color="#3392EA"
+      :timeout="3000"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
+    
+    <v-snackbar
+      v-model="errorSnackbar.show"
+      color="error"
+      :timeout="5000"
+      top
+    >
+      {{ errorSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="errorSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth', 'auth-librarian']
+})
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from '@/axios';
@@ -109,9 +163,22 @@ const bookId = route.params.id;
 const rentedBooks = ref([]);
 const loading = ref(true);
 const isProcessing = ref(false);
-const error = ref(null);
-const successMessage = ref(null);
 const defaultUserImage = '/images/default-user-1.jpg';
+
+// Snackbar state
+const snackbar = ref({
+  show: false,
+  text: '',
+});
+
+// Snackbar state za greške
+const errorSnackbar = ref({
+  show: false,
+  text: '',
+});
+
+// Dialog state
+const discardDialog = ref(false);
 
 // Paginacija
 const itemsPerPage = ref(20);
@@ -133,7 +200,6 @@ const tableHeaders = [
 // --- API POZIVI ---
 async function fetchRentedBooks() {
   loading.value = true;
-  error.value = null;
   
   try {
     const params = {
@@ -149,7 +215,7 @@ async function fetchRentedBooks() {
 
   } catch (err) {
     console.error('Greška pri učitavanju izdatih knjiga:', err);
-    error.value = 'Nije moguće učitati podatke o izdatim knjigama.';
+    showErrorSnackbar('Nije moguće učitati podatke o izdatim knjigama.');
   } finally {
     loading.value = false;
   }
@@ -161,6 +227,7 @@ async function fetchBookDetails() {
     book.value = res.data.book; 
   } catch (err) {
     console.error('Greška pri učitavanju detalja o knjizi:', err);
+    showErrorSnackbar('Greška pri učitavanju detalja o knjizi.');
   }
 }
 
@@ -175,20 +242,25 @@ async function fetchRentalPolicy() {
 }
 
 // --- AKCIJE ---
-async function handleDiscardBook() {
+const showDiscardDialog = () => {
+  discardDialog.value = true;
+};
+
+const confirmDiscard = async () => {
+  discardDialog.value = false;
   if (!book.value) {
-    error.value = 'Knjiga nije učitana.';
+    showErrorSnackbar('Knjiga nije učitana.');
     return;
   }
 
   if (book.value.number_of_copies_available <= 0) {
-    error.value = 'Nema dostupnih primeraka za otpisivanje.';
+    showErrorSnackbar('Nema dostupnih primeraka za otpisivanje.');
     return;
   }
 
   isProcessing.value = true;
-  error.value = null;
-  successMessage.value = null;
+  snackbar.value.show = false;
+  errorSnackbar.value.show = false;
 
   try {
     await axios.post(`/books/${bookId}/discard`, {}, {
@@ -197,21 +269,26 @@ async function handleDiscardBook() {
       },
     });
 
-    successMessage.value = 'Knjiga je uspešno otpisana. Ukupna količina je smanjena za 1.';
+    showSnackbar('Knjiga je uspešno otpisana.');
     
-    // Ažuriramo samo količinu knjige
     if (book.value) {
       book.value.number_of_copies_available = Math.max(0, book.value.number_of_copies_available - 1);
-      book.value.number_of_copies = Math.max(0, book.value.number_of_copies - 1);
+      book.value.total_count = Math.max(0, book.value.total_count - 1);
     }
 
   } catch (err) {
     console.error('Greška pri otpisivanju knjige:', err);
-    error.value = err.response?.data?.error || 'Došlo je do greške prilikom otpisivanja knjige.';
+    let errorMessage = 'Došlo je do greške prilikom otpisivanja knjige.';
+    if (err.response && err.response.data && err.response.data.error) {
+      errorMessage = err.response.data.error;
+    } else if (err.response && err.response.data && err.response.data.message) {
+      errorMessage = err.response.data.message;
+    }
+    showErrorSnackbar(errorMessage);
   } finally {
     isProcessing.value = false;
   }
-}
+};
 
 const cancel = () => router.back();
 
@@ -248,6 +325,16 @@ const isOverdue = (days) => {
 const getOverdueDays = (activeDays) => {
   const overdue = activeDays - rentalPolicyDays.value;
   return overdue > 0 ? overdue : 0;
+};
+
+const showSnackbar = (text) => {
+  snackbar.value.text = text;
+  snackbar.value.show = true;
+};
+
+const showErrorSnackbar = (text) => {
+  errorSnackbar.value.text = text;
+  errorSnackbar.value.show = true;
 };
 
 // --- HOOKS ---

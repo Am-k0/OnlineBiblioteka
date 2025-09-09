@@ -33,6 +33,9 @@
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth', 'auth-librarian']
+})
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
@@ -70,7 +73,7 @@ const savePublisher = async () => {
       }
     );
 
-    alert('Izdavač uspešno sačuvan!');
+    // Uklonjena je alert() poruka
     router.push({ path: '/settings', query: { tab: 'izdavaci' } });
   } catch (error) {
     console.error('Greška pri čuvanju izdavača:', error);

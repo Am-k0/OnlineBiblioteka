@@ -10,10 +10,10 @@
         </p>
       </div>
       
-      <BookMenu v-if="rental" :book="rental.book" />
+      <BookMenu v-if="rental && userRole === 'librarian'" :book="rental.book" />
     </header>
 
-    <div class="header-divider"></div>
+    <div class="header-divider" :style="headerDividerStyle"></div>
 
     <div class="page-content">
       <div v-if="loading" class="text-center pa-10">
@@ -85,6 +85,9 @@
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth']
+})
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
@@ -96,9 +99,16 @@ const rental = ref(null);
 const loading = ref(true);
 const error = ref(null);
 const rentalPeriod = ref(30); 
+const userRole = ref(null);
 
 const bookCover = computed(() => {
   return rental.value?.book?.cover_image || '/images/default-book-1.jpg';
+});
+
+const headerDividerStyle = computed(() => {
+  return {
+    'margin-top': userRole.value === 'librarian' ? '10px' : '15px'
+  };
 });
 
 const formatDate = (dateString) => {
@@ -122,7 +132,6 @@ const getStatusClass = () => {
   if (message === 'This rental is overdue!') return 'status-overdue';
   if (message === 'Rental period is still valid.') return 'status-rented';
   
-  // Ažurirana logika da koristi rentalPeriod
   if (rental.value.days_rented > rentalPeriod.value) return 'status-overdue';
   return 'status-rented';
 };
@@ -150,7 +159,6 @@ const getOverdueMessage = () => {
   
   if (message === 'This book has been returned.') return 'Nema';
   
-  // Ažurirana fallback logika
   if (rental.value.days_rented && rental.value.days_rented > rentalPeriod.value) {
     return `${rental.value.days_rented - rentalPeriod.value} dana`;
   }
@@ -221,7 +229,20 @@ const navigateTo = (path) => {
   router.push(path);
 };
 
+const getUserRole = () => {
+  try {
+    const userString = localStorage.getItem('user');
+    if (userString) {
+      const user = JSON.parse(userString);
+      userRole.value = user.role;
+    }
+  } catch (e) {
+    console.error('Greška pri dohvatanju uloge korisnika:', e);
+  }
+};
+
 onMounted(() => {
+  getUserRole();
   fetchPolicies().then(() => {
     fetchRental();
   });
@@ -273,7 +294,6 @@ onMounted(() => {
 .header-divider {
   height: 1px;
   background-color: #e0e0e0;
-  margin-top: 10px;
   margin-bottom: 24px;
 }
 

@@ -62,6 +62,9 @@
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth', 'auth-librarian']
+})
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
@@ -197,7 +200,7 @@ const saveCategory = async () => {
     loading.value = false;
   }
 };
-
+ 
 const cancel = () => {
   name.value = '';
   description.value = '';

@@ -2,11 +2,11 @@
   <v-app-bar
     flat
     height="72"
-    elevation="2"
     class="pa-0 d-flex flex-row"
     style="width: 100%; position: fixed; top: 0; z-index: 10;"
   >
-    <div
+    <NuxtLink
+      to="/"
       class="d-flex align-center"
       style="
         height: 72px;
@@ -14,6 +14,8 @@
         background-color: #2D8CE4;
         padding: 16px 32px;
         gap: 16px;
+        cursor: pointer;
+        text-decoration: none;
       "
     >
       <img 
@@ -25,7 +27,7 @@
       <span class="text-white custom-text-style">
         Online Biblioteka
       </span>
-    </div>
+    </NuxtLink>
 
     <div
       class="d-flex align-center justify-end"
@@ -43,13 +45,13 @@
       </v-btn>
 
       <span class="text-white font-weight-bold" style="
-        width: 1.5920408818909386e-15px;
+        width: 1px;
         height: 26px;
         border-right: 1px solid white;
         opacity: 1;
       "></span>
       
-      <v-menu location="bottom">
+      <v-menu v-if="user?.role === 'librarian'" location="bottom">
         <template v-slot:activator="{ props }">
           <v-btn icon v-bind="props" style="width: 24px; height: 24px;">
             <v-icon color="white" size="24">mdi-plus</v-icon>
@@ -84,7 +86,7 @@
               cursor: pointer;
             "
           >
-            <span class="text-white custom-text-style">bildstudio</span>
+            <span class="text-white custom-text-style">bildstudio</span> 
             <v-avatar
               size="40"
               image="/images/default-user-1.jpg"
@@ -126,6 +128,13 @@ import { useRouter } from 'vue-router';
 
 const router = useRouter();
 
+// Definišemo tip za korisnika da bismo izbjegli greške
+interface User {
+  role: string;
+  username: string;
+  // Dodajte ostala polja po potrebi
+}
+
 const items = [
   { title: 'Bibliotekar', icon: 'mdi-account', to: '/newLibrarian' },
   { title: 'Ucenik', icon: 'mdi-account-group', to: '/newStudent' },
@@ -133,26 +142,35 @@ const items = [
   { title: 'Autor', icon: 'mdi-clipboard-text', to: '/newAuthor' },
 ];
 
-const username = ref('korisnik'); // Default vrednost
+// IZMJENA OVDJE: Dodajemo reaktivnu varijablu za čuvanje podataka o korisniku
+const user = ref<User | null>(null);
+
+// IZMJENA OVDJE: Učitavamo podatke o korisniku kada se komponenta montira (samo na klijentu)
 onMounted(() => {
-  const user = localStorage.getItem('user');
-  if (user) {
-    try {
-      const parsedUser = JSON.parse(user);
-      username.value = parsedUser.username || 'korisnik';
-    } catch (e) {
-      console.error("Greška pri parsiranju korisničkih podataka iz local storage-a:", e);
+  if (process.client) {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        user.value = JSON.parse(storedUser);
+      } catch (e) {
+        console.error("Greška pri parsiranju korisničkih podataka iz local storage-a:", e);
+      }
     }
   }
 });
 
 const profileLink = computed(() => {
-  return `/users/${username.value}`;
+  // Koristimo reaktivnu `user` varijablu umjesto direktnog pristupa localStorage
+  if (user.value && user.value.username) {
+    return `/users/${user.value.username}`;
+  }
+  return '/'; 
 });
 
 const logout = () => {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('user');
+  user.value = null; // Očisti stanje korisnika
   router.push('/login');
 };
 </script>

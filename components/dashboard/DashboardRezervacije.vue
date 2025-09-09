@@ -14,7 +14,8 @@
       </div>
 
       <div v-else-if="pendingReservations.length === 0" class="no-data-state">
-        <v-alert type="info" dense>Nema novih rezervacija na čekanju.</v-alert>
+        <v-icon size="60" color="grey lighten-1">mdi-calendar-check-outline</v-icon>
+        <span class="no-data-text">Nema novih rezervacija na čekanju.</span>
       </div>
 
       <div v-else v-for="reservation in pendingReservations" :key="reservation.id" class="reservation-item">
@@ -43,6 +44,49 @@
               <v-icon>mdi-close</v-icon>
             </v-btn>
           </div>
+          
+          <div v-else-if="isStudent" class="d-flex align-center">
+            <v-chip
+              :color="getStatusColor(reservation.status)"
+              :class="getStatusClass(reservation.status)"
+              size="small"
+              class="status-chip"
+              variant="flat"
+            >
+              {{ getStatusLabel(reservation.status) }}
+            </v-chip>
+            <v-menu v-if="reservation.status === 'pending'">
+              <template v-slot:activator="{ props }">
+                <v-btn
+                  icon
+                  variant="text"
+                  color="grey-darken-1"
+                  size="small"
+                  v-bind="props"
+                >
+                  <v-icon>mdi-dots-vertical</v-icon>
+                </v-btn>
+              </template>
+              <v-list>
+                <v-list-item @click="viewDetails(reservation)">
+                  <template #prepend>
+                    <v-icon icon="mdi-file-document-outline"></v-icon>
+                  </template>
+                  <v-list-item-title>Pogledaj detalje</v-list-item-title>
+                </v-list-item>
+                
+                <v-list-item
+                  @click="showCancelDialog(reservation)"
+                >
+                  <template #prepend>
+                    <v-icon icon="mdi-cancel"></v-icon>
+                  </template>
+                  <v-list-item-title>Otkazi rezervaciju</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+          </div>
+          
           <v-chip v-else :color="getStatusColor(reservation.status)" size="small" class="status-chip" variant="outlined">
             {{ getStatusLabel(reservation.status) }}
           </v-chip>
@@ -57,6 +101,29 @@
       </NuxtLink>
     </v-card-actions>
   </v-card>
+
+  <v-dialog v-model="cancelDialog" max-width="500">
+    <v-card>
+      <v-card-title class="text-h5">Potvrdi otkazivanje</v-card-title>
+      <v-card-text>
+        Da li ste sigurni da želite da otkažete rezervaciju za knjigu **{{ bookToCancel?.naziv_knjige }}**?
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn color="blue darken-1" variant="text" @click="cancelDialog = false">Ne</v-btn>
+        <v-btn color="red darken-1" variant="text" @click="cancelReservation">Da, otkaži</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+  
+  <v-snackbar
+    v-model="snackbar.show"
+    :color="snackbar.color"
+    :timeout="snackbar.timeout"
+    location="bottom right"
+  >
+    {{ snackbar.message }}
+  </v-snackbar>
 </template>
 
 <script setup>
@@ -69,8 +136,25 @@ const reservations = ref([]);
 const loading = ref(false);
 const error = ref(null);
 const isLibrarian = ref(false);
+const isStudent = ref(false);
 const defaultAvatar = '/images/default-user-1.jpg';
 const apiBaseUrl = 'http://localhost';
+
+const cancelDialog = ref(false);
+const bookToCancel = ref(null);
+
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: 'success',
+  timeout: 3000,
+});
+
+const showSnackbar = (message, color = 'success') => {
+  snackbar.value.message = message;
+  snackbar.value.color = color;
+  snackbar.value.show = true;
+};
 
 const pendingReservations = computed(() => {
   return reservations.value
@@ -96,6 +180,7 @@ const fetchReservations = async () => {
     const user = getLoggedInUser();
     if (!user) throw new Error('Niste prijavljeni');
     isLibrarian.value = user.role === 'librarian';
+    isStudent.value = user.role === 'student';
 
     const token = localStorage.getItem('auth_token');
     if (!token) throw new Error('Token nije pronađen');
@@ -105,7 +190,14 @@ const fetchReservations = async () => {
     const response = await axios.get(`${apiBaseUrl}/api/reservations/active`, { ...authHeaders });
     
     if (response.data && response.data.reservations && response.data.reservations.data) {
-      reservations.value = response.data.reservations.data.map(res => ({
+      const allReservations = response.data.reservations.data;
+      if (isStudent.value) {
+        reservations.value = allReservations.filter(res => res.student_id === user.id);
+      } else {
+        reservations.value = allReservations;
+      }
+
+      reservations.value = reservations.value.map(res => ({
         id: res.id,
         naziv_knjige: res.book?.name || 'Nepoznat naslov',
         rezervaciju_podnio: `${res.student?.first_name || ''} ${res.student?.last_name || ''}`.trim() || 'Nepoznat korisnik',
@@ -120,6 +212,7 @@ const fetchReservations = async () => {
     if (err.response?.status === 401) {
       router.push('/login');
     }
+    showSnackbar('Greška pri učitavanju rezervacija.', 'error');
   } finally {
     loading.value = false;
   }
@@ -130,9 +223,11 @@ const confirmReservation = async (reservationId) => {
     const token = localStorage.getItem('auth_token');
     const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
     await axios.post(`${apiBaseUrl}/api/reservations/${reservationId}/confirm`, null, authHeaders);
-    fetchReservations(); // Ponovo učitaj listu da se ažurira
+    fetchReservations();
+    showSnackbar('Rezervacija je uspješno potvrđena.', 'success');
   } catch (err) {
-    error.value = 'Greška pri potvrdi rezervacije: ' + (err.response?.data?.error || err.message);
+    const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Greška pri potvrdi rezervacije.';
+    showSnackbar(errorMessage, 'error');
   }
 };
 
@@ -141,10 +236,42 @@ const rejectReservation = async (reservationId) => {
     const token = localStorage.getItem('auth_token');
     const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
     await axios.post(`${apiBaseUrl}/api/reservations/${reservationId}/reject`, null, authHeaders);
-    fetchReservations(); // Ponovo učitaj listu da se ažurira
+    fetchReservations();
+    showSnackbar('Rezervacija je uspješno odbijena.', 'success');
   } catch (err) {
-    error.value = 'Greška pri odbijanju rezervacije: ' + (err.response?.data?.error || err.message);
+    const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Greška pri odbijanju rezervacije.';
+    showSnackbar(errorMessage, 'error');
   }
+};
+
+const showCancelDialog = (reservation) => {
+  bookToCancel.value = reservation;
+  cancelDialog.value = true;
+};
+
+const cancelReservation = async () => {
+  if (!bookToCancel.value) return;
+
+  try {
+    const token = localStorage.getItem('auth_token');
+    const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
+
+    await axios.post(`${apiBaseUrl}/api/reservations/${bookToCancel.value.id}/cancel`, null, authHeaders);
+    
+    showSnackbar('Rezervacija je uspješno otkazana.', 'success');
+    await fetchReservations();
+
+    cancelDialog.value = false;
+    bookToCancel.value = null;
+
+  } catch (err) {
+    const errorMessage = err.response?.data?.error || 'Greška pri otkazivanju rezervacije.';
+    showSnackbar(errorMessage, 'error');
+  }
+};
+
+const viewDetails = (reservation) => {
+  router.push(`/loan-management/reservation/${reservation.id}`);
 };
 
 const formatDate = (dateString) => {
@@ -178,6 +305,15 @@ const getStatusLabel = (status) => {
     case 'rented': return 'Izdato';
     default: return status;
   }
+};
+
+const getStatusClass = (status) => {
+    switch (status) {
+        case 'reserved': return 'status-reserved';
+        case 'rejected': return 'status-rejected';
+        case 'pending': return 'status-pending';
+        default: return '';
+    }
 };
 
 onMounted(() => {
@@ -239,7 +375,7 @@ onMounted(() => {
   text-align: left;
 }
 
-/* NOVI STILOVI ZA DATUM */
+
 .reservation-date {
   width: 105px;
   flex-shrink: 0;
@@ -248,17 +384,22 @@ onMounted(() => {
   padding: 4px 8px;
   border: 1px solid #E0E0E0;
   border-radius: 20px;
-  margin-right: 130px; 
+   margin-right: 10px;
 }
+
 
 .action-icons {
   display: flex;
   align-items: center;
+  justify-content: flex-end; 
   gap: 16px;
-  width: 50px;
+  width: 200px; 
   flex-shrink: 0;
-  justify-content: flex-start;
-  color: #5f6368;
+}
+
+
+.action-icons .status-chip {
+  margin-left: auto; 
 }
 
 .card-actions {
@@ -277,7 +418,6 @@ onMounted(() => {
     gap: 4px;
 }
 
-/* NOVI STILOVI ZA STATUS */
 .status-chip {
   font-size: 11px;
   font-weight: 500;
@@ -287,16 +427,40 @@ onMounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-radius: 12px;
-  margin-left: -50px; /* Dodato za pomeranje ulevo */
 }
 
-/* STANJA ZA LOADER I GRESKU */
+
+.status-reserved {
+  background-color: transparent !important;
+  color: #FF9900 !important;
+  border: 1px solid #FF9900 !important;
+}
+.status-rejected {
+  background-color: transparent !important;
+  color: #CF2A27 !important;
+  border: 1px solid #CF2A27 !important;
+}
+.status-pending {
+  background-color: transparent !important;
+  color: #3392EA !important;
+  border: 1px solid #3392EA !important;
+}
+
+
 .loading-state,
 .error-state,
 .no-data-state {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   min-height: 200px;
+  text-align: center;
+}
+
+.no-data-text {
+  font-size: 16px;
+  color: #757575;
+  margin-top: 16px;
 }
 </style>

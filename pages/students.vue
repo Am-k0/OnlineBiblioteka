@@ -47,14 +47,34 @@
         @retry-fetch="fetchUsers"
       />
     </div>
+
+    <v-snackbar
+      v-model="snackbar.show"
+      color="#3392EA"
+      :timeout="snackbar.timeout"
+    >
+      {{ snackbar.message }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth', 'auth-librarian']
+})
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import UsersTable from '~/components/usersTable.vue' // ✅ PROVERI PUTANJU!
-import api from '@/axios' // ✅ PROVERI PUTANJU!
+import UsersTable from '~/components/usersTable.vue' 
+import api from '@/axios' 
 
 const search = ref('')
 const router = useRouter()
@@ -66,10 +86,22 @@ const itemsPerPage = ref(20)
 const totalItems = ref(0)
 const errorMessage = ref(null)
 
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: '#3392EA',
+  timeout: 3000,
+});
+
+const showSnackbar = (message, timeout = 1500) => {
+  snackbar.value = { show: true, message, color: '#3392EA', timeout };
+};
+
 const roleMap = {
   1: 'Učenik',       
   2: 'Bibliotekar',  
 };
+
 const fetchUsers = async () => {
   console.log(`[StudentsPage] Dohvaćam učenike. Stranica: ${currentPage.value}, Po stranici: ${itemsPerPage.value}, Pretraga: ${search.value}`);
   loading.value = true;
@@ -122,6 +154,16 @@ const fetchUsers = async () => {
 onMounted(() => {
   console.log('[StudentsPage] Komponenta montirana. Pokrećem dohvatanje učenika.');
   fetchUsers();
+
+  const message = localStorage.getItem('deleteSuccessMessage');
+  const timeout = localStorage.getItem('deleteSnackbarTimeout');
+
+  if (message) {
+    showSnackbar(message, parseInt(timeout || '1500', 10));
+    localStorage.removeItem('deleteSuccessMessage');
+    localStorage.removeItem('deleteSnackbarColor');
+    localStorage.removeItem('deleteSnackbarTimeout');
+  }
 });
 
 watch([currentPage, itemsPerPage], () => {
@@ -156,7 +198,7 @@ const updateCurrentPage = (value) => {
 const handleViewUser = (user) => {
   console.log('[StudentsPage] Prikaz korisnika (detalji):', user);
   if (user.username) {
-    router.push(`/users/${user.username}`); // Navigacija po username-u
+    router.push(`/users/${user.username}`); 
   } else {
     errorMessage.value = 'Korisničko ime nije dostupno za prikaz detalja.';
   }
@@ -171,9 +213,13 @@ const handleDeleteUser = async (user) => {
   console.log('[StudentsPage] Pokušaj brisanja korisnika:', user);
   try {
     loading.value = true;
-    await api.delete(`/users`, { data: { users_id: [user.id] } }); // API za brisanje po ID-u
+    await api.delete(`/users`, { data: { users_id: [user.id] } }); 
     console.log('[StudentsPage] Korisnik uspešno obrisan:', user);
-    fetchUsers(); // Ponovo dohvati podatke nakon brisanja
+    
+    const successMessage = `${user.first_name} ${user.last_name} je uspješno obrisan!`;
+    showSnackbar(successMessage, 1500);
+    fetchUsers(); 
+    
   } catch (error) {
     console.error('[StudentsPage] Greška pri brisanju korisnika:', error);
     if (error.response) {

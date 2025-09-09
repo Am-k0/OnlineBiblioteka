@@ -103,8 +103,6 @@
         </v-text-field>
         <div v-if="localError.ponoviLozinku" class="error-message">{{ localError.ponoviLozinku }}</div>
 
-        <div v-if="displayGlobalError" class="error-message global-error">{{ displayGlobalError }}</div>
-
         <ActionButtons 
           @save="handleSave" 
           @cancel="emit('cancel')" 
@@ -113,6 +111,24 @@
         />
       </div>
     </div>
+
+    <v-snackbar
+      v-model="errorSnackbar.show"
+      color="error"
+      :timeout="5000"
+      top
+    >
+      {{ errorSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="errorSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
@@ -160,6 +176,12 @@ const vidljivoLozinka = ref(false)
 const vidljivoPonoviLozinku = ref(false)
 const loading = ref(false)
 
+// Snackbar za greške s poslužitelja
+const errorSnackbar = ref({
+  show: false,
+  text: ''
+});
+
 const selectedRole = computed(() => {
   return props.kolekcija === 'ucenici' ? 1 : 2
 })
@@ -179,12 +201,6 @@ const localError = ref({
   password: '',
   ponoviLozinku: '',
   opsta: ''
-})
-
-const displayGlobalError = ref(props.globalError)
-
-watch(() => props.globalError, (newVal) => {
-  displayGlobalError.value = newVal
 })
 
 watch(() => props.backendErrors, (newErrors) => {
@@ -244,7 +260,7 @@ const clearErrors = () => {
     ponoviLozinku: '',
     opsta: ''
   }
-  displayGlobalError.value = null
+  errorSnackbar.value.show = false
 }
 
 const validateForm = () => {
@@ -294,6 +310,10 @@ const validateForm = () => {
   if (password.value !== ponoviLozinku.value) {
     localError.value.ponoviLozinku = 'Šifre se ne poklapaju!'
     hasErrors = true
+  }
+
+  if (hasErrors) {
+    showErrorSnackbar('Molimo ispravite unete podatke.');
   }
 
   return !hasErrors
@@ -354,9 +374,10 @@ const handleSave = async () => {
   } catch (error) {
     console.error('Error creating user:', error)
     
+    let errorMessage = 'Došlo je do neočekivane greške.'
     if (error.response) {
-      if (error.response.status === 400) { // Backend vraća 400, ne 422
-        // Validacione greške
+      if (error.response.status === 400) {
+        // Validacione greške s backend-a
         const backendErrors = error.response.data
         localError.value = {
           firstName: backendErrors.first_name?.[0] || '',
@@ -367,27 +388,32 @@ const handleSave = async () => {
           password: backendErrors.password?.[0] || '',
           opsta: backendErrors.profile_picture?.[0] || ''
         }
+        errorMessage = 'Validacijske greške. Molimo provjerite unijete podatke.';
       } else if (error.response.status === 401) {
-        displayGlobalError.value = 'Niste autorizovani. Vaša sesija je istekla.'
+        errorMessage = 'Niste autorizovani. Vaša sesija je istekla.';
       } else if (error.response.status === 403) {
-        displayGlobalError.value = 'Nemate dozvolu za kreiranje korisnika.'
+        errorMessage = 'Nemate dozvolu za kreiranje korisnika.';
       } else {
-        displayGlobalError.value = `Došlo je do greške (${error.response.status})`
+        errorMessage = `Došlo je do greške (${error.response.status}): ${error.response.data?.message || 'Nepoznata greška'}`;
       }
     } else if (error.request) {
-      displayGlobalError.value = 'Nije moguće povezati se sa serverom.'
-    } else {
-      displayGlobalError.value = 'Došlo je do neočekivane greške.'
+      errorMessage = 'Nije moguće povezati se sa serverom.';
     }
     
-    emit('form-error', localError.value)
+    showErrorSnackbar(errorMessage);
   } finally {
     loading.value = false
   }
 }
+
+function showErrorSnackbar(message) {
+  errorSnackbar.value.text = message;
+  errorSnackbar.value.show = true;
+}
 </script>
 
 <style scoped>
+/* Vaši stilovi ostaju nepromenjeni */
 .page-container {
   padding: 0;
   background-color: white;

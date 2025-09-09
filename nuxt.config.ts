@@ -1,4 +1,3 @@
-// nuxt.config.ts
 import { defineNuxtConfig } from 'nuxt/config';
 import tailwindcss from "@tailwindcss/vite";
 import path from 'path';
@@ -7,11 +6,11 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: true },
 
+  // Middleware se dodaje automatski iz 'middleware' direktorija
+
   runtimeConfig: {
     public: {
-      // Ovo je za PRODUCTION. Ako tvoj Laravel backend bude na 'http://mojdomen.com/api', onda neka ostane /api
-      // Ako Laravel backend bude na 'http://mojdomen.com' a rute su '/api/create', onda ovde stavi 'http://mojdomen.com'
-      apiBase: process.env.API_BASE_URL || 'http://localhost/api' // Ostavite /api ovde ako vaše Laravel rute počinju sa /api
+      apiBase: process.env.API_BASE_URL || 'http://localhost/api' 
     }
   },
 
@@ -34,14 +33,9 @@ export default defineNuxtConfig({
     server: {
       proxy: {
         '/api': {
-          target: 'http://localhost', // ISPRAVKA: Target je samo bazni URL backend servera (bez /api)
+          target: 'http://localhost',
           changeOrigin: true,
-          // rewrite: (path) => path.replace(/^\/api/, '/api') // Ovo je sada redundantno ako Laravel rute već imaju /api
-          // Ako tvoje Laravel rute zaista počinju sa `/api` (kao što `Route::prefix('api')` implicira),
-          // onda proxy već preusmerava `localhost:3000/api/create` na `localhost/api/create`.
-          // Ne treba ti `rewrite` ako je `target` bazni domen, a rute već imaju prefiks.
-          // Ali ako želiš da bude eksplicitno, možeš i ovo:
-          rewrite: (path) => path // Bez izmene, prosleđuje putanju kakva jeste
+          rewrite: (path) => path 
         }
       }
     }
@@ -53,6 +47,7 @@ export default defineNuxtConfig({
     '@nuxt/image',
     '@nuxt/test-utils',
     'vuetify-nuxt-module',
+    '@pinia/nuxt' 
   ],
 
   vuetify: {

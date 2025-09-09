@@ -14,6 +14,12 @@
       class="no-border-table"
       :item-class="itemClass"
     >
+      <template v-slot:item.data-table-select="{ item }">
+        <div class="h-[56px] flex items-center justify-center">
+          <v-checkbox-btn :value="item.id" class="no-checkbox-border"></v-checkbox-btn>
+        </div>
+      </template>
+
       <template v-slot:item.ime_i_prezime="{ item }">
         <div class="cell-naziv d-flex align-center">
           <v-avatar size="36" class="mr-2">
@@ -40,14 +46,14 @@
           <ActionMenu
             :item="item"
             :entity-name="entityDisplayName"
-            title-property="first_name" 
+            title-property="first_name"
             :show-view="true"
             :show-edit="true"
             :show-delete="true"
             @view="handleView"
             @edit="handleEdit"
             @delete="handleDelete"
-            @error="emit('error', $event)"
+            @error="showErrorSnackbar"
           />
         </div>
       </template>
@@ -62,12 +68,53 @@
       @update:currentPage="updateCurrentPage"
     />
 
-    <v-alert v-if="localError" type="error" class="mt-4">
-      {{ localError }}
-      <div class="mt-2">
-        <v-btn @click="emit('retry-fetch')" color="white" small>Pokušaj ponovo</v-btn>
-      </div>
-    </v-alert>
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
+
+    <v-dialog v-model="showDeleteDialog" max-width="400">
+      <v-card class="delete-dialog-card">
+        <v-card-title class="dialog-title">
+          Izbriši {{ entityDisplayName }}?
+        </v-card-title>
+        <v-card-text class="dialog-text">
+          Da li ste sigurni da želite da obrišete {{ entityDisplayName }}
+          "{{ itemToDelete?.first_name }} {{ itemToDelete?.last_name }}"?
+        </v-card-text>
+        <v-card-actions class="dialog-actions">
+          <v-btn
+            text
+            @click="showDeleteDialog = false"
+            class="dialog-btn"
+          >
+            Poništi
+          </v-btn>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="red-darken-1"
+            text
+            @click="handleDeleteConfirmed"
+            class="dialog-btn"
+          >
+            Izbriši
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -141,21 +188,38 @@ const emit = defineEmits<{
 const router = useRouter()
 const itemsPerPage = ref(props.initialItemsPerPage)
 const currentPage = ref(props.initialCurrentPage)
-const localError = ref(props.error)
+const showDeleteDialog = ref(false)
+const itemToDelete = ref<UserItem | null>(null)
+
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'error',
+  timeout: 5000,
+});
 
 watch(() => props.error, (newVal) => {
-  localError.value = newVal
+  if (newVal) {
+    showErrorSnackbar(newVal);
+  }
 })
 
 const defaultAvatar = '/images/default-user-1.jpg'
 
 const visibleHeaders = ref([
-  { title: 'Ime i prezime', key: 'ime_i_prezime', align: 'start' as const, sortable: true },
-  { title: 'Email', key: 'email', sortable: true },
-  { title: 'Tip', key: 'tip', sortable: false },
-  { title: 'Zadnji pristup sistemu', key: 'zadnji_pristup_sistemu', sortable: true },
-  { title: '', key: 'actions', align: 'end' as const, sortable: false },
+  { title: '', key: 'data-table-select', sortable: false, width: '56px' },
+  { title: 'Ime i prezime', key: 'ime_i_prezime', align: 'start' as const, sortable: true, width: '200px' },
+  { title: 'Email', key: 'email', sortable: true, width: '250px' },
+  { title: 'Tip', key: 'tip', sortable: false, width: '100px' },
+  { title: 'Zadnji pristup sistemu', key: 'zadnji_pristup_sistemu', sortable: true, width: '230px' },
+  { title: '', key: 'actions', align: 'end' as const, sortable: false, width: 'auto' },
 ])
+
+const getRoleName = (roleId: number) => {
+  return props.roleMap[roleId] || 'Nepoznato'
+}
+
+const itemClass = () => 'table-row'
 
 const formatDate = (dateString: string | null) => {
   if (!dateString) return ''
@@ -173,51 +237,50 @@ const getProfilePictureUrl = (picturePath: string | null | undefined) => {
   return defaultAvatar
 }
 
-const getRoleName = (roleId: number) => {
-  return props.roleMap[roleId] || 'Nepoznato'
-}
-
-const itemClass = () => 'table-row'
+const showErrorSnackbar = (message: string) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = 5000;
+  snackbar.value.show = true;
+};
 
 const handleView = (item: UserItem) => {
-  console.log('Viewing user:', item.username)
   if (item.username) {
     router.push(`/users/${item.username}`)
-      .then(() => {
-        console.log('Successfully navigated to view page')
-      })
       .catch((error) => {
         console.error('Navigation to view failed:', error)
-        localError.value = 'Greška pri navigaciji na stranicu za prikaz.'
+        showErrorSnackbar('Greška pri navigaciji na stranicu za prikaz.');
       })
   } else {
-    localError.value = 'Korisničko ime nije dostupno za prikaz detalja.'
+    showErrorSnackbar('Korisničko ime nije dostupno za prikaz detalja.');
   }
 }
 
 const handleEdit = (item: UserItem) => {
-  console.log('Editing user:', item.username)
   if (item.username) {
     const targetPath = `/users/${item.username}/edit`
-    console.log('Navigating to edit page:', targetPath)
-    
     router.push(targetPath)
-      .then(() => {
-        console.log('Successfully navigated to edit page')
-      })
       .catch((error) => {
         console.error('Navigation to edit failed:', error)
-        localError.value = 'Greška pri navigaciji na stranicu za uređivanje.'
+        showErrorSnackbar('Greška pri navigaciji na stranicu za uređivanje.');
       })
   } else {
-    localError.value = 'Korisničko ime nije dostupno za uređivanje.'
+    showErrorSnackbar('Korisničko ime nije dostupno za uređivanje.');
   }
 }
 
 const handleDelete = (item: UserItem) => {
-  const confirmed = confirm(`Da li ste sigurni da želite da obrišete ${props.entityDisplayName} ${item.first_name} ${item.last_name}?`)
-  if (confirmed) emit('delete', item)
-}
+  itemToDelete.value = item;
+  showDeleteDialog.value = true;
+};
+
+const handleDeleteConfirmed = () => {
+  if (itemToDelete.value) {
+    emit('delete', itemToDelete.value);
+    showDeleteDialog.value = false;
+    itemToDelete.value = null;
+  }
+};
 
 const updateItemsPerPage = (value: number) => {
   itemsPerPage.value = value
@@ -239,40 +302,112 @@ watch(() => props.initialCurrentPage, (newVal) => {
 </script>
 
 <style scoped>
-.no-border-table {
-  border: none;
-  box-shadow: none;
+.no-border-table .v-data-table__wrapper table,
+.no-border-table .v-data-table__wrapper table thead,
+.no-border-table .v-data-table__wrapper table tbody,
+.no-border-table .v-data-table__wrapper table tr,
+.no-border-table .v-data-table__wrapper table th,
+.no-border-table .v-data-table__wrapper table td {
+  border: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
 }
+
 .table-row {
-  height: 56px;
+  height: 56px !important;
 }
+
+.v-data-table > .v-data-table__wrapper > table > tbody > tr > td:nth-child(1),
+.v-data-table > .v-data-table__wrapper > table > thead > tr > th:nth-child(1) {
+  width: 56px !important;
+  padding-left: 16px !important;
+  padding-right: 0px !important;
+}
+
+.v-data-table > .v-data-table__wrapper > table > tbody > tr > td:nth-child(2),
+.v-data-table > .v-data-table__wrapper > table > thead > tr > th:nth-child(2) {
+  width: 200px !important;
+  padding-left: 0px !important;
+  padding-right: 0px !important;
+}
+
+.v-data-table > .v-data-table__wrapper > table > tbody > tr > td:nth-child(3),
+.v-data-table > .v-data-table__wrapper > table > thead > tr > th:nth-child(3) {
+  width: 250px !important;
+  padding-left: 0px !important;
+  padding-right: 0px !important;
+}
+
+.v-data-table > .v-data-table__wrapper > table > tbody > tr > td:nth-child(4),
+.v-data-table > .v-data-table__wrapper > table > thead > tr > th:nth-child(4) {
+  width: 100px !important;
+  padding-left: 0px !important;
+  padding-right: 0px !important;
+}
+
+.v-data-table > .v-data-table__wrapper > table > tbody > tr > td:nth-child(5),
+.v-data-table > .v-data-table__wrapper > table > thead > tr > th:nth-child(5) {
+  width: 230px !important;
+  padding-left: 0px !important;
+  padding-right: 0px !important;
+  white-space: nowrap;
+}
+
+.v-data-table > .v-data-table__wrapper > table > tbody > tr > td:nth-last-child(1),
+.v-data-table > .v-data-table__wrapper > table > thead > tr > th:nth-last-child(1) {
+  padding-right: 16px !important;
+}
+
+.naziv-text,
+.opis-text {
+  font-family: Roboto, sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: 0.25px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .cell-naziv {
   width: 100%;
   overflow: hidden;
+  height: 56px;
 }
-.naziv-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.opis-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+
 .cell-actions {
   display: flex;
   justify-content: flex-end;
 }
+
 .avatar-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.v-data-table :deep(.v-data-table__td),
-.v-data-table :deep(.v-data-table__th) {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+.delete-dialog-card {
+  border-radius: 8px !important;
+}
+
+.dialog-title {
+  font-size: 18px !important;
+  font-weight: 500 !important;
+  color: #333 !important;
+  padding-bottom: 0 !important;
+}
+
+.dialog-text {
+  color: #666 !important;
+  font-size: 14px !important;
+}
+
+.dialog-actions {
+  padding: 8px 16px 16px 16px !important;
+}
+
+.dialog-btn {
+  font-weight: 500 !important;
 }
 </style>

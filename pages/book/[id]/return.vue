@@ -21,9 +21,6 @@
         <h2 class="table-title">Vrati knjigu</h2>
       </div>
 
-      <v-alert v-if="error" type="error" class="mb-4" closable @click:close="error = null">{{ error }}</v-alert>
-      <v-alert v-if="successMessage" type="success" class="mb-4" closable @click:close="successMessage = null">{{ successMessage }}</v-alert>
-
       <v-data-table
         :headers="tableHeaders"
         :items="issuedBooks"
@@ -62,14 +59,14 @@
           <div class="text-center py-8">
             <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-book-check-outline</v-icon>
             <h3 class="text-h6 mb-2 text-grey-darken-1">Nema izdatih primeraka</h3>
-            <p class="text-body-2 text-grey">Svi primerci ove knjige su vraćeni ili trenutno nisu izdati.</p>
+            <p class="text-body-2 text-grey">Svi primerci ove knjige su vraćeni ili trenutno nijesu izdati.</p>
           </div>
         </template>
 
         <template #bottom>
           <div class="pagination-and-actions">
             <v-spacer></v-spacer>
-            <ActionButtons @save="handleReturnAction" @cancel="cancel" :saveText="'Vrati knjigu'" />
+            <ActionButtons @save="showReturnDialog" @cancel="cancel" :saveText="'Vrati knjigu'" />
           </div>
         </template>
       </v-data-table>
@@ -82,10 +79,67 @@
         class="pagination-footer mt-4"
       />
     </div>
+
+    <v-dialog v-model="returnDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-h5">Potvrdi vraćanje</v-card-title>
+        <v-card-text>
+          Da li ste sigurni da želite da vratite izabranih {{ selected.length }} primjerak(a) knjige "{{ book?.naziv_knjige }}"?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="returnDialog = false" color="#3392EA">
+            Otkaži
+          </v-btn>
+          <v-btn variant="text" @click="confirmReturn" color="#3392EA">
+            Potvrdi
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-snackbar
+      v-model="successSnackbar.show"
+      color="#3392EA"
+      :timeout="3000"
+      top
+    >
+      {{ successSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="successSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
+    
+    <v-snackbar
+      v-model="errorSnackbar.show"
+      color="error"
+      :timeout="5000"
+      top
+    >
+      {{ errorSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="errorSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth']
+})
 import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from '@/axios';
@@ -101,9 +155,22 @@ const book = ref(null);
 const bookId = route.params.id;
 const issuedBooks = ref([]);
 const loading = ref(false);
-const error = ref(null);
-const successMessage = ref(null);
 const selected = ref([]);
+
+// Snackbar state za uspjeh
+const successSnackbar = ref({
+  show: false,
+  text: '',
+});
+
+// Snackbar state za greške
+const errorSnackbar = ref({
+  show: false,
+  text: '',
+});
+
+// Dialog state
+const returnDialog = ref(false);
 
 // Paginacija
 const itemsPerPage = ref(20);
@@ -165,11 +232,10 @@ const calculateOverdueDays = (issueDateString, rentalDays = 30) => {
 // --- API FUNKCIJE ---
 async function fetchIssuedBooks() {
   loading.value = true;
-  error.value = null;
   selected.value = [];
   
   try {
-    if (!token) throw new Error('Niste prijavljeni');
+    if (!token) throw new Error('Nijeste prijavljeni');
 
     const response = await axios.get(`${apiBaseUrl}/api/rentals/active`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -178,11 +244,10 @@ async function fetchIssuedBooks() {
     
     const rentalsData = response.data.data?.data || [];
     
-    // ISPRAVLJENO: Mapiranje podataka sa backenda na format koji našoj komponenti treba
     issuedBooks.value = rentalsData.map(rental => ({
       rental_id: rental.rental_id,
       izdato_uceniku: `${rental.rented_by.first_name} ${rental.rented_by.last_name}`,
-      student_profile_picture: rental.rented_by.profile_picture || null, // Ako backend šalje sliku
+      student_profile_picture: rental.rented_by.profile_picture || null,
       datum_izdavanja: rental.rental_date,
       trenutno_zadrzavanje_knjige: calculateCurrentDays(rental.rental_date),
       prekoracenje_u_danima: calculateOverdueDays(rental.rental_date),
@@ -192,7 +257,7 @@ async function fetchIssuedBooks() {
     totalItems.value = response.data.data?.total || 0;
   } catch (err) {
     console.error('Greška pri učitavanju izdatih knjiga:', err);
-    error.value = `Greška pri učitavanju izdatih knjiga: ${err.response?.data?.message || err.message}`;
+    showErrorSnackbar(`Greška pri učitavanju izdatih knjiga: ${err.response?.data?.message || err.message}`);
     if (err.response?.status === 401) router.push('/login');
   } finally {
     loading.value = false;
@@ -201,7 +266,7 @@ async function fetchIssuedBooks() {
 
 async function fetchBookDetails() {
   try {
-    if (!token) throw new Error('Niste prijavljeni');
+    if (!token) throw new Error('Nijeste prijavljeni');
     const response = await axios.get(`${apiBaseUrl}/api/books/${bookId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -211,17 +276,16 @@ async function fetchBookDetails() {
     };
   } catch (err) {
     console.error('Greška pri učitavanju detalja o knjizi:', err);
+    showErrorSnackbar('Greška pri učitavanju detalja o knjizi. Provjerite postoji li knjiga sa ovim ID-om.');
     book.value = { id: bookId, naziv_knjige: 'Knjiga nije pronađena' };
   }
 }
 
 async function returnBooks(rentalIds) {
   loading.value = true;
-  error.value = null;
-  successMessage.value = null;
-
+  
   try {
-    if (!token) throw new Error('Niste prijavljeni');
+    if (!token) throw new Error('Nijeste prijavljeni');
     if (!rentalIds || rentalIds.length === 0) throw new Error('Nema ID-jeva za vraćanje');
 
     const promises = rentalIds.map(rentalId => 
@@ -235,7 +299,7 @@ async function returnBooks(rentalIds) {
   } catch (err) {
     console.error('Greška pri vraćanju knjiga:', err);
     const errorMessage = `Greška pri vraćanju knjiga: ${err.response?.data?.error || err.response?.data?.message || err.message}`;
-    error.value = errorMessage;
+    showErrorSnackbar(errorMessage);
     return { success: false, error: errorMessage };
   } finally {
     loading.value = false;
@@ -243,24 +307,30 @@ async function returnBooks(rentalIds) {
 }
 
 // --- HANDLER FUNKCIJE ---
-const handleReturnAction = async () => {
-  error.value = null;
-  successMessage.value = null;
+const showSuccessSnackbar = (message) => {
+  successSnackbar.value.text = message;
+  successSnackbar.value.show = true;
+};
 
-  const rentalIdsToReturn = selected.value;
+const showErrorSnackbar = (message) => {
+  errorSnackbar.value.text = message;
+  errorSnackbar.value.show = true;
+};
 
-  if (rentalIdsToReturn.length === 0) {
-    error.value = 'Morate izabrati barem jedan primerak knjige za vraćanje.';
+const showReturnDialog = () => {
+  if (selected.value.length === 0) {
+    showErrorSnackbar('Morate izabrati barem jedan primjerak knjige za vraćanje.');
     return;
   }
-  
-  const confirmation = confirm(`Da li ste sigurni da želite da vratite ${rentalIdsToReturn.length} izabran(a) primerak/primerka?`);
-  if (!confirmation) return;
-  
-  const result = await returnBooks(rentalIdsToReturn);
+  returnDialog.value = true;
+};
+
+const confirmReturn = async () => {
+  returnDialog.value = false;
+  const result = await returnBooks(selected.value);
   
   if (result.success) {
-    successMessage.value = `Uspešno vraćeno ${result.count} knjiga!`;
+    showSuccessSnackbar(`Uspješno vraćeno ${result.count} knjiga!`);
     selected.value = [];
     await fetchIssuedBooks();
   }

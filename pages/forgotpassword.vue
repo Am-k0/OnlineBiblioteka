@@ -55,13 +55,13 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-// import api from '@/axios'; // Uklonjeno za sada, dodajemo kasnije za logiku
+import api from '@/axios'; // Vraćeno za API pozive
 
 const router = useRouter();
 
 const email = ref('');
 const errorMsg = ref<string | null>(null);
-const successMsg = ref<string | null>(null); // Dodato za poruku o uspehu
+const successMsg = ref<string | null>(null);
 const loading = ref(false);
 const formIsValid = ref(false);
 
@@ -70,7 +70,7 @@ const emailRules = [
   (v: string) => /.+@.+\..+/.test(v) || 'Email nije validan',
 ];
 
-// Ova funkcija će za sada biti prazna, dodaćemo logiku u sledećem koraku
+// Integracija sa backend API-jem
 async function sendResetLink() {
   if (!formIsValid.value) {
     errorMsg.value = 'Molimo unesite validan email.';
@@ -82,22 +82,45 @@ async function sendResetLink() {
   successMsg.value = null;
 
   try {
-    // Logika za slanje zahteva ka backendu će ići ovde
-    // Na primer:
-    // const response = await api.post('/forgot-password', { email: email.value });
-    // successMsg.value = response.data.message || 'Link za resetovanje šifre je poslat na vašu e-mail adresu.';
+    // API poziv prema /forgot-password endpoint-u
+    const response = await api.post('/forgot-password', { 
+      email: email.value 
+    });
 
-    console.log('Slanje linka za resetovanje šifre na:', email.value);
-    successMsg.value = 'Test poruka: Link za resetovanje šifre je poslat (logika će biti dodata).';
-
-    // Resetuj polje nakon slanja (opciono)
+    // Uspešan odgovor
+    successMsg.value = response.data.message || 'Link za resetovanje šifre je poslat na vašu e-mail adresu.';
+    
+    // Resetuj polje nakon uspešnog slanja
     email.value = '';
+    
+    console.log('Link za resetovanje šifre uspešno poslat na:', email.value);
     
   } catch (error: any) {
     console.error('Greška pri slanju linka za resetovanje:', error);
-    // errorMsg.value = error.response?.data?.message || 'Došlo je do greške pri slanju linka.';
-    errorMsg.value = 'Test poruka: Došlo je do greške pri slanju linka (logika će biti dodata).';
-
+    
+    // Handling različitih tipova grešaka
+    if (error.response) {
+      // Server je odgovorio sa greškom
+      if (error.response.status === 422) {
+        // Validation greška
+        const validationErrors = error.response.data.errors;
+        if (validationErrors && validationErrors.email) {
+          errorMsg.value = validationErrors.email[0];
+        } else {
+          errorMsg.value = error.response.data.message || 'Email adresa ne postoji u našoj bazi.';
+        }
+      } else if (error.response.status === 400) {
+        errorMsg.value = error.response.data.message || 'Došlo je do greške pri slanju linka.';
+      } else {
+        errorMsg.value = 'Došlo je do neočekivane greške. Pokušajte ponovo.';
+      }
+    } else if (error.request) {
+      // Nema odgovora od servera
+      errorMsg.value = 'Nema odgovora od servera. Proverite internetsku vezu.';
+    } else {
+      // Druga greška
+      errorMsg.value = 'Došlo je do greške pri slanju linka.';
+    }
   } finally {
     loading.value = false;
   }
@@ -109,12 +132,13 @@ async function sendResetLink() {
 .login-bg {
   min-height: 100vh;
   width: 100vw;
-  background: url('@/assets/background.png') no-repeat center center; /* Proveri putanju do slike */
+  background: url('@/assets/background.png') no-repeat center center;
   background-size: cover;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
 .login-wrapper {
   display: flex;
   justify-content: center;
@@ -123,9 +147,10 @@ async function sendResetLink() {
   width: 100vw;
   backdrop-filter: blur(2px);
 }
+
 .login-card {
   width: 495px;
-  height: 394px; /* Ostavljeno isto, pošto si tražio identičnu veličinu */
+  height: 394px;
   padding: 24px;
   box-sizing: border-box;
   display: flex;
@@ -135,6 +160,7 @@ async function sendResetLink() {
   background: white;
   border-radius: 16px;
 }
+
 .login-title {
   font-family: Roboto, sans-serif;
   font-weight: 500;
@@ -144,22 +170,26 @@ async function sendResetLink() {
   text-align: center;
   margin-bottom: 16px;
 }
+
 .title-line {
   width: 431px;
   height: 1px;
   background-color: #e0e0e0;
   margin: 0 auto 24px auto;
 }
+
 .login-form {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
+
 .input-field {
   width: 100%;
   border-radius: 4px;
 }
+
 .login-button {
   width: 100%;
   height: 48px;
@@ -168,19 +198,21 @@ async function sendResetLink() {
   line-height: 16px;
   letter-spacing: 1.25px;
   text-transform: uppercase;
-  margin-top: 20px; /* Možda će trebati prilagoditi ako je forma kraća */
+  margin-top: 20px;
   margin-bottom: 10px;
   background-color: #3392EA !important;
   color: white !important;
   box-shadow: none;
   border-radius: 4px;
 }
+
 .forgot-link {
   width: 100%;
   text-align: left;
   margin-bottom: 6px;
   margin-top: 6px;
 }
+
 .forgot-link a {
   color: #3392EA;
   text-decoration: none;
@@ -191,6 +223,7 @@ async function sendResetLink() {
   padding-left: 8px;
   padding-right: 8px;
 }
+
 .login-footer {
   margin-top: 12px;
   font-size: 13px;
@@ -200,6 +233,7 @@ async function sendResetLink() {
   text-align: center;
   width: 100%;
 }
+
 .error-text {
   color: #e53935;
   font-size: 13px;
@@ -208,6 +242,7 @@ async function sendResetLink() {
   text-align: left;
   width: 100%;
 }
+
 .success-text {
   color: #4CAF50; 
   font-size: 13px;

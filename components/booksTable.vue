@@ -40,14 +40,14 @@
             @izdaj="handleIzdaj"
             @vrati="handleVrati"
             @rezervisi="handleRezervisi"
-            @error="setError"
+            @error="showErrorSnackbar"
             :show-view="true"
-            :show-edit="true"
-            :show-delete="true"
-            :show-otpisi="true"
-            :show-izdaj="true"
-            :show-vrati="true"
-            :show-rezervisi="true"
+            :show-edit="isLibrarian"
+            :show-delete="isLibrarian"
+            :show-otpisi="isLibrarian"
+            :show-izdaj="isLibrarian"
+            :show-vrati="isLibrarian || isStudent"
+            :show-rezervisi="isLibrarian || isStudent"
           />
         </div>
       </template>
@@ -64,21 +64,18 @@
       class="pagination-footer mt-4"
     />
 
-    <v-alert v-if="error" type="error" class="mt-4" dismissible @input="error = null">
-      {{ error }}
-    </v-alert>
-
     <v-snackbar
-      v-model="successMessage.show"
-      :color="successMessage.color"
-      :timeout="3000"
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="5000"
+      top
     >
-      {{ successMessage.text }}
+      {{ snackbar.text }}
       <template v-slot:actions>
         <v-btn
           color="white"
           variant="text"
-          @click="successMessage.show = false"
+          @click="snackbar.show = false"
         >
           Zatvori
         </v-btn>
@@ -88,25 +85,35 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import axios from '@/axios'
 import ActionMenu from '@/components/ActionMenu.vue'
 import PaginationFooter from '@/components/PaginationFooter.vue'
 import { navigateTo } from '#app';
 
+const props = defineProps({
+  search: {
+    type: String,
+    default: ''
+  }
+})
+
 const books = ref([])
 const loading = ref(false)
-const error = ref(null)
 const defaultBookCover = '/images/default-book-1.jpg'
 const itemsPerPage = ref(20)
 const currentPage = ref(1)
 const totalItems = ref(0)
+const user = ref(null);
 
-const successMessage = ref({
+const snackbar = ref({
   show: false,
   text: '',
-  color: 'success'
+  color: 'success',
 })
+
+const isLibrarian = computed(() => user.value && user.value.role === 'librarian');
+const isStudent = computed(() => user.value && user.value.role === 'student');
 
 const visibleHeaders = [
   { title: 'Naziv knjige', key: 'naziv_knjige', align: 'start', sortable: true },
@@ -122,38 +129,34 @@ const visibleHeaders = [
 
 const itemClass = () => 'table-row'
 
-function setError(err) {
-  error.value = err
+function showErrorSnackbar(message) {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.show = true;
 }
 
-function showSuccessMessage(message) {
-  successMessage.value = {
-    show: true,
-    text: message,
-    color: 'success'
-  }
+function showSuccessSnackbar(message) {
+  snackbar.value.text = message;
+  snackbar.value.color = 'success';
+  snackbar.value.show = true;
 }
 
-// *** IZMENA JE SAMO U OVOJ FUNKCIJI ***
 async function fetchBooks(page = 1, perPage = 20) {
   loading.value = true
-  error.value = null
   
   try {
-    // KORAK 1: Paralelno pokreni sve potrebne API pozive
     const [
       booksResponse,
       activeRentalsResponse,
       overdueRentalsResponse,
       activeReservationsResponse
     ] = await Promise.all([
-      axios.get('/books', { params: { page, per_page: perPage } }),
+      axios.get('/books', { params: { page, per_page: perPage, search_value: props.search } }),
       axios.get('/rentals/active?book=true'),
       axios.get('/rentals/overdue?book=true'),
       axios.get('/reservations/active?book=true')
     ]);
 
-    // KORAK 2: Izvuci podatke iz odgovora
     const booksData = booksResponse.data.books.data || [];
     totalItems.value = booksResponse.data.books.total || 0;
     
@@ -161,9 +164,6 @@ async function fetchBooks(page = 1, perPage = 20) {
     const overdueRentals = overdueRentalsResponse.data.data?.data || [];
     const activeReservations = activeReservationsResponse.data.reservations?.data || [];
 
-    // KORAK 3: Pripremi podatke za brojanje
-    
-    // 3.A - Kreiraj mapu koja povezuje rental_id -> book_id iz aktivnih zaduženja
     const rentalIdToBookIdMap = {};
     activeRentals.forEach(rental => {
         if (rental.rental_id && rental.book_id) {
@@ -171,7 +171,6 @@ async function fetchBooks(page = 1, perPage = 20) {
         }
     });
 
-    // 3.B - Prebroj izdate knjige (ovo ostaje isto)
     const issuedCounts = {};
     activeRentals.forEach(rental => {
       if (rental.book_id) {
@@ -179,17 +178,14 @@ async function fetchBooks(page = 1, perPage = 20) {
       }
     });
 
-    // 3.C - Prebroj knjige u prekoračenju KORISTEĆI MAPU
     const overdueCounts = {};
     overdueRentals.forEach(overdue => {
-        // Pronađi book_id preko mape napravljene u koraku 3.A
         const bookId = rentalIdToBookIdMap[overdue.rental_id];
         if (bookId) {
             overdueCounts[bookId] = (overdueCounts[bookId] || 0) + 1;
         }
     });
     
-    // 3.D - Prebroj rezervisane knjige (ovo ostaje isto)
     const reservedCounts = {};
     activeReservations.forEach(reservation => {
       if (reservation.book_id) {
@@ -197,7 +193,6 @@ async function fetchBooks(page = 1, perPage = 20) {
       }
     });
 
-    // KORAK 4: Mapiraj podatke i dodaj izračunate vrednosti
     books.value = booksData.map(book => {
       const total_copies = book.number_of_copies_available || 0;
       const issued_count = issuedCounts[book.id] || 0;
@@ -217,13 +212,13 @@ async function fetchBooks(page = 1, perPage = 20) {
         ukupna_kolicina: total_copies,
         izdato: issued_count,
         rezervisano: reserved_count,
-        u_prekoracenju: overdueCounts[book.id] || 0, // Sada koristi ispravno popunjen objekat
+        u_prekoracenju: overdueCounts[book.id] || 0,
         na_raspolaganju: total_copies - issued_count - reserved_count,
       }
     })
     
   } catch (err) {
-    error.value = 'Greška pri učitavanju podataka. Proverite da li su svi API endpointi dostupni.';
+    showErrorSnackbar('Greška pri učitavanju podataka. Proverite da li su svi API endpointi dostupni.');
     console.error('Fetch data error:', err);
     books.value = [];
   } finally {
@@ -237,7 +232,45 @@ function getImageUrl(book) {
   return image ? `${axios.defaults.baseURL}/storage/${image.path}` : undefined;
 }
 
-async function handleDelete(item) { if (!item || !item.id) { setError('Greška: Podaci o knjizi nisu dostupni.'); return; } const confirmed = confirm(`Da li ste sigurni da želite da obrišete knjigu "${item.naziv_knjige}"?`); if (!confirmed) return; const doubleConfirmed = confirm('Poslednja potvrda: Da li stvarno želite da obrišete ovu knjigu?'); if (!doubleConfirmed) return; loading.value = true; error.value = null; try { await axios.delete(`/books/${item.id}/destroy`); const bookIndex = books.value.findIndex(book => book.id === item.id); if (bookIndex !== -1) { books.value.splice(bookIndex, 1); totalItems.value = Math.max(0, totalItems.value - 1); } showSuccessMessage(`Knjiga "${item.naziv_knjige}" je uspešno obrisana!`); const totalPages = Math.ceil(totalItems.value / itemsPerPage.value); if (currentPage.value > totalPages && totalPages > 0) { currentPage.value = totalPages; } if (books.value.length === 0 && totalItems.value > 0) { await fetchBooks(currentPage.value, itemsPerPage.value); } } catch (err) { console.error('Greška pri brisanju knjige:', err); if (err.response) { setError(err.response.data?.message || 'Došlo je do greške na serveru.'); } else { setError('Greška mreže. Proverite internetsku konekciju.'); } } finally { loading.value = false; } }
+// Izmijenjena metoda handleDelete
+async function handleDelete(item) {
+  if (!item || !item.id) {
+    showErrorSnackbar('Greška: Podaci o knjizi nisu dostupni.');
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    await axios.delete(`/books/${item.id}/destroy`);
+    
+    const bookIndex = books.value.findIndex(book => book.id === item.id);
+    if (bookIndex !== -1) {
+      books.value.splice(bookIndex, 1);
+      totalItems.value = Math.max(0, totalItems.value - 1);
+    }
+    
+    showSuccessSnackbar(`Knjiga "${item.naziv_knjige}" je uspješno obrisana!`);
+    
+    const totalPages = Math.ceil(totalItems.value / itemsPerPage.value);
+    if (currentPage.value > totalPages && totalPages > 0) {
+      currentPage.value = totalPages;
+    }
+    if (books.value.length === 0 && totalItems.value > 0) {
+      await fetchBooks(currentPage.value, itemsPerPage.value);
+    }
+  } catch (err) {
+    console.error('Greška pri brisanju knjige:', err);
+    if (err.response) {
+      showErrorSnackbar(err.response.data?.message || 'Došlo je do greške na serveru.');
+    } else {
+      showErrorSnackbar('Greška mreže. Proverite internetsku konekciju.');
+    }
+  } finally {
+    loading.value = false;
+  }
+}
+
 function handleEdit(item) { if (item && item.id) navigateTo(`/book/${item.id}/edit`); }
 function handleView(item) { if (item && item.id) navigateTo(`/book/${item.id}`); }
 function handleOtpisi(item) { if (item && item.id) navigateTo(`/book/${item.id}/discard`); }
@@ -246,12 +279,16 @@ function handleVrati(item) { if (item && item.id) navigateTo(`/book/${item.id}/r
 function handleRezervisi(item) { if (item && item.id) navigateTo(`/book/${item.id}/reserve`); }
 
 
-watch([itemsPerPage, currentPage], () => {
+watch([itemsPerPage, currentPage, () => props.search], () => {
   fetchBooks(currentPage.value, itemsPerPage.value)
 })
 
 onMounted(() => {
-  fetchBooks(currentPage.value, itemsPerPage.value)
+  if (process.client) {
+    const storedUser = localStorage.getItem('user');
+    user.value = storedUser ? JSON.parse(storedUser) : null;
+  }
+  fetchBooks(currentPage.value, itemsPerPage.value);
 })
 </script>
 

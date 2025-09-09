@@ -39,19 +39,50 @@
           </v-chip>
         </div>
       </template>
+      
+      <template v-slot:item.actions="{ item }">
+        <div class="cell-actions">
+          <ActionMenu
+            :item="item"
+            entity-name="arhiviranu rezervaciju"
+            title-property="student_name"
+            :show-view="true"
+            :show-delete="false"
+            :show-otpisi="false"
+            :show-izdaj="false"
+            :show-vrati="false"
+            :show-rezervisi="false"
+            @view="viewDetails"
+          />
+        </div>
+      </template>
 
       <template v-slot:no-data>
         <div class="text-center py-8">
           <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-book-remove-outline</v-icon>
-          <h3 class="text-h6 mb-2 text-grey-darken-1">Nema arhiviranih rezervacija</h3>
+          <h3 class="text-h6 mb-2 text-grey-darken-1">Nema arhiviranih rezervacija za ovu knjigu</h3>
           <p class="text-body-2 text-grey">Ova knjiga nema arhiviranih rezervacija.</p>
         </div>
       </template>
     </v-data-table>
 
-    <v-alert v-if="error" type="error" class="mt-4">
-      {{ error }}
-    </v-alert>
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
@@ -59,25 +90,36 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import ActionMenu from '@/components/ActionMenu.vue';
 
 const route = useRoute();
 const router = useRouter();
 const archivedReservations = ref([]);
 const loading = ref(true);
-const error = ref(null);
 const defaultAvatar = '/images/default-user-1.jpg';
 const apiBaseUrl = 'http://localhost';
+
+// Snackbar state
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 5000,
+});
 
 const headers = [
   { title: 'Datum rezervacije', key: 'reserved_at', sortable: true },
   { title: 'Rezervacija ističe', key: 'expires_at', sortable: true },
   { title: 'Rezervaciju podnio', key: 'student', sortable: false, minWidth: '200px' },
   { title: 'Status', key: 'status', sortable: true, align: 'center' },
+  { title: '', key: 'actions', sortable: false, align: 'end', width: '60px' },
 ];
 
-const setError = (err) => {
-    error.value = err;
-    setTimeout(() => error.value = null, 5000);
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = null; // Bez tajmera
+  snackbar.value.show = true;
 };
 
 const formatDate = (dateString) => {
@@ -127,13 +169,11 @@ const formattedReservations = computed(() => {
 
 const fetchArchivedReservations = async () => {
     loading.value = true;
-    error.value = null;
     
     try {
         const bookId = route.params.id;
         if (!bookId) {
-            console.error('ID knjige nije pronađen u URL-u.');
-            setError('ID knjige nije pronađen u URL-u.');
+            showErrorSnackbar('ID knjige nije pronađen u URL-u.');
             archivedReservations.value = [];
             return;
         }
@@ -168,7 +208,7 @@ const fetchArchivedReservations = async () => {
     } catch (error) {
         console.error('Greška pri dohvatanju arhiviranih rezervacija:', error);
         const errorMessage = error.response?.data?.message || error.message || 'Nepoznata greška';
-        setError('Greška pri učitavanju arhiviranih rezervacija: ' + errorMessage);
+        showErrorSnackbar('Greška pri učitavanju arhiviranih rezervacija: ' + errorMessage);
         
         if (error.response?.status === 401) {
             router.push('/login');
@@ -178,6 +218,12 @@ const fetchArchivedReservations = async () => {
     } finally {
         loading.value = false;
     }
+};
+
+const viewDetails = (item) => {
+  if (item && item.id) {
+    router.push(`/loan-management/reservation/${item.id}`);
+  }
 };
 
 onMounted(() => {

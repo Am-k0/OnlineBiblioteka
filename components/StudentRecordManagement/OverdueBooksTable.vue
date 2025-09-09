@@ -1,6 +1,5 @@
 <template>
   <div class="table-container">
-    <h2>Knjige u prekoračenju</h2>
     <div class="content-area">
       <v-data-table
         :headers="headers"
@@ -55,8 +54,8 @@
               entity-name="knjigu u prekoračenju"
               title-property="book_title"
               :show-view="true"
-              :show-vrati="true"
-              :show-otpisi="true"
+              :show-vrati="isLibrarian"
+              :show-otpisi="isLibrarian"
               :show-izdaj="false"
               :show-edit="false"
               :show-delete="false"
@@ -64,13 +63,17 @@
               @view="handleView"
               @vrati="handleVrati"
               @otpisi="handleOtpisi"
-              @error="setError"
+              @error="showErrorSnackbar"
             />
           </div>
         </template>
   
         <template #no-data>
-          <v-alert>Ovaj student nema knjiga u prekoračenju.</v-alert>
+          <div class="text-center py-8">
+            <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-timer-off-outline</v-icon>
+            <h3 class="text-h6 mb-2 text-grey-darken-1">Nema knjiga u prekoračenju</h3>
+            <p class="text-body-2 text-grey">Ovaj korisnik trenutno nema knjiga u prekoračenju.</p>
+          </div>
         </template>
       </v-data-table>
   
@@ -83,9 +86,23 @@
         @update:currentPage="fetchOverdueBooks"
       />
       
-      <v-alert v-if="error" type="error" class="mt-4">
-        {{ error }}
-      </v-alert>
+      <v-snackbar
+        v-model="snackbar.show"
+        :color="snackbar.color"
+        :timeout="snackbar.timeout"
+        top
+      >
+        {{ snackbar.text }}
+        <template v-slot:actions>
+          <v-btn
+            color="white"
+            variant="text"
+            @click="snackbar.show = false"
+          >
+            Zatvori
+          </v-btn>
+        </template>
+      </v-snackbar>
     </div>
   </div>
 </template>
@@ -100,14 +117,23 @@ import ActionMenu from '@/components/ActionMenu.vue';
 const route = useRoute();
 const overdueBooks = ref([]);
 const loading = ref(false);
-const error = ref(null);
 const studentId = ref(null);
+const userRole = ref('');
 
 const itemsPerPage = ref(20);
 const currentPage = ref(1);
 const totalItems = ref(0);
 
 const defaultBookCover = '/images/default-book-1.jpg';
+const apiBaseUrl = 'http://localhost';
+
+// Snackbar state
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 5000,
+});
 
 const headers = ref([
   { title: 'Naziv Knjige', key: 'book_title', sortable: true },
@@ -117,9 +143,13 @@ const headers = ref([
   { title: '', key: 'actions', align: 'end', sortable: false },
 ]);
 
-const setError = (err) => {
-  error.value = err;
-  setTimeout(() => error.value = null, 5000);
+const isLibrarian = computed(() => userRole.value === 'librarian');
+
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = null; // Bez tajmera
+  snackbar.value.show = true;
 };
 
 const formatDate = (dateString) => {
@@ -159,7 +189,7 @@ const formatHoldDuration = (totalDays) => {
 const getStudentIdByUsername = async (username) => {
   try {
     const token = localStorage.getItem('auth_token');
-    const response = await axios.get(`http://localhost/api/users/${username}`, {
+    const response = await axios.get(`${apiBaseUrl}/api/users/${username}`, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
@@ -168,13 +198,34 @@ const getStudentIdByUsername = async (username) => {
     return response.data?.[0]?.id || null;
   } catch (err) {
     console.error('Greška pri dohvaćanju ID-a korisnika po username-u:', err);
+    showErrorSnackbar('Greška pri dohvaćanju podataka korisnika: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'));
     return null;
+  }
+};
+
+const fetchUserRole = async () => {
+  try {
+    const token = localStorage.getItem('auth_token');
+    if (!token) throw new Error('Niste prijavljeni');
+    
+    const response = await axios.get(`${apiBaseUrl}/api/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
+    userRole.value = response.data.role.name;
+  } catch (err) {
+    console.error('Greška pri dohvaćanju uloge korisnika:', err);
+    showErrorSnackbar('Greška pri dohvaćanju uloge korisnika: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'));
+    userRole.value = 'student';
   }
 };
 
 const fetchOverdueBooks = async () => {
   loading.value = true;
-  error.value = null;
 
   try {
     const token = localStorage.getItem('auth_token');
@@ -199,7 +250,7 @@ const fetchOverdueBooks = async () => {
       student_id: studentId.value,
     };
 
-    const response = await axios.get(`http://localhost/api/rentals/overdue`, {
+    const response = await axios.get(`${apiBaseUrl}/api/rentals/overdue`, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
@@ -212,14 +263,15 @@ const fetchOverdueBooks = async () => {
     totalItems.value = data.total || 0;
   } catch (err) {
     console.error('Greška pri učitavanju knjiga u prekoračenju:', err);
-    error.value = 'Greška pri učitavanju knjiga u prekoračenju: ' +
-      (err.response?.data?.message || err.message || 'Nepoznata greška');
+    showErrorSnackbar('Greška pri učitavanju knjiga u prekoračenju: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'));
   } finally {
     loading.value = false;
   }
 };
 
 onMounted(() => {
+  fetchUserRole();
   fetchOverdueBooks();
 });
 
@@ -246,13 +298,21 @@ const handleView = (item) => {
 };
 
 const handleVrati = (item) => {
-  console.log(`Vraćanje knjige: ${item.book_title} (ID: ${item.id})`);
-  // Ovdje ide logika za API poziv za vraćanje knjige
+  if (isLibrarian.value) {
+    console.log(`Vraćanje knjige: ${item.book_title} (ID: ${item.id})`);
+    // Ovdje ide logika za API poziv za vraćanje knjige
+  } else {
+    showErrorSnackbar('Nemate ovlašćenje za ovu akciju.');
+  }
 };
 
 const handleOtpisi = (item) => {
-  console.log(`Otpisivanje knjige: ${item.book_title} (ID: ${item.id})`);
-  // Ovdje ide logika za API poziv za otpisivanje
+  if (isLibrarian.value) {
+    console.log(`Otpisivanje knjige: ${item.book_title} (ID: ${item.id})`);
+    // Ovdje ide logika za API poziv za otpisivanje
+  } else {
+    showErrorSnackbar('Nemate ovlašćenje za ovu akciju.');
+  }
 };
 </script>
 

@@ -42,11 +42,21 @@
             </div>
           </template>
 
+          <template v-slot:item.actions="{ item }">
+            <ActionMenu
+              :item="item"
+              :show-view="true"
+              @view="viewDetails"
+              entity-name="rezervaciju"
+              title-property="book_title"
+            />
+          </template>
+
           <template v-slot:no-data>
             <div class="text-center py-8">
               <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-book-remove-outline</v-icon>
               <h3 class="text-h6 mb-2 text-grey-darken-1">Nema arhiviranih rezervacija</h3>
-              <p class="text-body-2 text-grey">Ovaj učenik nema arhiviranih rezervacija.</p>
+              <p class="text-body-2 text-grey">Trenutno nema arhiviranih rezervacija za ovog korisnika.</p>
             </div>
           </template>
         </v-data-table>
@@ -63,6 +73,7 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import ActionMenu from '../ActionMenu.vue';
 
 // --- STANJE ---
 const route = useRoute();
@@ -81,6 +92,7 @@ const headers = [
   { title: 'Datum rezervacije', key: 'reserved_at', sortable: true },
   { title: 'Rezervacija ističe', key: 'expires_at', sortable: true },
   { title: 'Status', key: 'status', sortable: true, align: 'center' },
+  { title: '', key: 'actions', sortable: false, align: 'end', width: '60px' },
 ];
 
 // --- HELPER FUNKCIJE ---
@@ -198,7 +210,7 @@ const fetchArchivedReservations = async () => {
 
     const reservationsData = response.data.reservations?.data || response.data.data || [];
     
-    // Sada filtriramo samo na osnovu student ID-a, ne statusa
+    // Sada filtriramo samo na osnovu student ID-a
     const filteredReservations = reservationsData.filter(reservation => 
       String(reservation.student_id) === String(studentId.value)
     );
@@ -218,6 +230,10 @@ const fetchArchivedReservations = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const viewDetails = (item) => {
+  router.push(`/loan-management/reservation/${item.id}`);
 };
 
 // --- LIFECYCLE HOOKS ---

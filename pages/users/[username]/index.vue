@@ -24,7 +24,7 @@
           :item="user"
           :showView="false"
           :showEdit="true"
-          :showDelete="true"
+          :showDelete="isViewerLibrarian"
           :entityName="isStudent ? 'studenta' : 'bibliotekara'"
           titleProperty="first_name"
           @edit="handleEdit"
@@ -191,12 +191,19 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'auth-user-profile']
+})
+
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import ActionMenu from '~/components/ActionMenu.vue'
 import api from '@/axios'
 import StudentRecordManagement from '~/components/StudentRecordManagement.vue'
+
+// Dohvati podatke o trenutno ulogovanom korisniku koji gleda stranicu
+const loggedInUser = process.client ? JSON.parse(localStorage.getItem('user') || 'null') : null;
 
 interface User {
   id: number;
@@ -229,6 +236,12 @@ const snackbar = ref({
   timeout: 3000,
 })
 
+// Provjerava da li je korisnik koji gleda stranicu bibliotekar
+const isViewerLibrarian = computed(() => {
+  return loggedInUser?.role === 'librarian';
+});
+
+// Provjerava da li je korisnik čiji se profil prikazuje student
 const isStudent = computed(() => user.value?.role_id === 1)
 
 const showSnackbar = (message: string, color: string = 'info', timeout: number = 3000) => {
@@ -305,28 +318,38 @@ const handleEdit = () => {
 }
 
 const handleDelete = async (item: User) => {
-  const confirmed = confirm(`Da li ste sigurni da želite da obrišete ${isStudent.value ? 'studenta' : 'bibliotekara'} ${item.first_name} ${item.last_name}?`)
-  if (!confirmed) return
+  if (!item || !item.id) {
+    showSnackbar('Korisnik za brisanje nije definisan.', 'error');
+    return;
+  }
 
-  loading.value = true
+  loading.value = true;
   try {
-    await api.delete(`/users`, { data: { users_id: [item.id] } })
-    showSnackbar(`${isStudent.value ? 'Student' : 'Bibliotekar'} uspješno obrisan!`, 'success')
-    handleBackClick()
+    await api.delete(`/users`, { data: { users_id: [item.id] } });
+
+    // Sačuvaj poruku u localStorage pre preusmeravanja
+    const successMessage = `${item.first_name} ${item.last_name} je uspješno obrisan!`;
+    localStorage.setItem('deleteSuccessMessage', successMessage);
+    localStorage.setItem('deleteSnackbarColor', 'success');
+    localStorage.setItem('deleteSnackbarTimeout', '1500');
+
+    // Odmah preusmeri na listu korisnika
+    handleBackClick();
+
   } catch (error: any) {
     if (axios.isAxiosError(error) && error.response) {
-      showSnackbar(`Greška pri brisanju: ${error.response.data.message || 'Nepoznata greška'}`, 'error')
+      showSnackbar(`Greška pri brisanju: ${error.response.data.message || 'Nepoznata greška'}`, 'error');
     } else {
-      showSnackbar('Došlo je do mrežne greške ili greške servera pri brisanju.', 'error')
+      showSnackbar('Došlo je do mrežne greške ili greške servera pri brisanju.', 'error');
     }
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const handleResetPassword = () => {
   if (route.params.username) {
-    router.push(`/reset-password`)
+    router.push(`/change-password`)
   } else {
     showSnackbar('Korisničko ime nije definisano.', 'error')
   }

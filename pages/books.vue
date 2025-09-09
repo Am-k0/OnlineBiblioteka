@@ -9,6 +9,7 @@
     <div class="page-content">
       <div class="header-actions">
         <v-btn
+          v-if="user?.role === 'librarian'"
           color="primary"
           class="add-button"
           @click="onAddBook"
@@ -37,16 +38,27 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+definePageMeta({
+  middleware: ['auth']
+})
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import BooksTable from '@/components/booksTable.vue'
 
 const search = ref('')
 const router = useRouter()
+const user = ref(null)
 
 const onAddBook = () => {
   router.push('/newBook')
 }
+
+onMounted(() => {
+  if (process.client) {
+    const storedUser = localStorage.getItem('user')
+    user.value = storedUser ? JSON.parse(storedUser) : null
+  }
+})
 </script>
 
 <style scoped>
@@ -114,6 +126,10 @@ const onAddBook = () => {
   align-items: center !important;
   justify-content: center !important;
   box-shadow: none !important;
+}
+
+.search-wrapper {
+  margin-left: auto; 
 }
 
 .search-field {

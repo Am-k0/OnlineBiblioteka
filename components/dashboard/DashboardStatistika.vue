@@ -53,80 +53,64 @@ import axios from 'axios';
 import { useRouter } from 'vue-router';
 import { VProgressLinear } from 'vuetify/components';
 
-// Stanja
 const stats = ref([]);
 const loading = ref(false);
 const error = ref(null);
 const router = useRouter();
 
-// Definicije API ruta
 const apiBaseUrl = 'http://localhost';
 const activeRentalsUrl = `${apiBaseUrl}/api/rentals/active`;
 const overdueRentalsUrl = `${apiBaseUrl}/api/rentals/overdue`;
 const activeReservationsUrl = `${apiBaseUrl}/api/reservations/active`;
 
-/**
- * Dohvata ukupan broj aktivnih iznajmljivanja.
- */
+
 const fetchActiveRentalsCount = async () => {
   try {
     const token = localStorage.getItem('auth_token');
     const response = await axios.get(activeRentalsUrl, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    // Pristupanje nizu 'data' unutar 'data' objekta i vraćanje njegove dužine
-    return response.data.data.data.length;
+    return response.data.data.total;
   } catch (err) {
     console.error('Greška pri dohvatanju aktivnih iznajmljivanja:', err);
     return 0;
   }
 };
 
-/**
- * Dohvata ukupan broj knjiga u prekoračenju.
- */
 const fetchOverdueRentalsCount = async () => {
   try {
     const token = localStorage.getItem('auth_token');
     const response = await axios.get(overdueRentalsUrl, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    // Pristupanje nizu 'data' unutar 'data' objekta i vraćanje njegove dužine
-    return response.data.data.data.length;
+    return response.data.data.total;
   } catch (err) {
     console.error('Greška pri dohvatanju knjiga u prekoračenju:', err);
     return 0;
   }
 };
 
-/**
- * Dohvata ukupan broj aktivnih rezervacija.
- */
 const fetchReservationsCount = async () => {
   try {
     const token = localStorage.getItem('auth_token');
     const response = await axios.get(activeReservationsUrl, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    // Pristupanje nizu 'data' unutar 'reservations' objekta i vraćanje njegove dužine
-    return response.data.reservations.data.length;
+
+    return response.data.reservations.total;
   } catch (err) {
     console.error('Greška pri dohvatanju broja rezervacija:', err);
     return 0;
   }
 };
 
-// Maksimalna vrijednost za progress bar
 const maxStatValue = computed(() => {
-    // Dinamički izračunava maksimalnu vrednost na osnovu najvećeg broja
+  
     const allValues = stats.value.map(s => s.value);
     const max = Math.max(...allValues);
     return max > 0 ? max : 100;
 });
 
-/**
- * Glavna funkcija koja pokreće dohvatanje svih statistika.
- */
 const fetchStats = async () => {
   loading.value = true;
   error.value = null;
@@ -138,7 +122,7 @@ const fetchStats = async () => {
       fetchReservationsCount(),
     ]);
 
-    // Dinamičko izračunavanje procenata na osnovu maksimalne vrednosti
+   
     const maxVal = Math.max(activeRentals, overdueRentals, reservations);
     
     stats.value = [
@@ -147,21 +131,21 @@ const fetchStats = async () => {
         value: activeRentals, 
         percentage: maxVal > 0 ? (activeRentals / maxVal) * 100 : 0, 
         color: '#4CAF50', 
-        link: '/loan-management/issued' 
+        link: '/loan-management' 
       },
       { 
         label: 'Rezervisane knjige', 
         value: reservations, 
         percentage: maxVal > 0 ? (reservations / maxVal) * 100 : 0, 
         color: '#FF9800', 
-        link: '/loan-management/active-reservations' 
+        link: '/loan-management' 
       },
       { 
         label: 'Knjige u prekoračenju', 
         value: overdueRentals, 
         percentage: maxVal > 0 ? (overdueRentals / maxVal) * 100 : 0, 
         color: '#F44336', 
-        link: '/loan-management/overdue' 
+        link: '/loan-management' 
       }
     ];
 
@@ -172,7 +156,7 @@ const fetchStats = async () => {
   }
 };
 
-// Pokrećemo dohvatanje podataka kada se komponenta montira
+
 onMounted(() => {
   fetchStats();
 });
@@ -219,37 +203,32 @@ onMounted(() => {
   width: 160px;
   flex-shrink: 0;
   text-align: right;
-  text-decoration: none; /* Uklanja podvučenu liniju */
+  text-decoration: none; 
   transition: color 0.2s;
 }
 
 .stat-link:hover {
-  color: #1a6ab3; /* Malo tamnija boja na hover */
+  color: #1a6ab3;
 }
 
 .progress-section {
   display: flex;
   align-items: center;
   flex-grow: 1;
-  position: relative; /* Ovo omogućava apsolutno pozicioniranje broja unutar njega */
+  position: relative; 
 }
 
 .progress-bar {
   flex-grow: 1;
 }
 
-/* IZMJENA: Uklonjena pozadina i okvir.
-  Sada se broj prikazuje bez ikakvog okvira, samo kao tekst.
-*/
 .stat-value {
   position: absolute;
   top: 50%;
   font-size: 14px;
   font-weight: 500;
   color: #333;
-  /* Pomjera broj vertikalno u centar */
   transform: translateY(-50%);
-  /* Dodaje mali razmak sa lijeve strane da ne dodiruje bar */
   margin-left: 8px;
 }
 

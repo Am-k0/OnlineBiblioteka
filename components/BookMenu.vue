@@ -29,10 +29,9 @@
       </v-list>
     </v-menu>
 
-    <!-- Success/Error Snackbar -->
     <v-snackbar
       v-model="showMessage"
-      :color="messageType"
+      :color="messageType === 'success' ? '#3392EA' : 'error'"
       :timeout="4000"
       top
     >
@@ -48,7 +47,6 @@
       </template>
     </v-snackbar>
 
-    <!-- Loading Dialog -->
     <v-dialog v-model="loading" persistent width="300">
       <v-card>
         <v-card-text class="text-center">
@@ -57,23 +55,43 @@
         </v-card-text>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="deleteDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-h5">Potvrdite brisanje</v-card-title>
+        <v-card-text>
+          Da li ste sigurni da želite obrisati knjigu "{{ bookName }}"?
+          
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="deleteDialog = false" color="#3392EA">
+            Poništi
+          </v-btn>
+          <v-btn variant="text" @click="confirmDelete" color="#3392EA">
+            Izbriši
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script setup>
 import { defineProps, computed, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import axios from '@/axios';
+import axios from '@/axios'; // Pretpostavljam da imate globalni axios u @/axios
 
 const router = useRouter();
 const route = useRoute();
 const bookId = computed(() => route.params.id);
 
-// Reactive variables for messages and loading
+// Reactive variables for dialogs, messages and loading
 const loading = ref(false);
 const showMessage = ref(false);
 const message = ref('');
 const messageType = ref('success');
+const deleteDialog = ref(false);
 
 const props = defineProps({
   book: {
@@ -86,39 +104,31 @@ const props = defineProps({
   }
 });
 
+const bookName = computed(() => props.book?.naziv_knjige || props.book?.name || 'ovu knjigu');
+
 const handleOtpisi = () => router.push(`/book/${bookId.value}/discard`);
 const handleIzdaj = () => router.push(`/book/${bookId.value}/issue`);
 const handleVrati = () => router.push(`/book/${bookId.value}/return`);
 const handleRezervisi = () => router.push(`/book/${bookId.value}/reserve`);
 const handleEdit = () => router.push(`/book/${bookId.value}/edit`);
 
-const handleDelete = async () => {
-  const bookName = props.book?.naziv_knjige || props.book?.name || 'ovu knjigu';
-  
-  // Prva potvrda
-  if (!confirm(`Da li ste sigurni da želite da obrišete knjigu "${bookName}"?`)) {
-    return;
-  }
+const handleDelete = () => {
+  deleteDialog.value = true;
+};
 
-  // Druga potvrda za sigurnost
-  if (!confirm('Poslednja potvrda: Da li stvarno želite da obrišete ovu knjigu? Ova akcija se ne može poništiti.')) {
-    return;
-  }
-
+const confirmDelete = async () => {
+  deleteDialog.value = false;
   loading.value = true;
 
   try {
-    // Koristimo ispravan endpoint na osnovu vašeg PHP koda
     const response = await axios.delete(`http://localhost/api/books/${bookId.value}/destroy`);
     
     console.log('Knjiga uspješno obrisana:', response.data.message);
     
-    // Prikaži success poruku
-    message.value = `Knjiga "${bookName}" je uspešno obrisana!`;
+    message.value = `Knjiga "${bookName.value}" je uspješno obrisana!`;
     messageType.value = 'success';
     showMessage.value = true;
     
-    // Nakon kratke pauze, preusmjeri na listu knjiga
     setTimeout(() => {
       router.push('/books');
     }, 1500);
@@ -129,7 +139,6 @@ const handleDelete = async () => {
     let errorMessage = 'Došlo je do greške prilikom brisanja knjige.';
     
     if (error.response) {
-      // Server je odgovorio sa error statusom
       if (error.response.status === 404) {
         errorMessage = 'Knjiga nije pronađena.';
       } else if (error.response.status === 403) {
@@ -140,11 +149,9 @@ const handleDelete = async () => {
         errorMessage = 'Greška na serveru. Pokušajte ponovo kasnije.';
       }
     } else if (error.request) {
-      // Zahtjev je poslat ali nema odgovora
       errorMessage = 'Nema odgovora od servera. Provjerite internetsku vezu.';
     }
     
-    // Prikaži error poruku
     message.value = errorMessage;
     messageType.value = 'error';
     showMessage.value = true;
@@ -168,19 +175,8 @@ const dropdownActions = [
 
 const isActionActive = (actionName) => {
   const currentPath = route.path.split('/').pop();
-  if (actionName === 'Otpiši knjigu' && currentPath === 'discard') {
-    return true;
-  }
-  if (actionName === 'Izdaj knjigu' && currentPath === 'issue') {
-    return true;
-  }
-  if (actionName === 'Vrati knjigu' && currentPath === 'return') {
-    return true;
-  }
-  if (actionName === 'Rezerviši knjigu' && currentPath === 'reserve') {
-    return true;
-  }
-  return false;
+  const action = [...mainActions, ...dropdownActions].find(a => a.name === actionName);
+  return action && action.routeSegment && currentPath === action.routeSegment;
 };
 </script>
 

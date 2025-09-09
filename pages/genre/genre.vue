@@ -43,10 +43,13 @@
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth', 'auth-librarian']
+})
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-import ActionButtons from '@/components/ActionButtons.vue'; // Uverite se da je putanja ispravna
+import ActionButtons from '@/components/ActionButtons.vue';
 
 const router = useRouter();
 
@@ -93,7 +96,10 @@ const saveGenre = async () => {
       }
     );
 
-    alert('Žanr uspešno sačuvan!');
+    // Ova linija je uklonjena kako bi se izbjegao alert
+    // alert('Žanr uspešno sačuvan!');
+    
+    // Odmah se prebacuje na stranicu žanrova
     router.push({ path: '/settings', query: { tab: 'zanrovi' } });
 
   } catch (error) {
@@ -180,7 +186,7 @@ const cancel = () => {
 /* Stilovi za formu */
 .form-section {
   width: 724px;
-  height: 100px; /* Prilagodi visinu ako je potrebno, automatski se prilagođava */
+  height: 100px;
   display: flex;
   flex-direction: column;
 }
@@ -188,7 +194,7 @@ const cancel = () => {
 .form-field-name {
   width: 724px;
   height: 48px;
-  margin-bottom: 16px; /* Dodat margin-bottom da ne budu spojena polja */
+  margin-bottom: 16px;
 }
 
 .form-field-description {
@@ -208,5 +214,4 @@ const cancel = () => {
   gap: 16px;
   margin-top: 24px;
 }
-
 </style>

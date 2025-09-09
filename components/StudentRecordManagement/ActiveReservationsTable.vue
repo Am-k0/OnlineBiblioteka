@@ -51,7 +51,7 @@
           </template>
 
           <template v-slot:item.actions="{ item }">
-            <div class="d-flex align-center justify-end" v-if="isStudent && (item.status === 'pending' || item.status === 'reserved')">
+            <div class="d-flex align-center justify-end">
               <v-menu>
                 <template v-slot:activator="{ props }">
                   <v-btn
@@ -65,7 +65,19 @@
                   </v-btn>
                 </template>
                 <v-list>
-                  <v-list-item @click="showCancelDialog(item)">
+                  <v-list-item @click="viewDetails(item)">
+                    <template #prepend>
+                      <v-icon icon="mdi-file-document-outline"></v-icon>
+                    </template>
+                    <v-list-item-title>Pogledaj detalje</v-list-item-title>
+                  </v-list-item>
+                  <v-list-item
+                    v-if="isStudent && item.status === 'pending'"
+                    @click="showCancelDialog(item)"
+                  >
+                    <template #prepend>
+                      <v-icon icon="mdi-cancel"></v-icon>
+                    </template>
                     <v-list-item-title>Otkazi rezervaciju</v-list-item-title>
                   </v-list-item>
                 </v-list>
@@ -74,14 +86,14 @@
           </template>
 
           <template v-slot:no-data>
-            <v-alert :value="true" type="info">Nema aktivnih rezervacija za ovog korisnika.</v-alert>
+            <div class="text-center py-8">
+              <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-book-remove-outline</v-icon>
+              <h3 class="text-h6 mb-2 text-grey-darken-1">Nema aktivnih rezervacija</h3>
+              <p class="text-body-2 text-grey">Trenutno ne postoji nijedna aktivna rezervacija za ovog korisnika.</p>
+            </div>
           </template>
         </v-data-table>
       </div>
-
-      <v-alert v-if="error" type="error" class="mt-4">
-        {{ error }}
-      </v-alert>
 
       <v-dialog v-model="cancelDialog" max-width="500">
         <v-card>
@@ -96,6 +108,24 @@
           </v-card-actions>
         </v-card>
       </v-dialog>
+      
+      <v-snackbar
+        v-model="snackbar.show"
+        :color="snackbar.color"
+        :timeout="snackbar.timeout"
+        top
+      >
+        {{ snackbar.text }}
+        <template v-slot:actions>
+          <v-btn
+            color="white"
+            variant="text"
+            @click="snackbar.show = false"
+          >
+            Zatvori
+          </v-btn>
+        </template>
+      </v-snackbar>
 
     </div>
   </div>
@@ -112,15 +142,22 @@ const router = useRouter();
 const activeReservations = ref([]);
 const loading = ref(true);
 const studentId = ref(null);
-const error = ref(null);
 const isStudent = ref(false);
-const isLibrarian = ref(false); // Dodato stanje za bibliotekara
+const isLibrarian = ref(false);
 
 const cancelDialog = ref(false);
 const bookToCancel = ref(null);
 
 const apiBaseUrl = 'http://localhost';
 const defaultBookCover = '/images/default-book-1.jpg';
+
+// Snackbar state
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 5000,
+});
 
 // --- KONFIGURACIJA TABELE ---
 const headers = [
@@ -132,6 +169,13 @@ const headers = [
 ];
 
 // --- HELPER FUNKCIJE ---
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = null; // Bez tajmera
+  snackbar.value.show = true;
+};
+
 const formatDate = (dateString) => {
   if (!dateString) return '-';
   try {
@@ -172,11 +216,6 @@ const getStatusLabel = (status) => {
   }
 };
 
-const setError = (err) => {
-  error.value = err;
-  setTimeout(() => error.value = null, 5000);
-};
-
 // --- COMPUTED VRIJEDNOSTI ---
 const formattedReservations = computed(() => {
   return activeReservations.value.map(res => ({
@@ -203,7 +242,7 @@ const getStudentIdByUsername = async (username) => {
     return response.data?.[0]?.id || null;
   } catch (err) {
     console.error('Greška pri dohvatanju ID-a korisnika po username-u:', err);
-    setError('Greška pri dohvatanju podataka korisnika: ' +
+    showErrorSnackbar('Greška pri dohvatanju podataka korisnika: ' +
       (err.response?.data?.message || err.message || 'Nepoznata greška'));
     return null;
   }
@@ -212,18 +251,17 @@ const getStudentIdByUsername = async (username) => {
 const fetchActiveReservations = async () => {
   loading.value = true;
   activeReservations.value = [];
-  error.value = null;
 
   const username = route.params.username;
   if (!username) {
-    setError('Korisničko ime studenta nije pronađeno u URL-u.');
+    showErrorSnackbar('Korisničko ime studenta nije pronađeno u URL-u.');
     loading.value = false;
     return;
   }
 
   const id = await getStudentIdByUsername(username);
   if (!id) {
-    setError('ID studenta nije pronađen za zadato korisničko ime.');
+    showErrorSnackbar('ID studenta nije pronađen za zadato korisničko ime.');
     loading.value = false;
     return;
   }
@@ -239,7 +277,7 @@ const fetchActiveReservations = async () => {
     if (userString) {
       const userObject = JSON.parse(userString);
       isStudent.value = userObject.role === 'student';
-      isLibrarian.value = userObject.role === 'librarian'; // Dodata provjera za bibliotekara
+      isLibrarian.value = userObject.role === 'librarian';
     } else {
       isStudent.value = false;
       isLibrarian.value = false;
@@ -262,7 +300,7 @@ const fetchActiveReservations = async () => {
 
   } catch (error) {
     console.error('Greška pri dohvatanju aktivnih rezervacija:', error);
-    setError('Greška pri dohvatanju aktivnih rezervacija: ' +
+    showErrorSnackbar('Greška pri dohvatanju aktivnih rezervacija: ' +
       (error.response?.data?.message || error.message || 'Nepoznata greška'));
     activeReservations.value = [];
   } finally {
@@ -282,9 +320,13 @@ const cancelReservation = async () => {
     const token = localStorage.getItem('auth_token');
     const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
 
-    const response = await axios.post(`${apiBaseUrl}/api/reservations/${bookToCancel.value.id}/cancel`, null, authHeaders);
+    await axios.post(`${apiBaseUrl}/api/reservations/${bookToCancel.value.id}/cancel`, null, authHeaders);
 
-    console.log('Rezervacija otkazana:', response.data);
+    // Nakon uspješnog otkazivanja, prikaži uspješan snackbar
+    snackbar.value.text = 'Rezervacija je uspješno otkazana.';
+    snackbar.value.color = 'success';
+    snackbar.value.timeout = 5000;
+    snackbar.value.show = true;
 
     await fetchActiveReservations();
 
@@ -292,7 +334,7 @@ const cancelReservation = async () => {
     bookToCancel.value = null;
 
   } catch (err) {
-    setError('Greška pri otkazivanju rezervacije: ' + (err.response?.data?.error || err.message));
+    showErrorSnackbar('Greška pri otkazivanju rezervacije: ' + (err.response?.data?.error || err.message));
   }
 };
 
@@ -302,10 +344,17 @@ const confirmReservation = async (reservationId) => {
     const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
 
     await axios.post(`${apiBaseUrl}/api/reservations/${reservationId}/confirm`, null, authHeaders);
-    await fetchActiveReservations(); // Osvježi listu nakon akcije
+    
+    // Prikaz uspješnog snackbara
+    snackbar.value.text = 'Rezervacija je uspješno potvrđena.';
+    snackbar.value.color = 'success';
+    snackbar.value.timeout = 5000;
+    snackbar.value.show = true;
+
+    await fetchActiveReservations();
   } catch (err) {
     console.error('Greška pri potvrdi rezervacije:', err);
-    setError('Greška pri potvrdi rezervacije: ' + (err.response?.data?.error || err.message));
+    showErrorSnackbar('Greška pri potvrdi rezervacije: ' + (err.response?.data?.error || err.message));
   }
 };
 
@@ -315,11 +364,22 @@ const rejectReservation = async (reservationId) => {
     const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
 
     await axios.post(`${apiBaseUrl}/api/reservations/${reservationId}/reject`, null, authHeaders);
-    await fetchActiveReservations(); // Osvježi listu nakon akcije
+    
+    // Prikaz uspješnog snackbara
+    snackbar.value.text = 'Rezervacija je uspješno odbijena.';
+    snackbar.value.color = 'success';
+    snackbar.value.timeout = 5000;
+    snackbar.value.show = true;
+
+    await fetchActiveReservations();
   } catch (err) {
     console.error('Greška pri odbijanju rezervacije:', err);
-    setError('Greška pri odbijanju rezervacije: ' + (err.response?.data?.error || err.message));
+    showErrorSnackbar('Greška pri odbijanju rezervacije: ' + (err.response?.data?.error || err.message));
   }
+};
+
+const viewDetails = (item) => {
+  router.push(`/loan-management/reservation/${item.id}`);
 };
 
 // --- LIFECYCLE HOOKS ---

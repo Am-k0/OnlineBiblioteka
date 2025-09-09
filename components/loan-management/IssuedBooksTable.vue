@@ -12,7 +12,7 @@
         @input="handleSearch"
       />
     </div>
-    
+
     <div>
       <v-data-table
         :headers="visibleHeaders"
@@ -56,8 +56,8 @@
         </template>
 
         <template v-slot:item.trenutno_zadrzavanje="{ item }">
-          <span 
-            class="broj-text" 
+          <span
+            class="broj-text"
             :class="{ 'overdue-text': isOverdue(item.datum_izdavanja) }"
           >
             {{ calculateCurrentDuration(item.datum_izdavanja) }}
@@ -75,17 +75,22 @@
               entity-name="knjigu"
               title-property="naziv_knjige"
               :show-view="true"
-              :show-vrati="true"
-              :show-otpisi="true"
+              :show-vrati="userRole === 'librarian'"
+              :show-otpisi="userRole === 'librarian'"
               @view="handleView"
               @vrati="handleReturn"
               @otpisi="handleOtpis"
+              @error="showErrorSnackbar"
             />
           </div>
         </template>
 
         <template #no-data>
-          <v-alert>Nema pronađenih izdatih knjiga.</v-alert>
+          <div class="text-center py-8">
+            <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-book-remove-outline</v-icon>
+            <h3 class="text-h6 mb-2 text-grey-darken-1">Trenutno nema izdatih knjiga</h3>
+            <p class="text-body-2 text-grey">Nema podataka o izdatim knjigama u sistemu.</p>
+          </div>
         </template>
       </v-data-table>
 
@@ -97,11 +102,25 @@
         @update:itemsPerPage="handleItemsPerPageChange"
         @update:currentPage="handlePageChange"
       />
-
-      <v-alert v-if="error" type="error" class="mt-4">
-        {{ error }}
-      </v-alert>
     </div>
+
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      top
+    >
+      {{ snackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
@@ -115,7 +134,6 @@ import ActionMenu from '@/components/ActionMenu.vue'
 const router = useRouter()
 const issuedBooks = ref([])
 const loading = ref(false)
-const error = ref(null)
 const searchQuery = ref('')
 const defaultBookCover = '/images/default-book-1.jpg'
 const apiBaseUrl = 'http://localhost'
@@ -124,6 +142,15 @@ const itemsPerPage = ref(20)
 const currentPage = ref(1)
 const totalItems = ref(0)
 const rentalPeriodInDays = 30
+const userRole = ref(null)
+
+// Snackbar state
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 5000,
+});
 
 const visibleHeaders = ref([
   { title: '', key: 'data-table-select', sortable: false, width: '56px' },
@@ -136,10 +163,12 @@ const visibleHeaders = ref([
   { title: '', key: 'actions', sortable: false, align: 'end', width: '60px' },
 ])
 
-const setError = (err) => {
-  error.value = err
-  setTimeout(() => error.value = null, 5000)
-}
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = null; // Bez tajmera
+  snackbar.value.show = true;
+};
 
 const formatDate = (dateString) => {
   if (!dateString) return '-'
@@ -224,15 +253,14 @@ const isOverdue = (issueDateString) => {
 const getImageUrl = (book) => {
   const bookData = book.book || book;
   if (!bookData || !bookData.images) return undefined;
-  
+
   const image = (bookData.images || []).find(img => img.type === 'front_cover')
   return image ? `${apiBaseUrl}/storage/${image.path}` : undefined
 }
 
 const fetchIssuedBooks = async (page = 1, perPage = 20, search = '') => {
   loading.value = true
-  error.value = null
-
+  
   try {
     const token = localStorage.getItem('auth_token')
     if (!token) throw new Error('Niste prijavljeni')
@@ -250,13 +278,13 @@ const fetchIssuedBooks = async (page = 1, perPage = 20, search = '') => {
       },
       params,
     })
-    
+
     const booksData = response.data.data?.data || []
     issuedBooks.value = booksData
     totalItems.value = response.data.data?.total || 0
   } catch (err) {
-    error.value = 'Greška pri učitavanju izdatih knjiga: ' +
-      (err.response?.data?.message || err.message || 'Nepoznata greška')
+    showErrorSnackbar('Greška pri učitavanju izdatih knjiga: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'))
     if (err.response?.status === 401) {
       router.push('/login')
     }
@@ -292,8 +320,14 @@ const handleOtpis = (item) => {
   router.push(`/book/${item.book_id}/discard`);
 }
 
-onMounted(() => { 
-  fetchIssuedBooks(currentPage.value, itemsPerPage.value, searchQuery.value) 
+onMounted(() => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const user = JSON.parse(localStorage.getItem('user'))
+    if (user && user.role) {
+      userRole.value = user.role
+    }
+  }
+  fetchIssuedBooks(currentPage.value, itemsPerPage.value, searchQuery.value)
 })
 
 watch([itemsPerPage, currentPage], () => {
@@ -302,11 +336,11 @@ watch([itemsPerPage, currentPage], () => {
 
 const filteredBooks = computed(() => {
   return issuedBooks.value.map(book => {
-    const studentFullName = book.rented_by 
+    const studentFullName = book.rented_by
       ? `${book.rented_by.first_name || ''} ${book.rented_by.last_name || ''}`.trim()
       : 'Nepoznat učenik'
-      
-    const librarianFullName = book.rented_out_by 
+
+    const librarianFullName = book.rented_out_by
       ? `${book.rented_out_by.first_name || ''} ${book.rented_out_by.last_name || ''}`.trim()
       : 'Nepoznat izdavalac'
 
@@ -329,7 +363,7 @@ const itemClass = () => 'table-row'
 <style scoped>
 .table-container {
   flex-grow: 1;
-  padding: 0 24px 24px 24px; 
+  padding: 0 24px 24px 24px;
   background-color: #fff;
 }
 
@@ -337,7 +371,7 @@ const itemClass = () => 'table-row'
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  margin-bottom: -14px; 
+  margin-bottom: -14px;
 }
 
 .search-field {

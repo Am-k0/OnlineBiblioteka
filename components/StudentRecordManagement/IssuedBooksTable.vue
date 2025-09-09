@@ -1,10 +1,9 @@
 <template>
   <div class="table-container">
-    <h2>Evidencija iznajmljivanja</h2>
     <div class="content-area">
       <v-data-table
         :headers="visibleHeaders"
-        :items="filteredBooks"
+        :items="formattedIssuedBooks"
         :loading="loading"
         loading-text="Učitavam izdate knjige..."
         item-value="id"
@@ -55,8 +54,8 @@
               entity-name="izdatu knjigu"
               title-property="naziv_knjige"
               :show-view="true"
-              :show-vrati="true"
-              :show-otpisi="true"
+              :show-vrati="isLibrarian"
+              :show-otpisi="isLibrarian"
               :show-izdaj="false"
               :show-edit="false"
               :show-delete="false"
@@ -64,13 +63,17 @@
               @view="handleView"
               @otpisi="handleOtpisi"
               @vrati="handleVrati"
-              @error="setError"
+              @error="showErrorSnackbar"
             />
           </div>
         </template>
 
         <template #no-data>
-          <v-alert>Nema pronađenih izdatih knjiga za ovog učenika.</v-alert>
+          <div class="text-center py-8">
+            <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-book-remove-outline</v-icon>
+            <h3 class="text-h6 mb-2 text-grey-darken-1">Nema izdatih knjiga</h3>
+            <p class="text-body-2 text-grey">Ovaj korisnik trenutno nema izdatih knjiga.</p>
+          </div>
         </template>
       </v-data-table>
 
@@ -83,9 +86,23 @@
         @update:currentPage="handlePageChange"
       />
 
-      <v-alert v-if="error" type="error" class="mt-4">
-        {{ error }}
-      </v-alert>
+      <v-snackbar
+        v-model="snackbar.show"
+        :color="snackbar.color"
+        :timeout="snackbar.timeout"
+        top
+      >
+        {{ snackbar.text }}
+        <template v-slot:actions>
+          <v-btn
+            color="white"
+            variant="text"
+            @click="snackbar.show = false"
+          >
+            Zatvori
+          </v-btn>
+        </template>
+      </v-snackbar>
     </div>
   </div>
 </template>
@@ -93,7 +110,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
+import axios from '@/axios'
 import ActionMenu from '@/components/ActionMenu.vue'
 import PaginationFooter from '@/components/PaginationFooter.vue'
 
@@ -101,15 +118,23 @@ const router = useRouter()
 const route = useRoute()
 const issuedBooks = ref([])
 const loading = ref(false)
-const error = ref(null)
 const defaultBookCover = '/images/default-book-1.jpg'
 const apiBaseUrl = 'http://localhost'
-const studentId = ref(null); // Dodano novo ref za spremanje ID-a
+const studentId = ref(null);
+const userRole = ref('');
 
 const itemsPerPage = ref(20)
 const currentPage = ref(1)
 const totalItems = ref(0)
 const rentalPeriodInDays = 30;
+
+// Snackbar state
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 5000,
+});
 
 const visibleHeaders = ref([
   { title: 'Naziv Knjige', key: 'naziv_knjige', align: 'start', sortable: true },
@@ -119,10 +144,14 @@ const visibleHeaders = ref([
   { title: '', key: 'actions', align: 'end', sortable: false },
 ])
 
-const setError = (err) => {
-  error.value = err
-  setTimeout(() => error.value = null, 5000)
-}
+const isLibrarian = computed(() => userRole.value === 'librarian');
+
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = null; // Bez tajmera
+  snackbar.value.show = true;
+};
 
 const formatDate = (dateString) => {
   if (!dateString) return '-'
@@ -192,25 +221,49 @@ const getStudentIdByUsername = async (username) => {
     return response.data[0]?.id || null;
   } catch (err) {
     console.error('Greška pri dohvaćanju ID-a korisnika po username-u:', err);
+    showErrorSnackbar('Greška pri dohvaćanju podataka korisnika: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'));
     return null;
+  }
+};
+
+const fetchUserRole = async () => {
+  try {
+    const token = localStorage.getItem('auth_token');
+    if (!token) throw new Error('Niste prijavljeni');
+    
+    const response = await axios.get(`${apiBaseUrl}/api/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
+    userRole.value = response.data.role.name;
+  } catch (err) {
+    console.error('Greška pri dohvaćanju uloge korisnika:', err);
+    showErrorSnackbar('Greška pri dohvaćanju uloge korisnika: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'));
+    userRole.value = 'student';
+    if (err.response?.status === 401) {
+      router.push('/login');
+    }
   }
 };
 
 const fetchIssuedBooks = async () => {
   loading.value = true
-  error.value = null
+  issuedBooks.value = [];
 
   const username = route.params.username;
   if (!username) {
-    setError('Greška: Korisničko ime nije pronađeno u URL-u.');
+    showErrorSnackbar('Greška: Korisničko ime nije pronađeno u URL-u.');
     loading.value = false;
     return;
   }
 
-  // Prvo dohvati ID studenta na temelju korisničkog imena
   const id = await getStudentIdByUsername(username);
   if (!id) {
-    setError('Greška: ID studenta nije pronađen za zadato korisničko ime.');
+    showErrorSnackbar('Greška: ID studenta nije pronađen za zadato korisničko ime.');
     loading.value = false;
     return;
   }
@@ -237,8 +290,8 @@ const fetchIssuedBooks = async () => {
     issuedBooks.value = response.data.data?.data || []
     totalItems.value = response.data.data?.total || 0
   } catch (err) {
-    error.value = 'Greška pri učitavanju izdatih knjiga: ' +
-      (err.response?.data?.message || err.message || 'Nepoznata greška')
+    showErrorSnackbar('Greška pri učitavanju izdatih knjiga: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'))
     if (err.response?.status === 401) {
       router.push('/login')
     }
@@ -258,14 +311,15 @@ const handlePageChange = (newValue) => {
 }
 
 onMounted(() => { 
-  fetchIssuedBooks() 
+  fetchUserRole();
+  fetchIssuedBooks(); 
 })
 
 watch([itemsPerPage, currentPage], () => {
   fetchIssuedBooks()
 })
 
-const filteredBooks = computed(() => {
+const formattedIssuedBooks = computed(() => {
   return issuedBooks.value.map(rental => {
     const librarianFullName = rental.rented_out_by 
       ? `${rental.rented_out_by.first_name || ''} ${rental.rented_out_by.last_name || ''}`.trim()
@@ -277,7 +331,7 @@ const filteredBooks = computed(() => {
       naziv_knjige: rental.book_title || 'Nepoznat naslov',
       datum_izdavanja: rental.rental_date,
       knjigu_izdao: librarianFullName,
-      slika_knjige: defaultBookCover,
+      slika_knjige: rental.book_cover_path ? `${apiBaseUrl}/storage/${rental.book_cover_path}` : defaultBookCover,
     }
   })
 })
@@ -291,15 +345,23 @@ const handleView = (item) => {
 }
 
 const handleOtpisi = (item) => {
-  setError('Greška: Informacije o ID-ju knjige nisu dostupne za otpisivanje sa ove stranice.');
+  if (isLibrarian.value) {
+    showErrorSnackbar('Greška: Informacije o ID-ju knjige nisu dostupne za otpisivanje sa ove stranice.');
+  } else {
+    showErrorSnackbar('Nemate ovlašćenje za ovu akciju.');
+  }
 }
 
 const handleVrati = (item) => {
-  if (item && item.id) {
-    console.log(`Akcija za vraćanje knjige pokrenuta za iznajmljivanje ID: ${item.id}`);
-    // Ovdje ide logika za API poziv za vraćanje knjige
+  if (isLibrarian.value) {
+    if (item && item.id) {
+      console.log(`Akcija za vraćanje knjige pokrenuta za iznajmljivanje ID: ${item.id}`);
+      // Ovdje ide logika za API poziv za vraćanje knjige
+    } else {
+      showErrorSnackbar('Greška: ID iznajmljivanja za vraćanje nije pronađen.');
+    }
   } else {
-    setError('Greška: ID iznajmljivanja za vraćanje nije pronađen.');
+    showErrorSnackbar('Nemate ovlašćenje za ovu akciju.');
   }
 }
 </script>

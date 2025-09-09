@@ -1,19 +1,20 @@
 <template>
-  <v-card elevation="0" style="width: 875px; height: 847px; position: absolute; top: 161px; left: 72px; gap: 16px; border-radius: 4px; opacity: 1; border: none; box-shadow: none;">
-    <v-card-title class="font-weight-medium" style="width: 875px; height: 60px; gap: 16px; opacity: 1;">AKTIVNOSTI</v-card-title>
-    <v-divider style="border: none; height: 0;"></v-divider>
+  <v-card elevation="0" style="width: 875px; height: auto; position: relative; gap: 16px; border-radius: 4px; opacity: 1; border: none; box-shadow: none;">
+    <v-card-title v-if="showTitle" class="font-weight-medium" style="width: 875px; height: 60px; gap: 16px; opacity: 1;">AKTIVNOSTI</v-card-title>
+    <v-divider v-if="showTitle" style="border: none; height: 0;"></v-divider>
 
-    <div v-if="loading">
-        <v-skeleton-loader v-for="n in 5" :key="n" type="list-item-avatar-two-line" class="mx-auto"></v-skeleton-loader>
+    <div v-if="loading" class="loading-state">
+      <v-skeleton-loader v-for="n in 5" :key="n" type="list-item-avatar-two-line" class="mx-auto"></v-skeleton-loader>
     </div>
 
-    <v-alert v-else-if="error" type="error" dense>
-        {{ error }}
-    </v-alert>
+    <div v-else-if="activities.length === 0" class="no-data-state">
+      <v-icon size="60" color="grey lighten-1">mdi-bell-off-outline</v-icon>
+      <span class="no-data-text">Nema skorašnjih aktivnosti.</span>
+    </div>
 
-    <v-list v-else-if="activities.length > 0" lines="one" class="activities-list">
+    <v-list v-else lines="one" class="activities-list">
       <v-list-item
-        v-for="activity in activities"
+        v-for="activity in displayedActivities"
         :key="activity.id"
         :subtitle="timeAgo(activity)"
         class="activity-row"
@@ -70,29 +71,55 @@
           </template>
 
           <template v-else-if="activity.type === 'reservation'">
-            <NuxtLink :to="`/users/${activity.student?.username}`" class="user-link">
-              {{ userFullName(activity.student) }}
-            </NuxtLink>
+            <template v-if="activity.is_librarian_reservation">
+              <NuxtLink :to="`/users/${activity.librarian?.username}`" class="user-link">
+                {{ userFullName(activity.librarian) }}
+              </NuxtLink>
 
-            je rezervisao knjigu
+              je rezervisao knjigu
 
-            <span class="font-weight-bold">{{ activity.book_title }}</span>
+              <span class="font-weight-bold">{{ activity.book_title }}</span>
 
-            dana {{ formatDate(activity.reserved_at) }}.
+              učeniku
 
-            Status: <span class="font-weight-bold">{{ activity.status }}</span>
+              <NuxtLink :to="`/users/${activity.student?.username}`" class="user-link">
+                {{ userFullName(activity.student) }}
+              </NuxtLink>
+
+              dana {{ formatDate(activity.reserved_at) }}.
+
+              Status: <span class="font-weight-bold">{{ getStatusText(activity.status) }}</span>
+
+              <NuxtLink :to="`/loan-management/reservation/${activity.reservation_id}`" class="details-link">
+                pogledaj detaljnije&gt;&gt;
+              </NuxtLink>
+            </template>
+
+            <template v-else>
+              <NuxtLink :to="`/users/${activity.student?.username}`" class="user-link">
+                {{ userFullName(activity.student) }}
+              </NuxtLink>
+
+              je zatražio rezervaciju knjige
+
+              <span class="font-weight-bold">{{ activity.book_title }}</span>
+
+              dana {{ formatDate(activity.reserved_at) }}.
+
+              Status: <span class="font-weight-bold">{{ getStatusText(activity.status) }}</span>
+
+              <NuxtLink :to="`/loan-management/reservation/${activity.reservation_id}`" class="details-link">
+                pogledaj detaljnije&gt;&gt;
+              </NuxtLink>
+            </template>
           </template>
-        </v-list-item-title>
+          </v-list-item-title>
       </v-list-item>
     </v-list>
 
-    <v-card-text v-else>
-        Nema skorašnjih aktivnosti.
-    </v-card-text>
-
     <v-divider style="border: none; height: 0;"></v-divider>
     <v-card-actions class="pa-4" style="border: none;">
-       <NuxtLink to="/dashboard" class="w-100" style="text-decoration: none;">
+       <NuxtLink v-if="mode === 'home'" to="/dashboard" class="w-100" style="text-decoration: none;">
           <v-btn
             block
             variant="outlined"
@@ -103,23 +130,116 @@
             Show
           </v-btn>
        </NuxtLink>
+
+       <div v-else-if="mode === 'dashboard'" class="w-100">
+          <v-btn
+            v-if="!showAll && activities.length > maxItems"
+            block
+            variant="outlined"
+            color="primary"
+            size="large"
+            @click="toggleShowMore"
+            style="width: 875px; height: 36px; gap: 8px; opacity: 1; padding: 12px 16px; border: 1px solid #3392EA; border-radius: 4px; text-transform: none;"
+          >
+            Show more
+          </v-btn>
+          <v-btn
+            v-else-if="showAll"
+            block
+            variant="outlined"
+            color="primary"
+            size="large"
+            @click="toggleShowMore"
+            style="width: 875px; height: 36px; gap: 8px; opacity: 1; padding: 12px 16px; border: 1px solid #3392EA; border-radius: 4px; text-transform: none;"
+          >
+            Show less
+          </v-btn>
+       </div>
     </v-card-actions>
   </v-card>
+
+  <v-snackbar
+    v-model="snackbar.show"
+    :color="snackbar.color"
+    :timeout="snackbar.timeout"
+    location="bottom right"
+  >
+    {{ snackbar.message }}
+  </v-snackbar>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import axios from 'axios';
-import { useRouter } from 'vue-router';
+import { ref, computed, defineProps, defineEmits } from 'vue';
 
-// Stanja za učitavanje, greške i podatke
-const activities = ref([]);
-const loading = ref(false);
-const error = ref(null);
-const router = useRouter();
+// Props
+const props = defineProps({
+  activities: {
+    type: Array,
+    default: () => []
+  },
+  loading: {
+    type: Boolean,
+    default: false
+  },
+  error: {
+    type: String,
+    default: null
+  },
+  showAll: {
+    type: Boolean,
+    default: false
+  },
+  totalCount: {
+    type: Number,
+    default: 0
+  },
+  mode: {
+    type: String,
+    default: 'home', // 'home' ili 'dashboard'
+    validator: (value) => ['home', 'dashboard'].includes(value)
+  },
+  maxItems: {
+    type: Number,
+    default: 10
+  },
+  showTitle: {
+    type: Boolean,
+    default: true
+  }
+});
 
-// Osnovni URL tvog API-ja
-const apiBaseUrl = 'http://localhost';
+// Emits
+const emit = defineEmits(['show-more']);
+
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: 'error',
+  timeout: 3000,
+});
+
+// Funkcija za prikazivanje snackbar-a
+const showSnackbar = (message, color = 'error') => {
+  snackbar.value.message = message;
+  snackbar.value.color = color;
+  snackbar.value.show = true;
+};
+
+// Computed property za prikazane aktivnosti
+const displayedActivities = computed(() => {
+  if (props.mode === 'home') {
+    // Na home stranici uvijek prikaži samo prvih maxItems aktivnosti
+    return props.activities.slice(0, props.maxItems);
+  } else {
+    // Na dashboard stranici prikaži sve ili ograničeno ovisno o showAll
+    return props.showAll ? props.activities : props.activities.slice(0, props.maxItems);
+  }
+});
+
+// Funkcija za toggle show more/less
+const toggleShowMore = () => {
+  emit('show-more');
+};
 
 // Funkcija za formatiranje datuma u "dd.mm.yyyy." format
 const formatDate = (dateString) => {
@@ -132,10 +252,24 @@ const formatDate = (dateString) => {
       year: 'numeric'
     });
   } catch (err) {
+    console.error('Greška pri formatiranju datuma:', err);
+    showSnackbar('Greška pri formatiranju datuma.', 'error');
     return dateString;
   }
 };
 
+// Funkcija za mapiranje statusa rezervacije
+const getStatusText = (status) => {
+  const statusMap = {
+    'pending': 'na čekanju',
+    'approved': 'odobreno',
+    'rejected': 'odbačeno',
+    'reserved': 'rezervisano',
+    'completed': 'završeno',
+    'cancelled': 'otkazano'
+  };
+  return statusMap[status] || status;
+};
 
 const timeAgo = (activity) => {
   let dateString = '';
@@ -149,7 +283,11 @@ const timeAgo = (activity) => {
     timeText = 'Vraćanje knjige';
   } else if (activity.type === 'reservation') {
     dateString = activity.reserved_at;
-    timeText = 'Rezervacija knjige';
+    if (activity.is_librarian_reservation) {
+      timeText = 'Rezervacija';
+    } else {
+      timeText = 'Zahtjev za rezervaciju';
+    }
   }
 
   if (!dateString) return '';
@@ -178,129 +316,6 @@ const timeAgo = (activity) => {
   return `${timeText} - ${formattedTime}`;
 };
 
-// Funkcija za dohvatanje svih aktivnosti
-const fetchActivities = async () => {
-  loading.value = true;
-  error.value = null;
-  try {
-    const token = localStorage.getItem('auth_token');
-    if (!token) throw new Error('Niste prijavljeni');
-
-    // Dohvatanje svih tipova aktivnosti
-    const [rentalsResponse, returnedResponse, reservationsResponse] = await Promise.all([
-      // Aktivne iznajmljivanja (izdate knjige)
-      axios.get(`${apiBaseUrl}/api/rentals/active`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json'
-        },
-        params: {
-          per_page: 20,
-          page: 1
-        },
-      }),
-      // Vraćene knjige
-      axios.get(`${apiBaseUrl}/api/rentals/returned`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json'
-        },
-        params: {
-          per_page: 20,
-          page: 1
-        },
-      }),
-      // Rezervacije
-      axios.get(`${apiBaseUrl}/api/reservations/active`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json'
-        },
-        params: {
-          per_page: 20,
-          page: 1
-        },
-      })
-    ]);
-
-    const allActivities = [];
-
-    // Procesiranje aktivnih iznajmljivanja (izdate knjige)
-    if (rentalsResponse.data.data?.data) {
-      rentalsResponse.data.data.data.forEach(rental => {
-        allActivities.push({
-          id: `rental_${rental.rental_id}`, // ISPRAVLJENO
-          type: 'issued',
-          rental_id: rental.rental_id, // ISPRAVLJENO
-          book_id: rental.book_id,
-          book_title: rental.book_title, // ISPRAVLJENO
-          rented_by: rental.rented_by,
-          rented_out_by: rental.rented_out_by,
-          rental_date: rental.rental_date,
-          returned_at: null
-        });
-      });
-    }
-
-    // Procesiranje vraćenih knjiga
-    if (returnedResponse.data.data?.data) {
-      returnedResponse.data.data.data.forEach(rental => {
-        allActivities.push({
-          id: `returned_${rental.rental_id}`, // ISPRAVLJENO
-          type: 'returned',
-          rental_id: rental.rental_id, // ISPRAVLJENO
-          book_id: rental.book_id, // Pretpostavka da book_id postoji, ako ne, dodaj ga u PHP
-          book_title: rental.book_title, // ISPRAVLJENO
-          returned_by: rental.returned_by,
-          rented_out_by: rental.rented_out_by,
-          rental_date: rental.rental_date,
-          returned_at: rental.returned_at
-        });
-      });
-    }
-
-    // Procesiranje rezervacija
-    if (reservationsResponse.data.reservations?.data) {
-      reservationsResponse.data.reservations.data.forEach(reservation => {
-        allActivities.push({
-          id: `reservation_${reservation.id}`,
-          type: 'reservation',
-          reservation_id: reservation.id,
-          book_id: reservation.book_id,
-          book_title: reservation.book?.name, // OVO JE BILO OK
-          student: reservation.student,
-          librarian_id: reservation.librarian_id,
-          reserved_at: reservation.reserved_at,
-          status: reservation.status
-        });
-      });
-    }
-
-    // Sortiranje po datumu (najnovije prvo)
-    allActivities.sort((a, b) => {
-      const dateA = new Date(a.rental_date || a.reserved_at || a.returned_at);
-      const dateB = new Date(b.rental_date || b.reserved_at || a.returned_at);
-      return dateB - dateA;
-    });
-
-    // Uzimanje samo prvih 10 aktivnosti
-    activities.value = allActivities.slice(0, 10);
-
-  } catch (err) {
-    error.value = 'Greška pri učitavanju aktivnosti: ' + (err.response?.data?.message || err.message);
-    if (err.response?.status === 401) {
-      router.push('/login');
-    }
-  } finally {
-    loading.value = false;
-  }
-};
-
-// Pozivamo funkciju kada se komponenta montira
-onMounted(async () => {
-  await fetchActivities();
-});
-
 // Helper za puno ime korisnika
 const userFullName = (user) => {
     if (!user) return 'Nepoznat korisnik';
@@ -314,13 +329,24 @@ const getActivityAvatar = (activity) => {
   } else if (activity.type === 'returned') {
     return activity.returned_by?.profile_picture || '/images/default-user-1.jpg';
   } else if (activity.type === 'reservation') {
-    return activity.student?.profile_picture || '/images/default-user-1.jpg';
+    // Za rezervacije, pokazujemo avatar osobe koja je napravila rezervaciju
+    if (activity.is_librarian_reservation && activity.librarian) {
+      return activity.librarian.profile_picture || '/images/default-user-1.jpg';
+    } else {
+      return activity.student?.profile_picture || '/images/default-user-1.jpg';
+    }
   }
   return '/images/default-user-1.jpg';
 };
 </script>
 
 <style scoped>
+/* Ažurirani stilovi */
+.v-card {
+  border: none !important;
+  box-shadow: none !important;
+}
+
 .v-card-title {
   color: #555;
   font-size: 16px;
@@ -350,11 +376,13 @@ const getActivityAvatar = (activity) => {
   text-decoration: underline;
 }
 
-/* Uklanjanje svih okvira */
-.v-card {
-  border: none !important;
-  box-shadow: none !important;
+.user-role {
+  color: #666;
+  font-style: italic;
+  font-size: 0.9em;
 }
+
+/* Uklanjanje svih okvira */
 .v-list {
   border: none !important;
 }
@@ -367,5 +395,21 @@ const getActivityAvatar = (activity) => {
 }
 .v-card-actions {
   border: none !important;
+}
+
+/* Stilovi za stanja (loading, no data) */
+.loading-state, .no-data-state {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  text-align: center;
+}
+
+.no-data-text {
+  font-size: 16px;
+  color: #757575;
+  margin-top: 16px;
 }
 </style>

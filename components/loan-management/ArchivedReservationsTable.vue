@@ -45,7 +45,12 @@
         </template>
 
         <template v-slot:item.rezervaciju_podnio="{ item }">
-          <span class="naziv-text">{{ item.rezervaciju_podnio }}</span>
+          <div class="cell-profile d-flex align-center">
+            <div class="profile-avatar mr-3">
+              <img :src="item.student_avatar" alt="Avatar" />
+            </div>
+            <span class="naziv-text">{{ item.rezervaciju_podnio }}</span>
+          </div>
         </template>
 
         <template v-slot:item.status="{ item }">
@@ -65,6 +70,7 @@
               :item="item"
               :show-view="true"
               @view="viewDetails"
+              @error="showErrorSnackbar"
             />
           </div>
         </template>
@@ -86,10 +92,24 @@
         @update:itemsPerPage="handleItemsPerPageChange"
         @update:currentPage="handlePageChange"
       />
-
-      <v-alert v-if="error" type="error" class="mt-4">
-        {{ error }}
-      </v-alert>
+      
+      <v-snackbar
+        v-model="snackbar.show"
+        :color="snackbar.color"
+        :timeout="snackbar.timeout"
+        top
+      >
+        {{ snackbar.text }}
+        <template v-slot:actions>
+          <v-btn
+            color="white"
+            variant="text"
+            @click="snackbar.show = false"
+          >
+            Zatvori
+          </v-btn>
+        </template>
+      </v-snackbar>
     </div>
   </div>
 </template>
@@ -99,14 +119,12 @@ import { ref, onMounted, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import PaginationFooter from '@/components/PaginationFooter.vue';
-// DODATO: Uvoz ActionMenu komponente
 import ActionMenu from '@/components/ActionMenu.vue';
 
 // --- STANJE (STATE) ---
 const router = useRouter();
 const archivedReservations = ref([]);
 const loading = ref(false);
-const error = ref(null);
 const searchQuery = ref('');
 const itemsPerPage = ref(20);
 const currentPage = ref(1);
@@ -117,15 +135,22 @@ const apiBaseUrl = 'http://localhost';
 const defaultBookCover = '/images/default-book-1.jpg';
 const defaultAvatar = '/images/default-user-1.jpg';
 
+// Snackbar za greške i uspješne poruke
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 5000,
+});
+
 // --- KONFIGURACIJA TABELE ---
-// MODIFIKOVANO: Dodata kolona za akcije
 const visibleHeaders = [
   { title: 'Naziv Knjige', key: 'naziv_knjige', align: 'start', sortable: true },
   { title: 'Datum rezervacije', key: 'datum_rezervacije', sortable: true },
   { title: 'Rezervacija ističe', key: 'rezervacija_istekla', sortable: true },
   { title: 'Rezervaciju podnio', key: 'rezervaciju_podnio', sortable: true },
   { title: 'Status', key: 'status', sortable: true, align: 'center' },
-  { title: '', key: 'actions', sortable: false, align: 'end' }, // Nova kolona
+  { title: '', key: 'actions', sortable: false, align: 'end' },
 ];
 
 const itemClass = () => 'table-row';
@@ -139,6 +164,7 @@ const formattedReservations = computed(() => {
   return filteredReservations.value.map(reservation => {
     const bookName = reservation.book?.name || 'Nepoznat naslov';
     const studentName = `${reservation.student?.first_name || ''} ${reservation.student?.last_name || ''}`.trim() || 'Nepoznat korisnik';
+    const studentAvatar = reservation.student?.avatar ? `${apiBaseUrl}/storage/${reservation.student.avatar}` : defaultAvatar;
 
     return {
       id: reservation.id,
@@ -147,12 +173,20 @@ const formattedReservations = computed(() => {
       datum_rezervacije: reservation.reserved_at,
       rezervacija_istekla: reservation.expires_at,
       rezervaciju_podnio: studentName,
+      student_avatar: studentAvatar,
       status: reservation.status,
     };
   });
 });
 
 // --- HELPER FUNKCIJE ---
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = null; // Bez tajmera
+  snackbar.value.show = true;
+};
+
 const formatDate = (dateString) => {
   if (!dateString) return '-';
   try {
@@ -214,7 +248,6 @@ const getImageUrl = (item) => {
 // --- API FUNKCIJE ---
 async function fetchArchivedReservations() {
   loading.value = true;
-  error.value = null;
 
   try {
     const token = localStorage.getItem('auth_token');
@@ -237,8 +270,8 @@ async function fetchArchivedReservations() {
     
   } catch (err) {
     console.error('Greška pri učitavanju arhiviranih rezervacija:', err);
-    error.value = 'Greška pri učitavanju arhiviranih rezervacija: ' + 
-      (err.response?.data?.message || err.message || 'Nepoznata greška');
+    showErrorSnackbar('Greška pri učitavanju arhiviranih rezervacija: ' + 
+      (err.response?.data?.message || err.message || 'Nepoznata greška'));
     
     if (err.response?.status === 401) {
       router.push('/login');
@@ -249,7 +282,6 @@ async function fetchArchivedReservations() {
 }
 
 // --- HANDLER FUNKCIJE ---
-// DODATO: Funkcija za navigaciju na detalje
 const viewDetails = (item) => {
   router.push(`/loan-management/reservation/${item.id}`);
 };
@@ -372,7 +404,7 @@ watch([itemsPerPage, currentPage], () => {
 
 .cell-status { display: flex; justify-content: center; align-items: center; }
 
-/* Novi stilovi za izgled statusa */
+
 .status-rented {
   color: #3392EA !important;
   border-color: #3392EA !important;

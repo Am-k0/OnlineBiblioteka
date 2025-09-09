@@ -1,259 +1,254 @@
 <template>
-  <div class="page-container min-h-screen">
-    <header class="app-header">
-      <div>
-        <h1 class="page-title">Promejna šifre</h1>
-        <p class="page-subtitle">
-          Promijenite vašu šifru za pristup nalogu.
-        </p>
+  <client-only>
+    <div class="reset-password-bg">
+      <div class="reset-password-wrapper">
+        <v-card class="reset-password-card" elevation="8" rounded="lg">
+          <div class="reset-password-title">Resetovanje šifre</div>
+          <div class="title-line" />
+
+          <v-form v-model="formIsValid" @submit.prevent="resetPassword" class="reset-password-form">
+            <v-text-field
+              v-model="password"
+              :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+              :type="showPassword ? 'text' : 'password'"
+              label="Nova šifra"
+              variant="outlined"
+              density="comfortable"
+              class="input-field"
+              :rules="passwordRules"
+              hide-details="auto"
+              color="#3392EA"
+              @click:append-inner="showPassword = !showPassword"
+            />
+            <v-text-field
+              v-model="passwordConfirmation"
+              :append-inner-icon="showPasswordConfirmation ? 'mdi-eye-off' : 'mdi-eye'"
+              :type="showPasswordConfirmation ? 'text' : 'password'"
+              label="Potvrda nove šifre"
+              variant="outlined"
+              density="comfortable"
+              class="input-field"
+              :rules="passwordConfirmationRules"
+              hide-details="auto"
+              color="#3392EA"
+              @click:append-inner="showPasswordConfirmation = !showPasswordConfirmation"
+            />
+            
+            <v-btn
+              class="reset-password-button"
+              color="#3392EA"
+              size="large"
+              block
+              type="submit"
+              :disabled="!formIsValid || loading"
+              :loading="loading"
+            >
+              RESETUJ ŠIFRU
+            </v-btn>
+          </v-form>
+
+          <div v-if="errorMsg" class="error-text">
+            {{ errorMsg }}
+          </div>
+          <div v-if="successMsg" class="success-text">
+            {{ successMsg }}
+          </div>
+          
+          <div class="login-footer">
+             ©2021 ICT Cortex. All rights reserved. 
+          </div>
+        </v-card>
       </div>
-    </header>
-
-    <div class="header-divider"></div>
-
-    <div class="page-content">
-      <v-row align="center" justify="center">
-        <v-col cols="12" sm="8" md="6" lg="5">
-          <v-card class="password-card rounded">
-            <v-toolbar color="#3392EA" dark flat>
-              <v-toolbar-title class="centered-title">Postavite novu šifru</v-toolbar-title>
-            </v-toolbar>
-            <v-card-text class="pa-8">
-              <v-alert v-if="error" type="error" dense text class="mb-4">
-                {{ error }}
-              </v-alert>
-
-              <v-alert v-if="success" type="success" dense text class="mb-4">
-                {{ success }}
-              </v-alert>
-
-              <v-alert v-if="tokenError" type="warning" dense text class="mb-4">
-                {{ tokenError }}
-              </v-alert>
-
-              <v-form ref="form" v-model="valid" lazy-validation @submit.prevent="changePassword">
-                <v-text-field
-                  v-model="password"
-                  :rules="passwordRules"
-                  label="Nova šifra"
-                  required
-                  :type="showPassword ? 'text' : 'password'"
-                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                  @click:append-inner="showPassword = !showPassword"
-                  prepend-inner-icon="mdi-lock"
-                  variant="outlined"
-                  class="mb-2"
-                  :disabled="loading || !!tokenError"
-                ></v-text-field>
-
-                <v-text-field
-                  v-model="password_confirmation"
-                  :rules="passwordConfirmationRules"
-                  label="Potvrda nove šifre"
-                  required
-                  :type="showPasswordConfirmation ? 'text' : 'password'"
-                  :append-inner-icon="showPasswordConfirmation ? 'mdi-eye-off' : 'mdi-eye'"
-                  @click:append-inner="showPasswordConfirmation = !showPasswordConfirmation"
-                  prepend-inner-icon="mdi-lock-check"
-                  variant="outlined"
-                  :disabled="loading || !!tokenError"
-                ></v-text-field>
-              </v-form>
-            </v-card-text>
-            <v-card-actions class="pa-4">
-              <v-spacer></v-spacer>
-              <ActionButtons
-                @save="changePassword"
-                @cancel="router.push('/')"
-                :disabled="loading || !!tokenError"
-                :loading="loading"
-                save-text="Promeniti šifru"
-                cancel-text="Odustani"
-              />
-            </v-card-actions>
-          </v-card>
-        </v-col>
-      </v-row>
     </div>
-  </div>
+  </client-only>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import ActionButtons from '@/components/ActionButtons.vue';
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import api from '@/axios';
 
-// Inicijalizacija
 const router = useRouter();
+const route = useRoute();
 
-// Stanja komponente
-const valid = ref(true);
-const loading = ref(false);
-const error = ref(null);
-const success = ref(null);
-const tokenError = ref(null);
-
-
-const token = ref('');
-const email = ref('');
-
-const form = ref(null);
 const password = ref('');
-const password_confirmation = ref('');
+const passwordConfirmation = ref('');
+const errorMsg = ref<string | null>(null);
+const successMsg = ref<string | null>(null);
+const loading = ref(false);
+const formIsValid = ref(false);
 const showPassword = ref(false);
 const showPasswordConfirmation = ref(false);
 
+const token = route.query.token;
+const email = route.query.email;
+
+// Pravila validacije
 const passwordRules = [
-  v => !!v || 'Nova šifra je obavezna.',
-  v => (v && v.length >= 8) || 'Nova šifra mora imati najmanje 8 karaktera.',
+  (v: string) => !!v || 'Šifra je obavezna',
+  (v: string) => v.length >= 8 || 'Šifra mora imati najmanje 8 karaktera',
 ];
+
 const passwordConfirmationRules = [
-  v => !!v || 'Potvrda šifre je obavezna.',
-  v => v === password.value || 'Šifre se ne poklapaju.',
+  (v: string) => !!v || 'Potvrda šifre je obavezna',
+  (v: string) => v === password.value || 'Šifre se ne podudaraju',
 ];
 
-
-onMounted(() => {
-  try {
-    const userObjectString = localStorage.getItem('user');
-    const authTokenString = localStorage.getItem('auth_token');
-
-    if (userObjectString && authTokenString) {
-      const userData = JSON.parse(userObjectString);
-
-      if (userData.email) {
-        email.value = userData.email;
-        token.value = authTokenString; 
-        
-        console.log('Podaci uspešno učitani iz localStorage!');
-        console.log('Koristi se email:', email.value);
-      } else {
-        throw new Error("Objekat 'user' u localStorage ne sadrži email adresu.");
-      }
-    } else {
-      throw new Error("Nedostaju 'user' ili 'auth_token' u localStorage.");
-    }
-  } catch (e) {
-    console.error('Greška prilikom inicijalizacije:', e.message);
-    tokenError.value = "Greška: Niste ulogovani ili vaša sesija nije validna. Bićete preusmereni na stranicu za prijavu.";
-    setTimeout(() => router.push('/login'), 4000);
+// Funkcija za resetovanje lozinke
+async function resetPassword() {
+  if (!formIsValid.value) {
+    errorMsg.value = 'Molimo ispravno popunite sva polja.';
+    return;
   }
-});
-
-const changePassword = async () => {
-  if (tokenError.value) return;
-
-  const { valid: isFormValid } = await form.value.validate();
-  if (!isFormValid) return;
-
+  
   loading.value = true;
-  error.value = null;
-  success.value = null;
+  errorMsg.value = null;
+  successMsg.value = null;
 
   try {
-    const resetUrl = `http://localhost/api/reset-password?token=${encodeURIComponent(token.value)}&email=${encodeURIComponent(email.value)}`;
-    console.log('Šalje se zahtev na:', resetUrl);
-
-    const response = await fetch(resetUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        password: password.value,
-        password_confirmation: password_confirmation.value,
-      })
+    const response = await api.post('/reset-password', {
+      token: token,
+      email: email,
+      password: password.value,
+      password_confirmation: passwordConfirmation.value,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || `Došlo je do greške (HTTP ${response.status})`);
-    }
-
-    success.value = data.message || 'Šifra je uspešno promenjena! Bićete preusmereni na stranicu za prijavu.';
-    form.value.reset();
     
-    // Brišemo stare podatke
-    localStorage.removeItem('user');
-    localStorage.removeItem('auth_token');
-
+    successMsg.value = response.data.message || 'Šifra je uspješno resetovana.';
+    console.log('Šifra je uspješno resetovana.');
+    
     setTimeout(() => {
       router.push('/login');
-    }, 4000);
+    }, 2000);
 
-  } catch (e) {
-    console.error('Greška pri promeni šifre:', e);
-    if (e.message.includes('Failed to fetch')) {
-        error.value = 'Nije moguće povezati se sa serverom. Proverite internet konekciju.';
+  } catch (error: any) {
+    console.error('Greška pri resetovanju šifre:', error);
+    
+    if (error.response) {
+      if (error.response.status === 422) {
+        const validationErrors = error.response.data.errors;
+        if (validationErrors) {
+            errorMsg.value = Object.values(validationErrors).flat().join(' ');
+        } else {
+            errorMsg.value = 'Greška validacije. Molimo provjerite podatke.';
+        }
+      } else {
+        errorMsg.value = error.response.data.message || 'Došlo je do greške. Pokušajte ponovo.';
+      }
+    } else if (error.request) {
+      errorMsg.value = 'Nema odgovora od servera. Proverite internetsku vezu.';
     } else {
-        error.value = e.message || 'Došlo je do neočekivane greške. Pokušajte ponovo.';
+      errorMsg.value = 'Došlo je do neočekivane greške.';
     }
   } finally {
     loading.value = false;
   }
-};
+}
 </script>
 
 <style scoped>
-/* Stilovi ostaju isti, nisu menjani */
-.page-container {
-  padding: 0;
-  background-color: #f7f8fc;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-}
 
-.app-header {
-  padding: 6px 24px 0 24px;
-  background-color: white;
+.reset-password-bg {
+  min-height: 100vh;
+  width: 100vw;
+  background: url('@/assets/background.png') no-repeat center center;
+  background-size: cover;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: center;
 }
 
-.page-title {
-  font-family: 'Roboto', sans-serif !important;
-  font-size: 20px;
-  font-weight: 500;
-  color: #222;
-  line-height: 100%;
-  letter-spacing: 0.15px;
-  vertical-align: middle;
-  margin: 5px;
-}
-
-.page-subtitle {
-  font-size: 14px;
-  color: #777;
-  margin: 0;
-  margin-top: 2px;
-}
-
-.header-divider {
-  height: 1px;
-  background-color: #e0e0e0;
-  margin-top: 7px;
-  margin-bottom: 24px;
-}
-
-.page-content {
-  padding: 0 24px;
-  flex-grow: 1;
-  overflow-y: auto;
-}
-
-.centered-title {
+.reset-password-wrapper {
   display: flex;
   justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100vw;
+  backdrop-filter: blur(2px);
+}
+
+.reset-password-card {
+  width: 495px;
+  height: 420px; 
+  padding: 24px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  border-radius: 16px;
+}
+
+.reset-password-title {
+  font-family: Roboto, sans-serif;
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 100%;
+  letter-spacing: 0.15px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.title-line {
+  width: 431px;
+  height: 1px;
+  background-color: #e0e0e0;
+  margin: 0 auto 24px auto;
+}
+
+.reset-password-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.input-field {
+  width: 100%;
+  border-radius: 4px;
+}
+
+.reset-password-button {
+  width: 100%;
+  height: 48px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: 1.25px;
+  text-transform: uppercase;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  background-color: #3392EA !important;
+  color: white !important;
+  box-shadow: none;
+  border-radius: 4px;
+}
+
+.login-footer {
+  margin-top: auto; 
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  color: #888;
+  text-align: center;
   width: 100%;
 }
 
-.password-card {
-  width: 100%; 
-  max-width: 500px;
+.error-text {
+  color: #e53935;
+  font-size: 13px;
+  margin-top: -8px;
+  margin-bottom: 6px;
+  text-align: left;
+  width: 100%;
+}
+
+.success-text {
+  color: #4CAF50; 
+  font-size: 13px;
+  margin-top: -8px;
+  margin-bottom: 6px;
+  text-align: left;
+  width: 100%;
 }
 </style>

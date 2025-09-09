@@ -8,9 +8,16 @@
 
     <div class="page-content">
       <div class="header-actions">
-        <v-btn color="primary" class="add-button" @click="onAddAutor" prepend-icon="mdi-plus">
+        <v-btn
+          v-if="user?.role === 'librarian'"
+          color="primary"
+          class="add-button"
+          @click="onAddAutor"
+          prepend-icon="mdi-plus"
+        >
           NOVI AUTOR
         </v-btn>
+
         <div class="search-wrapper">
           <v-text-field
             v-model="search"
@@ -26,18 +33,86 @@
           />
         </div>
       </div>
-      <AutoriTable :search="search" />
+      <AutoriTable
+        :search="search"
+        @delete-success="handleDeleteSuccess"
+      />
     </div>
+
+    <v-snackbar
+      v-model="snackbar.show"
+      color="#3392EA"
+      :timeout="snackbar.timeout"
+    >
+      {{ snackbar.message }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+definePageMeta({
+  middleware: ['auth']
+})
+import { ref, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import AutoriTable from '@/components/AutoriTable.vue'
 
 const search = ref('')
 const router = useRouter()
+const route = useRoute()
+const user = ref(null)
+
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: '#3392EA',
+  timeout: 3000,
+});
+
+const showSnackbar = (message) => {
+  snackbar.value = { show: true, message, color: '#3392EA', timeout: 3000 };
+};
+
+const handleDeleteSuccess = (message) => {
+  showSnackbar(message, 1500);
+};
+
+onMounted(() => {
+  if (process.client) {
+    const storedUser = localStorage.getItem('user')
+    user.value = storedUser ? JSON.parse(storedUser) : null
+    
+    const message = localStorage.getItem('deleteSuccessMessage');
+    if (message) {
+      showSnackbar(message, 1500);
+      localStorage.removeItem('deleteSuccessMessage');
+    }
+  }
+});
+
+watch(
+  () => route.query.refresh,
+  (newVal) => {
+    if (newVal === 'authors') {
+      const message = localStorage.getItem('deleteSuccessMessage');
+      if (message) {
+        handleDeleteSuccess(message);
+        localStorage.removeItem('deleteSuccessMessage');
+        router.replace({ query: {} }); // Očisti query parametre
+      }
+    }
+  }
+);
+
 const onAddAutor = () => router.push('/newauthor')
 const onSearch = () => {}
 </script>
@@ -49,7 +124,7 @@ const onSearch = () => {}
   display: flex;
   flex-direction: column;
   height: 100vh;
-  overflow: hidden; 
+  overflow: hidden;
 }
 
 .app-header {
@@ -77,17 +152,19 @@ const onSearch = () => {}
 .page-content {
   padding: 0 24px;
   flex-grow: 1;
-
 }
 
 .header-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  align-items: center; 
   gap: 16px;
   margin-bottom: 24px;
   padding-left: 0;
   padding-right: 24px;
+}
+
+.search-wrapper {
+  margin-left: auto; 
 }
 
 .add-button {
@@ -124,9 +201,6 @@ const onSearch = () => {}
 }
 
 .search-field :deep(input) {
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
   padding: 0 !important;
   font-size: 14px;
   min-height: unset !important;
@@ -134,22 +208,22 @@ const onSearch = () => {}
 }
 
 .search-field :deep(.v-field__overlay) {
-    background-color: transparent !important;
+  background-color: transparent !important;
 }
 
 .search-field :deep(.v-field__outline) {
-    border: none !important;
+  border: none !important;
 }
 
 .search-field :deep(.v-field__field) {
-    height: 24px !important;
-    padding: 0 !important;
+  height: 24px !important;
+  padding: 0 !important;
 }
 
 .search-field :deep(.v-field__append-inner) {
-    height: 24px !important;
-    align-items: center;
-    padding-top: 0 !important;
+  height: 24px !important;
+  align-items: center;
+  padding-top: 0 !important;
 }
 
 .search-field :deep(.v-icon) {

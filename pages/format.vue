@@ -36,6 +36,9 @@
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth-librarian']
+})
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';

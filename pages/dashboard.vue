@@ -43,10 +43,12 @@
                           class="pr-2"
                       ></v-checkbox>
                     </template>
-                    <v-avatar size="36" class="mr-3">
-                      <v-img :src="student.profile_picture || '/images/default-user-1.jpg'"></v-img>
-                    </v-avatar>
-                    <v-list-item-title>{{ userFullName(student) }}</v-list-item-title>
+                    <div class="list-item-content-wrapper">
+                      <v-avatar size="36" class="mr-3">
+                        <v-img :src="student.profile_picture || '/images/default-user-1.jpg'"></v-img>
+                      </v-avatar>
+                      <span>{{ userFullName(student) }}</span>
+                    </div>
                   </v-list-item>
                   <v-list-item v-if="filteredStudents.length === 0">
                       <v-list-item-title class="text-center text-grey">Nema rezultata</v-list-item-title>
@@ -96,10 +98,12 @@
                           class="pr-2"
                       ></v-checkbox>
                     </template>
-                    <v-avatar size="36" class="mr-3">
-                      <v-img :src="librarian.profile_picture || '/images/default-user-1.jpg'"></v-img>
-                    </v-avatar>
-                    <v-list-item-title>{{ userFullName(librarian) }}</v-list-item-title>
+                    <div class="list-item-content-wrapper">
+                      <v-avatar size="36" class="mr-3">
+                        <v-img :src="librarian.profile_picture || '/images/default-user-1.jpg'"></v-img>
+                      </v-avatar>
+                      <span>{{ userFullName(librarian) }}</span>
+                    </div>
                   </v-list-item>
                   <v-list-item v-if="filteredLibrarians.length === 0">
                       <v-list-item-title class="text-center text-grey">Nema rezultata</v-list-item-title>
@@ -149,10 +153,12 @@
                           class="pr-2"
                       ></v-checkbox>
                     </template>
-                    <v-avatar size="36" class="mr-3" rounded="0">
-                      <v-img src="/images/default-book-1.jpg"></v-img>
-                    </v-avatar>
-                    <v-list-item-title>{{ book.name }}</v-list-item-title>
+                    <div class="list-item-content-wrapper">
+                      <v-avatar size="36" class="mr-3" rounded="0">
+                        <v-img src="/images/default-book-1.jpg"></v-img>
+                      </v-avatar>
+                      <span>{{ book.name }}</span>
+                    </div>
                   </v-list-item>
                   <v-list-item v-if="filteredBooks.length === 0">
                       <v-list-item-title class="text-center text-grey">Nema rezultata</v-list-item-title>
@@ -232,104 +238,17 @@
           </div>
         </div>
 
-        <div v-if="loading" class="text-center py-8">
-          <v-progress-circular indeterminate color="#3392EA"></v-progress-circular>
-          <p class="mt-2 text-grey-darken-1">Učitavanje aktivnosti...</p>
-        </div>
-
-        <v-alert v-else-if="error" type="error" dense>
-          {{ error }}
-        </v-alert>
-
-        <v-list v-else-if="activitiesToShow.length > 0" lines="one" class="activities-list">
-          <v-list-item 
-            v-for="activity in activitiesToShow" 
-            :key="activity.id" 
-            class="activity-row"
-          >
-            <template v-slot:prepend>
-              <v-avatar size="60">
-                <v-img :src="getActivityAvatar(activity)"></v-img>
-              </v-avatar>
-            </template>
-
-            <v-list-item-subtitle class="activity-subtitle">{{ timeAgo(activity) }}</v-list-item-subtitle>
-
-            <v-list-item-title class="activity-title">
-              <template v-if="activity.type === 'issued'">
-                <NuxtLink :to="`/users/${activity.rented_out_by?.username}`" class="user-link">
-                  {{ userFullName(activity.rented_out_by) }}
-                </NuxtLink>
-
-                je izdao knjigu
-                <span class="font-weight-bold"> {{ activity.book_title }}</span>
-
-                učeniku
-
-                <NuxtLink :to="`/users/${activity.rented_by?.username}`" class="user-link">
-                   {{ userFullName(activity.rented_by) }}
-                </NuxtLink>
-
-                dana {{ formatDate(activity.rental_date) }}.
-
-                <NuxtLink :to="`/loan-management/details/${activity.rental_id}`" class="details-link">
-                  pogledaj detaljnije&gt;&gt;
-                </NuxtLink>
-              </template>
-
-              <template v-else-if="activity.type === 'returned'">
-                <NuxtLink :to="`/users/${activity.returned_by?.username}`" class="user-link">
-                  {{ userFullName(activity.returned_by) }}
-                </NuxtLink>
-
-                je vratio knjigu
-                <span class="font-weight-bold"> {{ activity.book_title }}</span>
-
-                bibliotekaru
-
-                <NuxtLink :to="`/users/${activity.rented_out_by?.username}`" class="user-link">
-                   {{ userFullName(activity.rented_out_by) }}
-                </NuxtLink>
-
-                dana {{ formatDate(activity.returned_at) }}.
-
-                <NuxtLink :to="`/loan-management/details/${activity.rental_id}`" class="details-link">
-                  pogledaj detaljnije&gt;&gt;
-                </NuxtLink>
-              </template>
-
-              <template v-else-if="activity.type === 'reservation'">
-                <NuxtLink :to="`/users/${activity.student?.username}`" class="user-link">
-                  {{ userFullName(activity.student) }}
-                </NuxtLink>
-
-                je rezervisao knjigu
-                <span class="font-weight-bold"> {{ activity.book_title }}</span>
-
-                dana {{ formatDate(activity.reserved_at) }}.
-
-                Status: <span class="font-weight-bold">{{ activity.status }}</span>
-              </template>
-            </v-list-item-title>
-          </v-list-item>
-        </v-list>
-
-        <v-card-text v-else>
-          Nema skorašnjih aktivnosti.
-        </v-card-text>
-        
-        <div v-if="filteredActivities.length > 5" class="show-more-less-btn-container">
-          <NuxtLink to="/dashboard" style="text-decoration: none;">
-            <v-btn
-              variant="outlined"
-              color="primary"
-              @click="toggleShowAll"
-              class="show-more-less-btn"
-            >
-              {{ showAll ? 'Show less' : 'Show more' }}
-            </v-btn>
-          </NuxtLink>
-        </div>
+        <DashboardAktivnosti 
+          :activities="filteredActivities" 
+          :loading="loading"
+          :error="error"
+          @show-more="toggleShowAll"
+          :show-all="showAll"
+          :total-count="filteredActivities.length"
+          mode="dashboard"
+          :max-items="10"
+          :show-title="false"
+        />
       </v-card>
     </div>
   </div>
@@ -338,19 +257,20 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
-import { useRouter } from 'vue-router';
+import useActivities from '~/composables/useActivities';
+import DashboardAktivnosti from '~/components/dashboard/DashboardAktivnosti.vue';
 
-// Stanja za učitavanje, greške i podatke
-const activities = ref([]);
+definePageMeta({
+  middleware: ['auth']
+})
+
+const { activities, loading, error, fetchActivities } = useActivities();
+
 const students = ref([]);
 const librarians = ref([]);
 const books = ref([]);
-const loading = ref(false);
-const error = ref(null);
 const showAll = ref(false);
-const router = useRouter();
 
-// Osnovni URL tvog API-ja
 const apiBaseUrl = 'http://localhost';
 
 const selectedFilters = ref({
@@ -372,179 +292,6 @@ const activityLabels = {
   reservations: 'Rezervacije',
 };
 
-// Funkcija za formatiranje datuma u "dd.mm.yyyy." format
-const formatDate = (dateString) => {
-  if (!dateString) return '-';
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('sr-RS', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  } catch (err) {
-    return dateString;
-  }
-};
-
-const timeAgo = (activity) => {
-  let dateString = '';
-  let timeText = '';
-
-  if (activity.type === 'issued') {
-    dateString = activity.rental_date;
-    timeText = 'Izdavanje knjige';
-  } else if (activity.type === 'returned') {
-    dateString = activity.returned_at;
-    timeText = 'Vraćanje knjige';
-  } else if (activity.type === 'reservation') {
-    dateString = activity.reserved_at;
-    timeText = 'Rezervacija knjige';
-  }
-
-  if (!dateString) return '';
-
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInMilliseconds = now - date;
-
-  const seconds = Math.floor(diffInMilliseconds / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  let formattedTime = '';
-
-  if (days > 0) {
-    formattedTime = `prije ${days} dan${days > 1 ? 'a' : ''}`;
-  } else if (hours > 0) {
-    formattedTime = `prije ${hours} sat${hours > 1 ? 'a' : ''}`;
-  } else if (minutes > 0) {
-    formattedTime = `prije ${minutes} minut${minutes > 1 ? 'a' : ''}`;
-  } else {
-    formattedTime = `prije ${seconds} sekund${seconds > 1 ? 'i' : 'u'}`;
-  }
-
-  return `${timeText} - ${formattedTime}`;
-};
-
-// Funkcija za dohvatanje svih aktivnosti
-const fetchActivities = async () => {
-  loading.value = true;
-  error.value = null;
-  try {
-    const token = localStorage.getItem('auth_token');
-    if (!token) throw new Error('Niste prijavljeni');
-
-    // Dohvatanje svih tipova aktivnosti
-    const [rentalsResponse, returnedResponse, reservationsResponse] = await Promise.all([
-      // Aktivne iznajmljivanja (izdate knjige)
-      axios.get(`${apiBaseUrl}/api/rentals/active`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json'
-        },
-        params: {
-          per_page: 100,
-          page: 1
-        },
-      }),
-      // Vraćene knjige
-      axios.get(`${apiBaseUrl}/api/rentals/returned`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json'
-        },
-        params: {
-          per_page: 100,
-          page: 1
-        },
-      }),
-      // Rezervacije
-      axios.get(`${apiBaseUrl}/api/reservations/active`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json'
-        },
-        params: {
-          per_page: 100,
-          page: 1
-        },
-      })
-    ]);
-
-    const allActivities = [];
-
-    // Procesiranje aktivnih iznajmljivanja (izdate knjige)
-    if (rentalsResponse.data.data?.data) {
-      rentalsResponse.data.data.data.forEach(rental => {
-        allActivities.push({
-          id: `rental_${rental.rental_id}`,        // ISPRAVLJENO
-          type: 'issued',
-          rental_id: rental.rental_id,            // ISPRAVLJENO
-          book_id: rental.book_id,
-          book_title: rental.book_title,          // ISPRAVLJENO
-          rented_by: rental.rented_by,
-          rented_out_by: rental.rented_out_by,
-          rental_date: rental.rental_date,
-          returned_at: null
-        });
-      });
-    }
-
-    // Procesiranje vraćenih knjiga
-    if (returnedResponse.data.data?.data) {
-      returnedResponse.data.data.data.forEach(rental => {
-        allActivities.push({
-          id: `returned_${rental.rental_id}`,      // ISPRAVLJENO
-          type: 'returned',
-          rental_id: rental.rental_id,            // ISPRAVLJENO
-          book_id: rental.book_id,
-          book_title: rental.book_title,          // ISPRAVLJENO
-          returned_by: rental.returned_by,
-          rented_out_by: rental.rented_out_by,
-          rental_date: rental.rental_date,
-          returned_at: rental.returned_at
-        });
-      });
-    }
-
-    // Procesiranje rezervacija
-    if (reservationsResponse.data.reservations?.data) {
-      reservationsResponse.data.reservations.data.forEach(reservation => {
-        allActivities.push({
-          id: `reservation_${reservation.id}`,
-          type: 'reservation',
-          reservation_id: reservation.id,
-          book_id: reservation.book_id,
-          book_title: reservation.book?.name, // Ovo je bilo ispravno
-          student: reservation.student,
-          librarian_id: reservation.librarian_id,
-          reserved_at: reservation.reserved_at,
-          status: reservation.status
-        });
-      });
-    }
-
-    // Sortiranje po datumu (najnovije prvo)
-    allActivities.sort((a, b) => {
-      const dateA = new Date(a.rental_date || a.reserved_at || a.returned_at);
-      const dateB = new Date(b.rental_date || b.reserved_at || a.returned_at);
-      return dateB - dateA;
-    });
-
-    activities.value = allActivities;
-
-  } catch (err) {
-    error.value = 'Greška pri učitavanju aktivnosti: ' + (err.response?.data?.message || err.message);
-    if (err.response?.status === 401) {
-      router.push('/login');
-    }
-  } finally {
-    loading.value = false;
-  }
-};
-
 const fetchFilterOptions = async () => {
   try {
     const token = localStorage.getItem('auth_token');
@@ -561,7 +308,30 @@ const fetchFilterOptions = async () => {
   }
 };
 
-// Computed property to check if there are any active filters
+onMounted(async () => {
+  await fetchFilterOptions();
+  await fetchActivities();
+});
+
+const userFullName = (user) => {
+    if (!user) return 'Nepoznat korisnik';
+    return `${user.first_name || ''} ${user.last_name || ''}`.trim();
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('sr-RS', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  } catch (err) {
+    return dateString;
+  }
+};
+
 const hasActiveFilters = computed(() => {
   return selectedFilters.value.students.length > 0 ||
          selectedFilters.value.librarians.length > 0 ||
@@ -571,7 +341,6 @@ const hasActiveFilters = computed(() => {
          selectedFilters.value.date.end !== null;
 });
 
-// Function to reset all filters
 const resetAllFilters = () => {
   selectedFilters.value = {
     students: [],
@@ -610,65 +379,40 @@ const filteredBooks = computed(() => {
 
 const filteredActivities = computed(() => {
   return activities.value.filter(activity => {
-    // Student filter
-    let studentMatch = false;
-    if (selectedFilters.value.students.length === 0) {
-      studentMatch = true;
-    } else {
-      if (activity.type === 'issued') {
-        studentMatch = activity.rented_by && selectedFilters.value.students.includes(activity.rented_by.id);
-      } else if (activity.type === 'returned') {
-        studentMatch = activity.returned_by && selectedFilters.value.students.includes(activity.returned_by.id);
-      } else if (activity.type === 'reservation') {
-        studentMatch = activity.student && selectedFilters.value.students.includes(activity.student.id);
-      }
-    }
+    let studentMatch = selectedFilters.value.students.length === 0 || (
+      (activity.type === 'issued' && activity.rented_by && selectedFilters.value.students.includes(activity.rented_by.id)) ||
+      (activity.type === 'returned' && activity.returned_by && selectedFilters.value.students.includes(activity.returned_by.id)) ||
+      (activity.type === 'reservation' && activity.student && selectedFilters.value.students.includes(activity.student.id))
+    );
 
-    // Librarian filter
-    let librarianMatch = false;
-    if (selectedFilters.value.librarians.length === 0) {
-      librarianMatch = true;
-    } else {
-      if (activity.type === 'issued' || activity.type === 'returned') {
-        const librarian = activity.rented_out_by;
-        librarianMatch = librarian && selectedFilters.value.librarians.includes(librarian.id);
-      } else if (activity.type === 'reservation') {
-        // Assuming a reservation has a librarian_id
-        librarianMatch = activity.librarian_id && selectedFilters.value.librarians.includes(activity.librarian_id);
-      }
-    }
+    let librarianMatch = selectedFilters.value.librarians.length === 0 || (
+      ((activity.type === 'issued' || activity.type === 'returned') && activity.rented_out_by && selectedFilters.value.librarians.includes(activity.rented_out_by.id)) ||
+      (activity.type === 'reservation' && activity.librarian_id && selectedFilters.value.librarians.includes(activity.librarian_id))
+    );
+    
+    const bookMatch = selectedFilters.value.books.length === 0 || selectedFilters.value.books.includes(activity.book_id);
+    
+    const activityTypeMap = {
+      issued: 'issued',
+      returned: 'returned',
+      reservations: 'reservation',
+    };
+    const mappedActivityType = activityTypeMap[selectedFilters.value.activity] || selectedFilters.value.activity;
+    const activityMatch = !mappedActivityType || mappedActivityType === activity.type;
 
-    // Book filter
-    const bookMatch = selectedFilters.value.books.length === 0 ||
-                      selectedFilters.value.books.includes(activity.book_id);
-
-    // Activity type filter
-    const activityMatch = !selectedFilters.value.activity || selectedFilters.value.activity === activity.type;
-
-    // Date filter
     const dateMatch = (() => {
       const activityDateString = activity.rental_date || activity.returned_at || activity.reserved_at;
-      if (!activityDateString) return true; // Ako nema datuma, ne filtriramo
-
+      if (!activityDateString) return true;
       const activityDate = new Date(activityDateString);
       const start = selectedFilters.value.date.start ? new Date(selectedFilters.value.date.start) : null;
       const end = selectedFilters.value.date.end ? new Date(selectedFilters.value.date.end) : null;
-      
       if (start) start.setHours(0, 0, 0, 0);
       if (end) end.setHours(23, 59, 59, 999);
-      
-      if (start && activityDate < start) return false;
-      if (end && activityDate > end) return false;
-
-      return true;
+      return (!start || activityDate >= start) && (!end || activityDate <= end);
     })();
-
+    
     return studentMatch && librarianMatch && bookMatch && activityMatch && dateMatch;
   });
-});
-
-const activitiesToShow = computed(() => {
-  return showAll.value ? filteredActivities.value : filteredActivities.value.slice(0, 9);
 });
 
 const selectedDateRangeLabel = computed(() => {
@@ -703,30 +447,6 @@ const selectedBooksLabel = computed(() => {
   return `${count} knjiga izabrano`;
 });
 
-// Pozivamo funkciju kada se komponenta montira
-onMounted(async () => {
-  await fetchFilterOptions();
-  await fetchActivities();
-});
-
-// Helper za puno ime korisnika
-const userFullName = (user) => {
-    if (!user) return 'Nepoznat korisnik';
-    return `${user.first_name || ''} ${user.last_name || ''}`.trim();
-};
-
-// Funkcija za dobijanje avatara aktivnosti
-const getActivityAvatar = (activity) => {
-  if (activity.type === 'issued') {
-    return activity.rented_out_by?.profile_picture || '/images/default-user-1.jpg';
-  } else if (activity.type === 'returned') {
-    return activity.returned_by?.profile_picture || '/images/default-user-1.jpg';
-  } else if (activity.type === 'reservation') {
-    return activity.student?.profile_picture || '/images/default-user-1.jpg';
-  }
-  return '/images/default-user-1.jpg';
-};
-
 const selectFilter = (type, value) => {
   selectedFilters.value[type] = value;
   showAll.value = false;
@@ -749,6 +469,7 @@ const toggleShowAll = () => {
 </script>
 
 <style scoped>
+/* Svi stilovi ostaju isti */
 .page-container {
   padding: 0;
   background-color: white;
@@ -824,68 +545,6 @@ const toggleShowAll = () => {
   background-color: #ffebee;
 }
 
-.activities-list {
-  padding: 0;
-  background-color: transparent;
-}
-
-.activity-row {
-  max-width: 875px;
-  min-height: 60px;
-  height: auto;
-  gap: 16px;
-  opacity: 1;
-  border-radius: 4px;
-
- margin: -10px 0; 
-  padding: 12px 0 !important;
-}
-
-.activity-subtitle {
-  font-size: 0.8rem;
-  color: #666;
-  margin-bottom: 4px;
-  line-height: 1.5;
-}
-
-.activity-title {
-  font-size: 0.95rem;
-  color: #333;
-  line-height: 1.5;
-  white-space: normal;
-}
-
-.user-link, .details-link {
-  color: #1E88E5;
-  text-decoration: none;
-  font-weight: bold;
-}
-
-.user-link:hover, .details-link:hover {
-  text-decoration: underline;
-}
-
-.show-more-less-btn-container {
-  display: flex;
-  justify-content: flex-start;
-  padding: 16px 0;
-  margin: 16px 0;
-}
-
-.show-more-less-btn {
-  width: 667px !important;
-  height: 36px !important;
-  padding: 12px 16px !important;
-  border: 1px solid #3392EA !important;
-  border-radius: 4px !important;
-  opacity: 1;
-  gap: 8px;
-  text-transform: none !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .date-picker-card {
   min-width: 320px;
 }
@@ -910,18 +569,15 @@ const toggleShowAll = () => {
   overflow-y: auto;
 }
 
-.user-selection-list .v-list-item-title {
+/* MODIFIKOVANI STILOVI */
+.v-list-item {
   display: flex;
   align-items: center;
 }
 
-
-.v-card, .v-list, .v-list-item, .v-card-actions {
-  border: none !important;
-  box-shadow: none !important;
-}
-
-.v-divider {
-  border-color: rgba(0, 0, 0, 0.12) !important;
+.list-item-content-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* Razmak između avatara i teksta */
 }
 </style>

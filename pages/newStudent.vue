@@ -18,6 +18,9 @@
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth', 'auth-librarian']
+})
 import { useRouter } from 'vue-router';
 import newUsers from '@/components/newUsers.vue';
 

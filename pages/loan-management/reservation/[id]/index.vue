@@ -10,11 +10,11 @@
         </p>
       </div>
       
-      <BookMenu v-if="reservation" :book="reservation.book" />
+      <BookMenu v-if="reservation && userRole === 'librarian'" :book="reservation.book" />
 
     </header>
 
-    <div class="header-divider"></div>
+    <div class="header-divider" :style="headerDividerStyle"></div>
 
     <div class="page-content">
       <div v-if="loading" class="text-center pa-10">
@@ -82,6 +82,9 @@
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth']
+})
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
@@ -92,9 +95,18 @@ const router = useRouter();
 const reservation = ref(null);
 const loading = ref(true);
 const error = ref(null);
+const userRole = ref(null); // NOVO: Stanje za ulogu korisnika
 
 const bookCover = computed(() => {
   return reservation.value?.book?.cover_image || '/images/default-book-1.jpg';
+});
+
+// NOVO: Dinamički stil za marginu
+const headerDividerStyle = computed(() => {
+  return {
+    'margin-top': userRole.value === 'librarian' ? '10px' : '15px',
+    'margin-bottom': '24px' // Ostavljamo ovu marginu nepromijenjenom
+  };
 });
 
 const formatDate = (dateString) => {
@@ -171,7 +183,21 @@ const navigateTo = (path) => {
   router.push(path);
 };
 
+// NOVO: Funkcija za dohvaćanje uloge korisnika
+const getUserRole = () => {
+  try {
+    const userString = localStorage.getItem('user');
+    if (userString) {
+      const user = JSON.parse(userString);
+      userRole.value = user.role;
+    }
+  } catch (e) {
+    console.error('Greška pri dohvatanju uloge korisnika:', e);
+  }
+};
+
 onMounted(() => {
+  getUserRole();
   fetchReservation();
 });
 </script>
@@ -221,8 +247,6 @@ onMounted(() => {
 .header-divider {
   height: 1px;
   background-color: #e0e0e0;
-  margin-top: 15px;
-  margin-bottom: 24px;
 }
 
 /* KRAJ AŽURIRANIH HEADER STILOVA */

@@ -9,11 +9,16 @@
           </p>
         </div>
 
-        <BookMenu v-if="book" :book="book" />
+        <BookMenu v-if="userRole === 'librarian'" :book="book" />
 
       </header>
 
-      <div class="header-divider"></div>
+      <div
+        class="header-divider"
+        :class="{
+          'header-divider--student': userRole === 'student'
+        }"
+      ></div>
 
       <div class="main-content-wrapper">
         <div class="left-side-wrapper">
@@ -53,7 +58,7 @@
                     <div class="dropzone-box">
                       <div class="dropzone-content">
                         <v-icon size="48" color="#9E9E9E" class="dropzone-icon">mdi-image-outline</v-icon>
-                        <div class="dropzone-text">Drag your files here or click in this area.</div>
+                        <div class="dropzone-text">Prevucite datoteke ovdje ili kliknite.</div>
                       </div>
                       <input
                         type="file"
@@ -101,13 +106,34 @@
 
     </div>
     <div v-else class="loading">
-      <p v-if="error">{{ error }}</p>
-      <p v-else>Učitavanje podataka o knjizi...</p>
+      <p v-if="loading">Učitavanje podataka o knjizi...</p>
+      <p v-else>Nema podataka o knjizi.</p>
     </div>
+
+    <v-snackbar
+      v-model="errorSnackbar.show"
+      color="error"
+      :timeout="5000"
+      top
+    >
+      {{ errorSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="errorSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth']
+})
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from '@/axios'
@@ -123,13 +149,25 @@ const router = useRouter()
 
 const tab = ref('details')
 const book = ref(null)
-const error = ref(null)
-const uploadError = ref(null)
+const loading = ref(true);
 const fileInput = ref(null)
+const userRole = ref(null)
 
 const defaultBookCover = '/images/default-book-1.jpg';
 
+// Snackbar za greške
+const errorSnackbar = ref({
+  show: false,
+  text: '',
+});
+
+const showErrorSnackbar = (text) => {
+  errorSnackbar.value.text = text;
+  errorSnackbar.value.show = true;
+};
+
 const fetchBook = async () => {
+  loading.value = true;
   try {
     const bookResponse = await axios.get(`http://localhost/api/books/${route.params.id}`);
     const bookData = bookResponse.data.book;
@@ -275,7 +313,9 @@ const fetchBook = async () => {
 
   } catch (err) {
     console.error('API Error:', err.response?.data || err.message);
-    error.value = `Greška pri učitavanju podataka: ${err.message}.`;
+    showErrorSnackbar(`Greška pri učitavanju podataka: ${err.message}.`);
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -287,7 +327,6 @@ const handleImageChange = async (e) => {
   const files = e.target.files;
   if (!files.length) return;
 
-  uploadError.value = null;
   const formData = new FormData();
   for (const file of files) {
     formData.append('images[]', file);
@@ -295,24 +334,35 @@ const handleImageChange = async (e) => {
 
   try {
     console.log('Slanje slika na server...');
+    // Logika za slanje slika na server
+    // const response = await axios.post(`/api/books/${book.value.id}/images`, formData);
+    // console.log('Slike uspješno otpremljene:', response.data);
+    // await fetchBook(); // Osvježi podatke
   } catch (err) {
-    uploadError.value = 'Greška pri otpremanju slike.';
+    showErrorSnackbar('Greška pri otpremanju slike. Molimo pokušajte ponovo.');
   }
 };
 
 const handleSave = () => {
-  console.log('Sačuvane promjene na multimediji.');
+  // Logic for saving changes on multimedia.
 };
 
 const handleCancel = () => {
-  console.log('Poništene promjene.');
+  // Logic for canceling changes.
 };
 
-onMounted(fetchBook);
+onMounted(() => {
+  if (process.client) {
+    const user = localStorage.getItem('user');
+    if (user) {
+      userRole.value = JSON.parse(user).role;
+    }
+  }
+  fetchBook();
+});
 </script>
 
 <style scoped>
-
 .book-detail-page-wrapper {
   background-color: white;
   width: 100%;
@@ -353,6 +403,11 @@ onMounted(fetchBook);
   margin-bottom: 24px;
 }
 
+/* NOVI STIL ZA STUDENTA */
+.header-divider--student {
+  margin-top: 15px;
+}
+
 .book-detail-container {
   padding: 0;
   margin-right: auto;
@@ -388,16 +443,19 @@ onMounted(fetchBook);
 .left-side-wrapper {
   flex-grow: 1;
   min-width: 0;
-  max-width: calc(100% - 320px);
+  /* max-width: calc(100% - 320px); */ /* Ostavljamo ga da raste bez ograničenja */
 }
 
 .right-side-wrapper {
   flex: 0 0 280px;
   margin-left: 48px;
   margin-top: -24px;
+  /* OVO UKLONITI */
+  /*
   position: absolute;
   right: 24px;
   top: 0;
+  */
 }
 
 .tab-content-divider {

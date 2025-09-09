@@ -10,7 +10,6 @@
         </p>
       </div>
       
-      
       <BookMenu :book="book" :is-active="true" v-if="book" />
     </header>
 
@@ -48,11 +47,48 @@
       <BookQuantities v-if="book" :quantities="book" /> 
     </div>
 
-    <v-alert v-if="error" type="error" class="ma-4">{{ error }}</v-alert>
+    <v-snackbar
+      v-model="successSnackbar.show"
+      color="#3392EA"
+      :timeout="3000"
+      top
+    >
+      {{ successSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="successSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
+
+    <v-snackbar
+      v-model="errorSnackbar.show"
+      color="error"
+      :timeout="5000"
+      top
+    >
+      {{ errorSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="errorSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth-librarian']
+})
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from '@/axios';
@@ -67,11 +103,21 @@ const book = ref(null);
 const students = ref([]);
 const selectedStudent = ref(null);
 const loading = ref(false);
-const error = ref(null);
+const issueForm = ref(null);
 
 const bookId = route.params.id;
 
-const issueForm = ref(null);
+// Snackbar za uspješne poruke
+const successSnackbar = ref({
+  show: false,
+  text: '',
+});
+
+// Snackbar za greške
+const errorSnackbar = ref({
+  show: false,
+  text: '',
+});
 
 const getLibrarianId = () => {
     try {
@@ -81,43 +127,24 @@ const getLibrarianId = () => {
           return user.id;
         } else {
           console.error('Greška: ID bibliotekara nije validan ili ne postoji u localStorage-u.');
-          setError('ID bibliotekara nije pronađen. Molimo prijavite se ponovo.');
+          showErrorSnackbar('ID bibliotekara nije pronađen. Molimo prijavite se ponovo.');
           return null;
         }
     } catch (e) {
         console.error('Greška pri parsiranju user objekta iz localStorage-a:', e);
-        setError('Greška pri učitavanju korisničkih podataka. Molimo se prijavite ponovo.');
+        showErrorSnackbar('Greška pri učitavanju korisničkih podataka. Molimo se prijavite ponovo.');
         return null;
     }
 };
 
-const setError = (err) => {
-  error.value = err;
+const showSuccessSnackbar = (text) => {
+  successSnackbar.value.text = text;
+  successSnackbar.value.show = true;
 };
 
-
-const handleEdit = (item) => {
-  router.push(`/book/${item.id}?edit=true`);
-};
-
-const handleDelete = (item) => {
-  // Otpisi knjigu
-};
-
-const handleOtpisi = (item) => {
-  // Otpisi knjigu
-};
-
-const handleIzdaj = (item) => {
-  // Izdaj knjigu
-};
-
-const handleVrati = (item) => {
-  router.push(`/book/${item.id}/return`);
-};
-
-const handleRezervisi = (item) => {
-  router.push(`/book/${item.id}/reserve`);
+const showErrorSnackbar = (text) => {
+  errorSnackbar.value.text = text;
+  errorSnackbar.value.show = true;
 };
 
 onMounted(() => {
@@ -127,7 +154,6 @@ onMounted(() => {
 
 async function fetchBookDetails() {
   loading.value = true;
-  error.value = null;
   try {
     const res = await axios.get(`/books/${bookId}`);
     
@@ -143,7 +169,7 @@ async function fetchBookDetails() {
     if (ukupna_kolicina === 0 || ukupna_kolicina < na_raspolaganju) {
       ukupna_kolicina = na_raspolaganju + rezervisano + izdato + u_prekoracenju;
     } else {
-      na_raspolaganju = ukupna_kolicina - rezervisano - izdato - u_prekoracenja;
+      na_raspolaganju = ukupna_kolicina - rezervisano - izdato - u_prekoracenju;
       na_raspolaganju = Math.max(0, na_raspolaganju);
     }
 
@@ -161,7 +187,7 @@ async function fetchBookDetails() {
     
   } catch (err) {
     console.error('Greška pri učitavanju detalja o knjizi:', err);
-    error.value = 'Greška pri učitavanju detalja o knjizi.';
+    showErrorSnackbar('Greška pri učitavanju detalja o knjizi. Provjerite da li postoji knjiga sa ovim ID-om.');
     book.value = { naziv_knjige: 'Knjiga nije pronađena' };
   } finally {
     loading.value = false;
@@ -171,13 +197,17 @@ async function fetchBookDetails() {
 async function fetchStudents() {
   try {
     const res = await axios.get('/users', { params: { role_id: 1, per_page: 100 } });
-    students.value = res.data.data.data.map(user => ({
-      id: user.id,
-      name: `${user.first_name} ${user.last_name}`,
-    }));
+    if (res.data?.data?.data) {
+        students.value = res.data.data.data.map(user => ({
+            id: user.id,
+            name: `${user.first_name} ${user.last_name}`,
+        }));
+    } else {
+        throw new Error('Nijesu pronađeni podaci o učenicima u odgovoru sa servera.');
+    }
   } catch (err) {
     console.error('Greška pri učitavanju učenika:', err);
-    error.value = 'Greška pri učitavanju učenika.';
+    showErrorSnackbar('Greška pri učitavanju učenika.');
   }
 }
 
@@ -185,7 +215,7 @@ async function submitIssue() {
   const { valid } = await issueForm.value.validate();
   
   if (!valid) {
-    error.value = 'Molimo popunite sva obavezna polja.';
+    showErrorSnackbar('Molimo popunite sva obavezna polja.');
     return;
   }
   
@@ -195,7 +225,9 @@ async function submitIssue() {
   }
 
   loading.value = true;
-  error.value = null;
+  successSnackbar.value.show = false;
+  errorSnackbar.value.show = false;
+
   try {
     const response = await axios.post('/rentals', {
       book_id: bookId,
@@ -203,17 +235,22 @@ async function submitIssue() {
       librarian_id: librarianId,
     });
 
-    if (response.data.message === 'Rental created successfully') {
-      await fetchBookDetails();
-      
-      alert('Knjiga uspešno izdata!');
-      router.push(`/book/${bookId}`);
+    if (response.data.message) {
+      showSuccessSnackbar('Knjiga je uspješno izdata!');
     } else {
       throw new Error('Došlo je do greške prilikom izdavanja knjige.');
     }
+    
+    // Osvježi podatke o knjizi nakon uspješnog izdavanja
+    await fetchBookDetails();
+    // Opciono: resetuj formu nakon uspješnog izdavanja
+    selectedStudent.value = null;
+    issueForm.value.resetValidation();
+
   } catch (err) {
     console.error('Greška pri izdavanju knjige:', err);
-    error.value = err.response?.data?.error || 'Došlo je do greške prilikom izdavanja knjige.';
+    const errorMessage = err.response?.data?.error || err.response?.data?.message || 'Došlo je do greške prilikom izdavanja knjige.';
+    showErrorSnackbar(errorMessage);
   } finally {
     loading.value = false;
   }
@@ -328,9 +365,6 @@ body {
 .form-help-text {
   font-size: 12px;
   color: #777;
-  /* position: absolute;
-  bottom: -15px;
-  left: 12px; */
 }
 
 .form-actions {

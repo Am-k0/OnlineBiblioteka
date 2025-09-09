@@ -13,6 +13,9 @@
 </template>
 
 <script setup>
+definePageMeta({
+  middleware: ['auth']
+})
 import LoansNavigation from '~/components/LoansNavigation.vue';
 </script>
 

@@ -10,7 +10,13 @@
       <v-container fluid>
         <v-row>
           <v-col cols="12" md="7">
-            <DashboardAktivnosti />
+            <DashboardAktivnosti 
+              :activities="activities"
+              :loading="loading"
+              :error="error"
+              mode="home"
+              :max-items="10"
+            />
           </v-col>
 
           <v-col cols="12" md="5">
@@ -30,9 +36,21 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue';
+import useActivities from '~/composables/useActivities';
 import DashboardAktivnosti from '~/components/dashboard/DashboardAktivnosti.vue';
 import DashboardRezervacije from '~/components/dashboard/DashboardRezervacije.vue';
 import DashboardStatistika from '~/components/dashboard/DashboardStatistika.vue';
+
+definePageMeta({
+  middleware: ['auth']
+})
+
+const { activities, loading, error, fetchActivities } = useActivities();
+
+onMounted(() => {
+  fetchActivities();
+});
 </script>
 
 <style scoped>
@@ -64,7 +82,7 @@ import DashboardStatistika from '~/components/dashboard/DashboardStatistika.vue'
   height: 1px;
   background-color: #e0e0e0;
   margin-top: 20px;
-  margin-bottom: 24px;
+  margin-bottom: 0px;
 }
 
 .page-content {

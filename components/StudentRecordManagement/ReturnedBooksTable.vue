@@ -1,6 +1,5 @@
 <template>
   <div class="table-container">
-    <h2>Vraćene knjige</h2>
     <div class="content-area">
       <v-data-table
         :headers="headers"
@@ -60,20 +59,24 @@
               title-property="book_title"
               :show-view="true"
               :show-vrati="false"
-              :show-otpisi="true"
+              :show-otpisi="isLibrarian"
               :show-izdaj="false"
               :show-edit="false"
               :show-delete="false"
               :show-rezervisi="false"
               @view="handleView"
               @otpisi="handleOtpisi"
-              @error="setError"
+              @error="showErrorSnackbar"
             />
           </div>
         </template>
 
         <template #no-data>
-          <v-alert>Nema pronađenih vraćenih knjiga.</v-alert>
+          <div class="text-center py-8">
+            <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-book-arrow-right-outline</v-icon>
+            <h3 class="text-h6 mb-2 text-grey-darken-1">Nema vraćenih knjiga</h3>
+            <p class="text-body-2 text-grey">Ovaj korisnik nema vraćenih knjiga za prikaz.</p>
+          </div>
         </template>
       </v-data-table>
   
@@ -86,9 +89,23 @@
         @update:currentPage="fetchReturnedBooks"
       />
       
-      <v-alert v-if="error" type="error" class="mt-4">
-        {{ error }}
-      </v-alert>
+      <v-snackbar
+        v-model="snackbar.show"
+        :color="snackbar.color"
+        :timeout="snackbar.timeout"
+        top
+      >
+        {{ snackbar.text }}
+        <template v-slot:actions>
+          <v-btn
+            color="white"
+            variant="text"
+            @click="snackbar.show = false"
+          >
+            Zatvori
+          </v-btn>
+        </template>
+      </v-snackbar>
     </div>
   </div>
 </template>
@@ -103,14 +120,23 @@ import ActionMenu from '@/components/ActionMenu.vue';
 const route = useRoute();
 const returnedBooks = ref([]);
 const loading = ref(false);
-const error = ref(null);
 const studentId = ref(null);
+const userRole = ref('');
 
 const itemsPerPage = ref(20);
 const currentPage = ref(1);
 const totalItems = ref(0);
 
 const defaultBookCover = '/images/default-book-1.jpg';
+const apiBaseUrl = 'http://localhost';
+
+// Snackbar state
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 5000,
+});
 
 const headers = ref([
   { title: 'Naziv Knjige', key: 'book_title', sortable: true },
@@ -121,9 +147,13 @@ const headers = ref([
   { title: '', key: 'actions', align: 'end', sortable: false },
 ]);
 
-const setError = (err) => {
-  error.value = err;
-  setTimeout(() => error.value = null, 5000);
+const isLibrarian = computed(() => userRole.value === 'librarian');
+
+const showErrorSnackbar = (message) => {
+  snackbar.value.text = message;
+  snackbar.value.color = 'error';
+  snackbar.value.timeout = null; // Bez tajmera
+  snackbar.value.show = true;
 };
 
 const formatDate = (dateString) => {
@@ -163,7 +193,7 @@ const formatHoldDuration = (totalDays) => {
 const getStudentIdByUsername = async (username) => {
   try {
     const token = localStorage.getItem('auth_token');
-    const response = await axios.get(`http://localhost/api/users/${username}`, {
+    const response = await axios.get(`${apiBaseUrl}/api/users/${username}`, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
@@ -172,13 +202,35 @@ const getStudentIdByUsername = async (username) => {
     return response.data?.[0]?.id || null;
   } catch (err) {
     console.error('Greška pri dohvaćanju ID-a korisnika po username-u:', err);
+    showErrorSnackbar('Greška pri dohvaćanju podataka korisnika: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'));
     return null;
+  }
+};
+
+const fetchUserRole = async () => {
+  try {
+    const token = localStorage.getItem('auth_token');
+    if (!token) throw new Error('Niste prijavljeni');
+    
+    const response = await axios.get(`${apiBaseUrl}/api/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
+    userRole.value = response.data.role.name;
+  } catch (err) {
+    console.error('Greška pri dohvaćanju uloge korisnika:', err);
+    showErrorSnackbar('Greška pri dohvaćanju uloge korisnika: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'));
+    userRole.value = 'student';
   }
 };
 
 const fetchReturnedBooks = async () => {
   loading.value = true;
-  error.value = null;
+  returnedBooks.value = [];
 
   try {
     const token = localStorage.getItem('auth_token');
@@ -203,7 +255,7 @@ const fetchReturnedBooks = async () => {
       student_id: studentId.value,
     };
 
-    const response = await axios.get(`http://localhost/api/rentals/returned`, {
+    const response = await axios.get(`${apiBaseUrl}/api/rentals/returned`, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
@@ -217,14 +269,15 @@ const fetchReturnedBooks = async () => {
 
   } catch (err) {
     console.error('Greška pri učitavanju vraćenih knjiga:', err);
-    error.value = 'Greška pri učitavanju vraćenih knjiga: ' +
-      (err.response?.data?.message || err.message || 'Nepoznata greška');
+    showErrorSnackbar('Greška pri učitavanju vraćenih knjiga: ' +
+      (err.response?.data?.message || err.message || 'Nepoznata greška'));
   } finally {
     loading.value = false;
   }
 };
 
 onMounted(() => {
+  fetchUserRole();
   fetchReturnedBooks();
 });
 
@@ -238,26 +291,36 @@ const formattedReturnedBooks = computed(() => {
     const endDate = new Date(book.returned_at);
     const durationInDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
     
+    const librarianName = book.rented_out_by 
+      ? `${book.rented_out_by.first_name || ''} ${book.rented_out_by.last_name || ''}`.trim()
+      : 'Nepoznat';
+
     return {
       id: book.rental_id,
-      cover_image: book.book_cover_path || defaultBookCover,
+      cover_image: book.book_cover_path ? `${apiBaseUrl}/storage/${book.book_cover_path}` : defaultBookCover,
       book_title: book.book_title || 'Nepoznat naslov',
       rental_date: book.rental_date,
       returned_at: book.returned_at,
       duration: durationInDays,
-      librarian_name: `${book.librarian?.first_name || ''} ${book.librarian?.last_name || ''}`.trim(),
+      librarian_name: librarianName,
     };
   });
 });
 
 const handleView = (item) => {
-  console.log(`Prikaz detalja za vraćenu knjigu ID: ${item.id}`);
-  // Implementirati logiku za preusmjeravanje ili prikaz modalnog prozora
-};
+  if (item && item.id) {
+    router.push(`/loan-management/details/${item.id}`)
+  }
+}
+
 
 const handleOtpisi = (item) => {
-  console.log(`Otpisivanje knjige ID: ${item.id}`);
-  // Implementirati logiku za otpisivanje
+  if (isLibrarian.value) {
+    console.log(`Otpisivanje knjige ID: ${item.id}`);
+    // Implementirati logiku za otpisivanje
+  } else {
+    showErrorSnackbar('Nemate ovlašćenje za ovu akciju.');
+  }
 };
 </script>
 
