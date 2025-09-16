@@ -4,12 +4,12 @@
       <div>
         <h1 class="page-title">{{ user?.first_name }} {{ user?.last_name }}</h1>
         <p class="page-subtitle">
-          <span class="link" @click="handleBackClick">Svi korisnici</span> / Korisničko ime: {{ route.params.username || 'Nije definisano' }}
+          <span class="link" @click="handleBackClick">Svi {{ isStudent ? 'ucenici' : isLibrarian ? 'bibliotekari' : 'korisnici' }}</span> / Korisničko ime: {{ route.params.username || 'Nije definisano' }}
         </p>
       </div>
       <div class="header-actions">
         <v-btn
-          v-if="user"
+          v-if="user && isViewingOwnProfile"
           @click="handleResetPassword"
           color="white"
           class="change-password-btn"
@@ -23,8 +23,8 @@
           v-if="user"
           :item="user"
           :showView="false"
-          :showEdit="true"
-          :showDelete="isViewerLibrarian"
+          :showEdit="isViewingOwnProfile"
+          :showDelete="canDeleteUser"
           :entityName="isStudent ? 'studenta' : 'bibliotekara'"
           titleProperty="first_name"
           @edit="handleEdit"
@@ -192,17 +192,17 @@
 
 <script setup lang="ts">
 definePageMeta({
-  middleware: ['auth', 'auth-user-profile']
+  middleware: ['auth', 'auth-user-profile'] 
 })
 
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import ActionMenu from '~/components/ActionMenu.vue'
+import ActionMenu from '~/components/action-menu.vue'
 import api from '@/axios'
-import StudentRecordManagement from '~/components/StudentRecordManagement.vue'
+import StudentRecordManagement from '~/components/student-record-management.vue'
 
-// Dohvati podatke o trenutno ulogovanom korisniku koji gleda stranicu
+
 const loggedInUser = process.client ? JSON.parse(localStorage.getItem('user') || 'null') : null;
 
 interface User {
@@ -236,13 +236,21 @@ const snackbar = ref({
   timeout: 3000,
 })
 
-// Provjerava da li je korisnik koji gleda stranicu bibliotekar
-const isViewerLibrarian = computed(() => {
+const canDeleteUser = computed(() => {
+  // IZMJENA: Omogućava brisanje ako je ulogovani korisnik bibliotekar
   return loggedInUser?.role === 'librarian';
 });
 
 // Provjerava da li je korisnik čiji se profil prikazuje student
 const isStudent = computed(() => user.value?.role_id === 1)
+// Novi computed property za provjeru da li je korisnik bibliotekar
+const isLibrarian = computed(() => user.value?.role_id === 2);
+
+// IZMJENA: Novi computed property koji provjerava da li ulogovani korisnik gleda svoj profil
+const isViewingOwnProfile = computed(() => {
+  // Vraća true samo ako su oba korisnika definisana i ako im se poklapa korisničko ime
+  return loggedInUser && user.value && loggedInUser.username === user.value.username;
+});
 
 const showSnackbar = (message: string, color: string = 'info', timeout: number = 3000) => {
   snackbar.value = { show: true, message, color, timeout }
@@ -302,7 +310,7 @@ const fetchUser = async () => {
     showSnackbar(globalError.value ?? '', 'error')
     user.value = null
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -323,17 +331,21 @@ const handleDelete = async (item: User) => {
     return;
   }
 
+  // Provjerava da li bibliotekar pokusava da obrise sam sebe
+  if (loggedInUser && loggedInUser.id === item.id) {
+    showSnackbar('Ne možete obrisati samog sebe.', 'warning');
+    return;
+  }
+
   loading.value = true;
   try {
     await api.delete(`/users`, { data: { users_id: [item.id] } });
 
-    // Sačuvaj poruku u localStorage pre preusmeravanja
     const successMessage = `${item.first_name} ${item.last_name} je uspješno obrisan!`;
     localStorage.setItem('deleteSuccessMessage', successMessage);
     localStorage.setItem('deleteSnackbarColor', 'success');
     localStorage.setItem('deleteSnackbarTimeout', '1500');
 
-    // Odmah preusmeri na listu korisnika
     handleBackClick();
 
   } catch (error: any) {
@@ -356,10 +368,12 @@ const handleResetPassword = () => {
 }
 
 const handleBackClick = () => {
-  if (isStudent.value) {
-    router.push('/students')
+  if (user.value?.role_id === 1) {
+    router.push('/students');
+  } else if (user.value?.role_id === 2) {
+    router.push('/librarians');
   } else {
-    router.push('/thelibrarian')
+    router.push('/users'); 
   }
 }
 
@@ -375,6 +389,7 @@ watch(() => route.params.username, (newUsername) => {
 </script>
 
 <style scoped>
+
 .page-container {
   padding: 0;
   background-color: white;

@@ -136,25 +136,25 @@ watch(
 );
 
 const PolisaSettings = defineAsyncComponent(() =>
-  import('../components/PolisaSettings.vue')
+  import('../components/policy-settings.vue')
 );
 const KategorijaSettings = defineAsyncComponent(() =>
-  import('../components/KategorijaSettings.vue')
+  import('../components/category-settings.vue')
 );
 const ZanroviSettings = defineAsyncComponent(() =>
-  import('../components/ZanroviSettings.vue')
+  import('../components/genre-settings.vue')
 );
 const IzdavaciSettings = defineAsyncComponent(() =>
-  import('../components/IzdavaciSettings.vue')
+  import('../components/publishers-settings.vue')
 );
 const PovezSettings = defineAsyncComponent(() =>
-  import('../components/PovezSettings.vue')
+  import('../components/povez-settings.vue')
 );
 const FormatSettings = defineAsyncComponent(() =>
-  import('../components/FormatSettings.vue')
+  import('../components/format-settings.vue')
 );
 const PismoSettings = defineAsyncComponent(() =>
-  import('../components/PismoSettings.vue')
+  import('../components/letter-settings.vue')
 );
 </script>
 

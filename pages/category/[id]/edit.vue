@@ -22,6 +22,7 @@
             hide-details
             class="form-field-name"
             :error="!!errors.name"
+            color="primary"
           ></v-text-field>
           <div
             class="photo-upload-box"
@@ -49,6 +50,7 @@
           hide-details
           class="form-field-description"
           :error="!!errors.description"
+          color="primary"
         ></v-textarea>
         <div v-if="errors.description" class="error-message">{{ errors.description }}</div>
         <div v-if="errors.icon" class="error-message">{{ errors.icon }}</div>
@@ -58,6 +60,40 @@
         </div>
       </div>
     </div>
+
+    <v-snackbar
+      v-model="successSnackbar.show"
+      color="primary"
+      :timeout="3000"
+      bottom
+    >
+      {{ successSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="successSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
+
+    <v-dialog v-model="noChangesDialog.show" max-width="500px">
+      <v-card>
+        <v-card-title class="text-h5">Nema promjena</v-card-title>
+        <v-card-text>
+          <div class="dialog-content">
+            <v-icon color="#3392ea" size="50">mdi-information</v-icon>
+            <p class="dialog-text">Nema promjena za sačuvati. Molimo unesite izmjene.</p>
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="primary" variant="text" @click="closeNoChangesDialogAndStay">OK</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -68,7 +104,7 @@ definePageMeta({
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios';
-import ActionButtons from '@/components/ActionButtons.vue'; 
+import ActionButtons from '~/components/action-buttons.vue'; 
 
 const router = useRouter();
 const route = useRoute();
@@ -88,6 +124,13 @@ const errors = ref({
 });
 const loading = ref(false);
 const apiBaseUrl = 'http://localhost';
+const successSnackbar = ref({
+  show: false,
+  text: ''
+});
+const noChangesDialog = ref({
+  show: false
+});
 
 const fetchCategory = async () => {
   const id = route.params.id;
@@ -167,19 +210,19 @@ const saveCategory = async () => {
   }
 
   if (hasErrors) return;
+  
+  const isNameChanged = name.value.trim() !== initialName.value.trim();
+  const isDescriptionChanged = description.value.trim() !== initialDescription.value.trim();
+
+  if (!isNameChanged && !isDescriptionChanged && !icon.value) {
+    noChangesDialog.value.show = true;
+    return;
+  }
 
   try {
     loading.value = true;
     const token = localStorage.getItem('auth_token');
     
-    const isNameChanged = name.value.trim() !== initialName.value.trim();
-    const isDescriptionChanged = description.value.trim() !== initialDescription.value.trim();
-
-    if (!isNameChanged && !isDescriptionChanged && !icon.value) {
-      alert("Nema promjena za sačuvati.");
-      return;
-    }
-
     if (isNameChanged || isDescriptionChanged) {
       const categoryData = {
         name: name.value.trim(),
@@ -215,7 +258,12 @@ const saveCategory = async () => {
       );
     }
     
-    router.push({ path: '/settings', query: { tab: 'kategorija' } });
+    successSnackbar.value.text = 'Uspješno ste promijenili podatke o kategoriji!';
+    successSnackbar.value.show = true;
+
+    setTimeout(() => {
+      router.push({ path: '/settings', query: { tab: 'kategorija' } });
+    }, 1500);
 
   } catch (error) {
     console.error('Greška pri čuvanju kategorije:', error);
@@ -244,6 +292,10 @@ const saveCategory = async () => {
 
 const cancel = () => {
   router.push({ path: '/settings', query: { tab: 'kategorija' } });
+};
+
+const closeNoChangesDialogAndStay = () => {
+  noChangesDialog.value.show = false;
 };
 
 onMounted(() => {
@@ -380,5 +432,17 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   margin-top: auto;
+}
+
+.dialog-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.dialog-text {
+  font-size: 16px;
+  color: #555;
+  margin: 0;
 }
 </style>

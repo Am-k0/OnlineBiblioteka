@@ -258,7 +258,7 @@
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import useActivities from '~/composables/useActivities';
-import DashboardAktivnosti from '~/components/dashboard/DashboardAktivnosti.vue';
+import DashboardAktivnosti from '~/components/dashboard/dashboard-activities.vue';
 
 definePageMeta({
   middleware: ['auth']

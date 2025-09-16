@@ -137,12 +137,12 @@ definePageMeta({
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from '@/axios'
-import BookDetail from '@/components/BookDetails.vue'
-import BookSpecifications from '~/components/BookSpecifications.vue'
-import RecordManagement from '@/components/RecordManagement.vue'
-import BookQuantities from '@/components/BookQuantities.vue'
-import ActionButtons from '@/components/ActionButtons.vue'
-import BookMenu from '@/components/BookMenu.vue'
+import BookDetail from '~/components/book-details.vue'
+import BookSpecifications from '~/components/book-specifications.vue'
+import RecordManagement from '~/components/record-management.vue'
+import BookQuantities from '~/components/book-quantities.vue'
+import ActionButtons from '~/components/action-buttons.vue'
+import BookMenu from '~/components/book-menu.vue'
 
 const route = useRoute()
 const router = useRouter()

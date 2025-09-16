@@ -39,12 +39,13 @@
         :total-items="totalItems"
         :error="errorMessage"
         :role-map="roleMap"
-        entity-display-name="učenika" @update:itemsPerPage="updateItemsPerPage"
+        entity-display-name="učenika"
+        @update:itemsPerPage="updateItemsPerPage"
         @update:currentPage="updateCurrentPage"
         @view="handleViewUser"
-        @edit="handleEditUser"
         @delete="handleDeleteUser"
         @retry-fetch="fetchUsers"
+        :show-edit="false"
       />
     </div>
 
@@ -73,7 +74,7 @@ definePageMeta({
 })
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import UsersTable from '~/components/usersTable.vue' 
+import UsersTable from '~/components/users-table.vue' 
 import api from '@/axios' 
 
 const search = ref('')
@@ -204,11 +205,7 @@ const handleViewUser = (user) => {
   }
 };
 
-const handleEditUser = (user) => {
-  console.log('[StudentsPage] Uređivanje korisnika:', user);
-  router.push(`/users/edit/${user.id}`);
-};
-
+// Funkcija za brisanje je zadržana jer je sada potrebna
 const handleDeleteUser = async (user) => {
   console.log('[StudentsPage] Pokušaj brisanja korisnika:', user);
   try {
@@ -235,7 +232,7 @@ const handleDeleteUser = async (user) => {
 
 const onAddKorisnik = () => {
   console.log('[StudentsPage] Preusmeravam na stranicu za dodavanje novog učenika.');
-  router.push('/newStudent')
+  router.push('/new-student')
 }
 </script>
 

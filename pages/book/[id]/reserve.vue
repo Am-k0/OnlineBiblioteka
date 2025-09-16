@@ -22,7 +22,7 @@
 
         <v-form @submit.prevent="submitReservation" ref="form">
           <div class="field-wrapper" v-if="isLibrarian">
-            <v-select
+            <v-autocomplete
               v-model="selectedStudentId"
               :items="students"
               item-title="name"
@@ -32,16 +32,26 @@
               hide-details="auto"
               class="form-field-full"
               :rules="[v => !!v || 'Učenik je obavezan']"
-            ></v-select>
+              no-data-text="Nema pronađenih učenika."
+              clearable
+            ></v-autocomplete>
           </div>
           
           <div class="form-actions mt-12">
-            <ActionButtons @save="submitReservation" @cancel="cancel" :loading="loading" :saveText="'Rezerviši knjigu'" />
+           <ActionButtons 
+             @save="submitReservation" 
+             @cancel="cancel" 
+             :loading="loading"
+             saveLabel="REZERVIŠI KNJIGU"
+             cancelLabel="PONIŠTI"
+             saveIcon="mdi-bookmark-outline"
+             saveWidth="180px"
+           />
           </div>
         </v-form>
       </div>
 
-      <BookQuantities v-if="book" :quantities="book" />
+      <BookQuantities ref="bookQuantitiesRef" v-if="book" :bookId="bookId" />
     </div>
 
     <v-snackbar
@@ -51,7 +61,7 @@
       top
     >
       {{ successSnackbar.text }}
-      <template v-slot:actions>
+      <template #actions>
         <v-btn
           color="white"
           variant="text"
@@ -69,7 +79,7 @@
       top
     >
       {{ errorSnackbar.text }}
-      <template v-slot:actions>
+      <template #actions>
         <v-btn
           color="white"
           variant="text"
@@ -89,13 +99,14 @@ definePageMeta({
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
-import ActionButtons from '@/components/ActionButtons.vue';
-import BookQuantities from '@/components/BookQuantities.vue';
-import BookMenu from '@/components/BookMenu.vue';
+import ActionButtons from '~/components/action-buttons.vue';
+import BookQuantities from '~/components/book-quantities.vue';
+import BookMenu from '~/components/book-menu.vue';
 
 const route = useRoute();
 const router = useRouter();
 const form = ref(null);
+const bookQuantitiesRef = ref(null);
 
 const book = ref(null);
 const students = ref([]);
@@ -156,11 +167,6 @@ async function fetchBookDetails() {
     book.value = {
       id: rawData.id,
       naziv_knjige: rawData.name,
-      na_raspolaganju: rawData.number_of_copies_available || 0,
-      rezervisano: rawData.reserved_count || 0,
-      izdato: rawData.issued_count || 0,
-      u_prekoracenju: rawData.overdue_count || 0,
-      ukupna_kolicina: rawData.total_count || 0,
     };
   } catch (err) {
     console.error('Greška pri učitavanju detalja o knjizi:', err);
@@ -216,9 +222,15 @@ async function submitReservation() {
     showSuccessSnackbar(`Knjiga je uspješno rezervisana!`); 
     
     selectedStudentId.value = null;
-    form.value.reset();
+    if (form.value) {
+      form.value.reset();
+    }
     
-    await fetchBookDetails();
+    setTimeout(() => {
+      if (bookQuantitiesRef.value && bookQuantitiesRef.value.refreshQuantities) {
+        bookQuantitiesRef.value.refreshQuantities();
+      }
+    }, 500);
 
   } catch (err) {
     console.error('Greška pri rezervaciji knjige:', err);
@@ -250,7 +262,6 @@ function cancel() {
 </script>
 
 <style scoped>
-/* CSS stilovi ostaju nepromenjeni */
 .page-container {
   padding: 0;
   background-color: white;

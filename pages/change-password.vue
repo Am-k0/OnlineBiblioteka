@@ -91,7 +91,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import ActionButtons from '@/components/ActionButtons.vue';
+import ActionButtons from '~/components/action-buttons.vue';
 
 definePageMeta({
   middleware: ['auth']

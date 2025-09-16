@@ -21,6 +21,7 @@
           hide-details
           class="form-field-name"
           :error="!!errors.name"
+          color="primary"
         ></v-text-field>
         <div v-if="errors.name" class="error-message">{{ errors.name }}</div>
 
@@ -29,6 +30,42 @@
         </div>
       </div>
     </div>
+    
+    <v-snackbar
+      v-model="successSnackbar.show"
+      color="primary"
+      :timeout="3000"
+      bottom
+    >
+      {{ successSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="successSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
+
+    <v-snackbar
+      v-model="errorSnackbar.show"
+      color="error"
+      :timeout="3000"
+      bottom
+    >
+      {{ errorSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="errorSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
@@ -39,7 +76,7 @@ definePageMeta({
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-import ActionButtons from '@/components/ActionButtons.vue';
+import ActionButtons from '~/components/action-buttons.vue';
 
 const router = useRouter();
 
@@ -49,6 +86,14 @@ const errors = ref({
 });
 const loading = ref(false);
 const apiBaseUrl = 'http://localhost';
+const successSnackbar = ref({
+  show: false,
+  text: ''
+});
+const errorSnackbar = ref({
+  show: false,
+  text: ''
+});
 
 const savePublisher = async () => {
   errors.value.name = '';
@@ -73,17 +118,24 @@ const savePublisher = async () => {
       }
     );
 
-    // Uklonjena je alert() poruka
-    router.push({ path: '/settings', query: { tab: 'izdavaci' } });
+    successSnackbar.value.text = 'Uspješno ste kreirali novog izdavača!';
+    successSnackbar.value.show = true;
+    
+    setTimeout(() => {
+      router.push({ path: '/settings', query: { tab: 'izdavaci' } });
+    }, 1500);
+
   } catch (error) {
     console.error('Greška pri čuvanju izdavača:', error);
     if (error.response?.status === 422) {
       const backendErrors = error.response.data.errors;
-      if (backendErrors.name) errors.value.name = backendErrors.name[0];
+      if (backendErrors.name) errors.value.name = Array.isArray(backendErrors.name) ? backendErrors.name[0] : backendErrors.name;
+      errorSnackbar.value.text = 'Greška validacije. Molimo provjerite unesene podatke.';
     } else {
       const errorMessage = error.response?.data?.message || error.message || 'Nepoznata greška.';
-      alert('Došlo je do greške pri čuvanju izdavača: ' + errorMessage);
+      errorSnackbar.value.text = 'Došlo je do greške pri čuvanju izdavača: ' + errorMessage;
     }
+    errorSnackbar.value.show = true;
   } finally {
     loading.value = false;
   }

@@ -66,15 +66,15 @@
         <template #bottom>
           <div class="pagination-and-actions">
             <v-spacer></v-spacer>
-            <v-btn
-              color="primary"
-              :disabled="!book || book.number_of_copies_available <= 0 || isProcessing"
+            <ActionButtons
+              @save="showDiscardDialog"
+              @cancel="cancel"
               :loading="isProcessing"
-              @click="showDiscardDialog"
-              prepend-icon="mdi-delete-outline"
-            >
-              Otpiši knjigu
-            </v-btn>
+              saveLabel="OTPIŠI KNJIGU"
+              cancelLabel="PONIŠTI"
+              saveIcon="mdi-delete-outline"
+              :disabled="!book || book.number_of_copies_available <= 0"
+            />
           </div>
         </template>
       </v-data-table>
@@ -96,7 +96,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="grey-darken-1" variant="text" @click="discardDialog = false">
+          <v-btn color="blue" variant="text" @click="discardDialog = false">
             Poništi
           </v-btn>
           <v-btn color="red-darken-1" variant="text" @click="confirmDiscard">
@@ -151,8 +151,9 @@ definePageMeta({
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from '@/axios';
-import PaginationFooter from '@/components/PaginationFooter.vue';
-import BookMenu from '@/components/BookMenu.vue';
+import PaginationFooter from '~/components/pagination-footer.vue';
+import BookMenu from '~/components/book-menu.vue';
+import ActionButtons from '~/components/action-buttons.vue'; 
 
 const route = useRoute();
 const router = useRouter();
@@ -243,21 +244,16 @@ async function fetchRentalPolicy() {
 
 // --- AKCIJE ---
 const showDiscardDialog = () => {
+  if (!book.value || book.value.number_of_copies_available <= 0) {
+    showErrorSnackbar('Nema dostupnih primeraka za otpisivanje.');
+    return;
+  }
   discardDialog.value = true;
 };
 
 const confirmDiscard = async () => {
   discardDialog.value = false;
-  if (!book.value) {
-    showErrorSnackbar('Knjiga nije učitana.');
-    return;
-  }
-
-  if (book.value.number_of_copies_available <= 0) {
-    showErrorSnackbar('Nema dostupnih primeraka za otpisivanje.');
-    return;
-  }
-
+  
   isProcessing.value = true;
   snackbar.value.show = false;
   errorSnackbar.value.show = false;

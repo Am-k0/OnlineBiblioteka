@@ -38,9 +38,9 @@
 <script setup>
 import { onMounted } from 'vue';
 import useActivities from '~/composables/useActivities';
-import DashboardAktivnosti from '~/components/dashboard/DashboardAktivnosti.vue';
-import DashboardRezervacije from '~/components/dashboard/DashboardRezervacije.vue';
-import DashboardStatistika from '~/components/dashboard/DashboardStatistika.vue';
+import DashboardAktivnosti from '~/components/dashboard/dashboard-activities.vue';
+import DashboardRezervacije from '~/components/dashboard/dashboard-reservations.vue';
+import DashboardStatistika from '~/components/dashboard/dashboard-statistics.vue';
 
 definePageMeta({
   middleware: ['auth']

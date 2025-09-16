@@ -33,7 +33,8 @@ api.interceptors.response.use(
       console.error('[Axios Interceptor] 401 Unauthorized! Brišem token i preusmeravam na login.');
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+    //   window.location.href = '/login';
+      navigateTo('/login');
     }
     return Promise.reject(error);
   }

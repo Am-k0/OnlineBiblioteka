@@ -6,7 +6,11 @@
           <div class="login-title">Online biblioteka</div>
           <div class="title-line" />
 
-          <v-form v-model="formIsValid" @submit.prevent="signIn" class="login-form">
+          <v-form
+            v-model="formIsValid"
+            @submit.prevent="signIn"
+            class="login-form"
+          >
             <v-text-field
               v-model="credentials.email"
               label="Email"
@@ -17,7 +21,10 @@
               :rules="emailRules"
               hide-details="auto"
               color="#3392EA"
+              @input="clearError"
+              persistent-hint
             />
+
             <v-text-field
               v-model="credentials.password"
               label="Password"
@@ -31,7 +38,13 @@
               :rules="passwordRules"
               hide-details="auto"
               color="#3392EA"
+              @input="clearError"
+              persistent-hint
             />
+
+            <div v-if="errorMsg" class="error-text">
+              {{ errorMsg }}
+            </div>
 
             <v-btn
               class="login-button"
@@ -47,16 +60,12 @@
           </v-form>
 
           <div class="forgot-link">
-            <a href="#" @click.prevent="router.push('/forgotpassword')">Forgot password?</a>
+            <a href="#" @click.prevent="router.push('/forgotpassword')"
+              >Forgot password?</a
+            >
           </div>
 
-          <div v-if="errorMsg" class="error-text">
-            {{ errorMsg }}
-          </div>
-
-          <div class="login-footer">
-             ©2021 ICT Cortex. All rights reserved. 
-          </div>
+          <div class="login-footer">©2021 ICT Cortex. All rights reserved.</div>
         </v-card>
       </div>
     </div>
@@ -64,156 +73,118 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import api from '@/axios';
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import api from '@/axios'
 
-const router = useRouter();
+const router = useRouter()
 
-const credentials = ref({ email: '', password: '' });
-const errorMsg = ref<string | null>(null);
-const loading = ref(false);
-const visible = ref(false);
-const formIsValid = ref(false);
+const credentials = ref({
+  email: localStorage.getItem('last_email') || '',
+  password: '',
+})
+
+const errorMsg = ref<string | null>(null)
+const loading = ref(false)
+const visible = ref(false)
+const formIsValid = ref(false)
 
 const emailRules = [
   (v: string) => !!v || 'Email je obavezan',
   (v: string) => /.+@.+\..+/.test(v) || 'Email nije validan',
-];
+]
+
 const passwordRules = [
   (v: string) => !!v || 'Lozinka je obavezna',
   (v: string) => v.length >= 6 || 'Lozinka mora imati najmanje 6 karaktera',
-];
+]
+
+function clearError() {
+  if (errorMsg.value) {
+    errorMsg.value = null
+  }
+}
 
 async function signIn() {
   if (!formIsValid.value) {
-    errorMsg.value = 'Molimo ispravite greške u formi.';
-    return;
+    errorMsg.value = 'Molimo ispravite greške u formi.'
+    return
   }
 
-  loading.value = true;
-  errorMsg.value = null;
+  localStorage.setItem('last_email', credentials.value.email)
+
+  loading.value = true
+  errorMsg.value = null
 
   try {
-    console.log('Šalje se zahtev za login...');
-    
-    // API poziv za login - koristi strukturu koju vraća vaš PHP backend
     const loginResponse = await api.post('/login', {
       email: credentials.value.email,
       password: credentials.value.password,
-    });
+    })
 
-    console.log('Login response:', loginResponse.data);
-
-    // Provera da li postoji token u odgovoru
-    const token = loginResponse.data?.access_token;
+    const token = loginResponse.data?.access_token
     if (!token) {
-      throw new Error('Token nije pronađen u odgovoru sa servera.');
+      throw new Error('Token nije pronađen u odgovoru sa servera.')
     }
 
-    // Provera da li postoje korisničke informacije
-    const user = loginResponse.data?.user;
+    const user = loginResponse.data?.user
     if (!user) {
-      throw new Error('Korisničke informacije nisu pronađene u odgovoru.');
+      throw new Error('Korisničke informacije nisu pronađene u odgovoru.')
     }
+    localStorage.removeItem('last_email')
 
-    // Čuvanje tokena i korisničkih podataka u localStorage
-    localStorage.setItem('auth_token', token);
-    localStorage.setItem('token_type', loginResponse.data?.token_type || 'Bearer');
-    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('auth_token', token)
+    localStorage.setItem(
+      'token_type',
+      loginResponse.data?.token_type || 'Bearer'
+    )
+    localStorage.setItem('user', JSON.stringify(user))
 
-    console.log('Podaci uspešno sačuvani:', {
-      token: token.substring(0, 20) + '...', // Prikaži samo deo tokena iz bezbednosnih razloga
-      user: user
-    });
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
-    // Postavljanje Authorization header-a za buduće API pozive
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-    // Preusmeri korisnika na glavnu stranu
-    router.push('/');
-
+    router.push('/')
   } catch (error: any) {
-    console.error('Greška pri prijavi:', error);
-
-    // Obriši sve podatke iz localStorage u slučaju greške
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('token_type');
-    localStorage.removeItem('user');
-
-    // Ukloni Authorization header
-    delete api.defaults.headers.common['Authorization'];
-
-    // Obradi različite tipove grešaka
-    if (error.response) {
-      console.error('Response error:', error.response);
-      
-      // Koristi grešku iz backend-a ako postoji
-      errorMsg.value = error.response.data?.error || 
-                       error.response.data?.message || 
-                       'Greška pri prijavi. Proverite podatke.';
-
-      // Specifične greške na osnovu status koda
-      if (error.response.status === 401) {
-        errorMsg.value = 'Neispravan email ili lozinka.';
-      } else if (error.response.status === 422) {
-        // Laravel validation errors
-        const validationErrors = error.response.data?.errors;
-        if (validationErrors) {
-          const firstError = Object.values(validationErrors)[0];
-          errorMsg.value = Array.isArray(firstError) ? firstError[0] : firstError;
-        }
-      } else if (error.response.status >= 500) {
-        errorMsg.value = 'Greška servera. Pokušajte ponovo kasnije.';
-      }
-    } else if (error.request) {
-      console.error('Request error:', error.request);
-      errorMsg.value = 'Nije moguće povezati sa serverom. Proverite internetsku vezu.';
-    } else {
-      console.error('General error:', error.message);
-      errorMsg.value = error.message || 'Neočekivana greška. Pokušajte ponovo.';
-    }
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('token_type')
+    localStorage.removeItem('user')
+    delete api.defaults.headers.common['Authorization']
+    console.log('Error', error)
+    errorMsg.value = error.response?.data?.error
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
-// Funkcija za logout (možete je dodati u header ili bilo gde)
 async function logout() {
   try {
-    // Pozovi backend logout endpoint
-    await api.post('/logout');
+    await api.post('/logout')
   } catch (error) {
-    console.error('Greška pri logout-u:', error);
+    console.error('Greška pri logout-u:', error)
   } finally {
-    // Uvek obriši lokalne podatke bez obzira na status backend poziva
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('token_type');
-    localStorage.removeItem('user');
-    delete api.defaults.headers.common['Authorization'];
-    
-    // Preusmeri na login stranu
-    router.push('/login');
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('token_type')
+    localStorage.removeItem('user')
+    localStorage.removeItem('last_email')
+    delete api.defaults.headers.common['Authorization']
+
+    // router.push('/login');
   }
 }
 
-// Funkcija za dobijanje trenutno ulogovanog korisnika
 function getCurrentUser() {
-  const userStr = localStorage.getItem('user');
-  return userStr ? JSON.parse(userStr) : null;
+  const userStr = localStorage.getItem('user')
+  return userStr ? JSON.parse(userStr) : null
 }
 
-// Funkcija za proveru da li je korisnik ulogovan
 function isAuthenticated() {
-  return !!localStorage.getItem('auth_token') && !!localStorage.getItem('user');
+  return !!localStorage.getItem('auth_token') && !!localStorage.getItem('user')
 }
 
-// Eksportuj funkcije ako su potrebne u drugim komponentama
 defineExpose({
   logout,
   getCurrentUser,
-  isAuthenticated
-});
+  isAuthenticated,
+})
 </script>
 
 <style scoped>
@@ -226,6 +197,7 @@ defineExpose({
   align-items: center;
   justify-content: center;
 }
+
 .login-wrapper {
   display: flex;
   justify-content: center;
@@ -234,6 +206,7 @@ defineExpose({
   width: 100vw;
   backdrop-filter: blur(2px);
 }
+
 .login-card {
   width: 495px;
   height: 394px;
@@ -246,6 +219,7 @@ defineExpose({
   background: white;
   border-radius: 16px;
 }
+
 .login-title {
   font-family: Roboto, sans-serif;
   font-weight: 500;
@@ -255,22 +229,26 @@ defineExpose({
   text-align: center;
   margin-bottom: 16px;
 }
+
 .title-line {
   width: 431px;
   height: 1px;
   background-color: #e0e0e0;
   margin: 0 auto 24px auto;
 }
+
 .login-form {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
+
 .input-field {
   width: 100%;
   border-radius: 4px;
 }
+
 .login-button {
   width: 100%;
   height: 48px;
@@ -281,19 +259,21 @@ defineExpose({
   text-transform: uppercase;
   margin-top: 20px;
   margin-bottom: 10px;
-  background-color: #3392EA !important;
+  background-color: #3392ea !important;
   color: white !important;
   box-shadow: none;
   border-radius: 4px;
 }
+
 .forgot-link {
   width: 100%;
   text-align: left;
   margin-bottom: 6px;
   margin-top: 6px;
 }
+
 .forgot-link a {
-  color: #3392EA;
+  color: #3392ea;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
@@ -302,6 +282,7 @@ defineExpose({
   padding-left: 8px;
   padding-right: 8px;
 }
+
 .login-footer {
   margin-top: 12px;
   font-size: 13px;
@@ -311,12 +292,13 @@ defineExpose({
   text-align: center;
   width: 100%;
 }
+
 .error-text {
   color: #e53935;
   font-size: 13px;
-  margin-top: -8px;
-  margin-bottom: 6px;
   text-align: left;
   width: 100%;
+  margin-top: 8px;
+  margin-bottom: 8px;
 }
 </style>

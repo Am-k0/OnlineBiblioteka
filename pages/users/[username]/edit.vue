@@ -4,7 +4,10 @@
       <div>
         <h1 class="page-title">Korisnik: {{ korisnickoIme || 'Učitavam...' }}</h1>
         <p class="page-subtitle">
-          <span class="link" @click="handleBackClick">Evidencija korisnika</span> / Uređivanje: {{ korisnickoIme || 'Učitavam...' }}
+          <span class="link" @click="handleBackClick">
+            Svi {{ selectedRole === 1 ? 'učenici' : selectedRole === 2 ? 'bibliotekari' : 'korisnika' }}
+          </span>
+          / Uređivanje: {{ korisnickoIme || 'Učitavam...' }}
         </p>
       </div>
     </header>
@@ -36,6 +39,7 @@
               hide-details
               class="form-field"
               :error="!!localError.firstName"
+              color="primary"
             ></v-text-field>
             <div v-if="localError.firstName" class="error-message">{{ localError.firstName }}</div>
   
@@ -46,6 +50,7 @@
               hide-details
               class="form-field"
               :error="!!localError.lastName"
+              color="primary"
             ></v-text-field>
             <div v-if="localError.lastName" class="error-message">{{ localError.lastName }}</div>
   
@@ -59,6 +64,7 @@
               hide-details
               class="form-field"
               disabled
+              color="primary"
             ></v-select>
   
             <v-text-field
@@ -71,6 +77,7 @@
               maxlength="13"
               :error="!!localError.jmbg"
               @keypress="samoBrojevi($event)"
+              color="primary"
             ></v-text-field>
             <div v-if="localError.jmbg" class="error-message">{{ localError.jmbg }}</div>
   
@@ -82,6 +89,7 @@
               class="form-field"
               type="email"
               :error="!!localError.email"
+              color="primary"
             ></v-text-field>
             <div v-if="localError.email" class="error-message">{{ localError.email }}</div>
   
@@ -93,6 +101,7 @@
               class="form-field"
               :error="!!localError.korisnickoIme"
               disabled
+              color="primary"
             ></v-text-field>
             <div v-if="localError.korisnickoIme" class="error-message">{{ localError.korisnickoIme }}</div>
   
@@ -124,17 +133,38 @@
         </v-btn>
       </template>
     </v-snackbar>
+
+    <v-snackbar
+      v-model="successSnackbar.show"
+      color="primary"
+      :timeout="3000"
+      bottom
+    >
+      {{ successSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="successSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
-import ActionButtons from '~/components/ActionButtons.vue'
+import ActionButtons from '~/components/action-buttons.vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/axios'
 
+
 definePageMeta({
-  layout: 'loan-management'
+  layout: 'book-rental',
+  
+  middleware: ['auth', 'auth-user-profile', 'auth-edit-profile']
 })
 
 const route = useRoute()
@@ -153,8 +183,13 @@ const loading = ref(false)
 const pageLoading = ref(true)
 const userId = ref<number | null>(null)
 
-// Snackbar za greške s poslužitelja
 const errorSnackbar = ref({
+  show: false,
+  text: '',
+});
+
+
+const successSnackbar = ref({
   show: false,
   text: '',
 });
@@ -289,6 +324,7 @@ const handleSave = async () => {
       email: email.value.trim(),
       jmbg: jmbg.value.trim(),
     };
+    // Ove rute su dobre jer ne šalješ ID korisnika, već backend sam zna koga da ažurira na osnovu tokena
     await api.patch('/user/update', dataToUpdate);
 
     if (fotografija.value) {
@@ -299,13 +335,12 @@ const handleSave = async () => {
       });
     }
 
-    // Zakomentarisana logika za promenu šifre
-    // if (password.value) {
-    //     console.warn("Backend ne podržava promenu šifre preko /user/update rute.");
-    //     displayGlobalError.value = "Podaci su sačuvani, ali šifra nije promenjena jer backend to ne podržava."
-    // }
+    successSnackbar.value.text = 'Uspješno ste promijenili podatke';
+    successSnackbar.value.show = true;
 
-    router.push(`/users/${korisnickoIme.value}`);
+    setTimeout(() => {
+      router.push(`/users/${korisnickoIme.value}`);
+    }, 1500);
 
   } catch (error: any) {
     console.error('Error updating user:', error);
@@ -335,9 +370,13 @@ const handleCancel = () => {
 }
 
 const handleBackClick = () => {
-  if (selectedRole.value === 1) router.push('/students');
-  else if (selectedRole.value === 2) router.push('/thelibrarian');
-  else router.push('/users');
+  if (selectedRole.value === 1) {
+    router.push('/students');
+  } else if (selectedRole.value === 2) {
+    router.push('/librarians');
+  } else {
+    router.push('/users'); 
+  }
 }
 
 onMounted(() => {
@@ -350,7 +389,7 @@ watch(() => route.params.username, (newUsername) => {
 </script>
 
 <style scoped>
-/* Tvoji stilovi ostaju nepromenjeni */
+/* Tvoji stilovi ostaju nepromenjeni, oni su sasvim u redu */
 .page-container {
   padding: 0;
   background-color: white;
@@ -482,23 +521,5 @@ watch(() => route.params.username, (newUsername) => {
   font-size: 12px;
   margin-top: -10px;
   margin-bottom: 16px;
-}
-
-.global-error {
-  background-color: #ffebee;
-  border: 1px solid #ffcdd2;
-  border-radius: 4px;
-  padding: 12px;
-  margin-top: 8px;
-  margin-bottom: 16px;
-  font-size: 14px;
-}
-
-.v-text-field--error .v-field__outline {
-  border-color: #ff5252 !important;
-}
-
-.v-text-field--error .v-field__outline:hover {
-  border-color: #ff5252 !important;
 }
 </style>

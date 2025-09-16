@@ -21,6 +21,7 @@
           hide-details
           class="form-field-name"
           :error="!!errors.name"
+          color="primary"
         ></v-text-field>
         <div v-if="errors.name" class="error-message">{{ errors.name }}</div>
         
@@ -29,6 +30,58 @@
         </div>
       </div>
     </div>
+    
+    <v-snackbar
+      v-model="successSnackbar.show"
+      color="primary"
+      :timeout="3000"
+      bottom
+    >
+      {{ successSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="successSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
+
+    <v-snackbar
+      v-model="errorSnackbar.show"
+      color="error"
+      :timeout="3000"
+      bottom
+    >
+      {{ errorSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="errorSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
+
+    <v-dialog v-model="noChangesDialog.show" max-width="500px">
+      <v-card>
+        <v-card-title class="text-h5">Nema promjena</v-card-title>
+        <v-card-text>
+          <div class="dialog-content">
+            <v-icon color="#3392ea" size="50">mdi-information</v-icon>
+            <p class="dialog-text">Nema promjena za sačuvati. Molimo unesite izmjene prije spremanja.</p>
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="primary" variant="text" @click="closeNoChangesDialogAndStay">OK</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -39,7 +92,7 @@ definePageMeta({
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios';
-import ActionButtons from '@/components/ActionButtons.vue';
+import ActionButtons from '~/components/action-buttons.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -53,6 +106,17 @@ const errors = ref({
 });
 const loading = ref(false);
 const apiBaseUrl = 'http://localhost';
+const successSnackbar = ref({
+  show: false,
+  text: ''
+});
+const errorSnackbar = ref({
+  show: false,
+  text: ''
+});
+const noChangesDialog = ref({
+  show: false
+});
 
 const fetchPublisher = async () => {
   const id = route.params.id;
@@ -98,7 +162,7 @@ const savePublisher = async () => {
   const isNameChanged = name.value.trim() !== initialName.value.trim();
   
   if (!isNameChanged) {
-    alert("Nema promjena za sačuvati.");
+    noChangesDialog.value.show = true;
     return;
   }
 
@@ -118,23 +182,34 @@ const savePublisher = async () => {
       }
     );
     
-    alert('Izdavač uspešno ažuriran!');
-    router.push({ path: '/settings', query: { tab: 'izdavaci' } });
+    successSnackbar.value.text = 'Uspješno ste promijenili podatke o izdavacu!';
+    successSnackbar.value.show = true;
+    
+    setTimeout(() => {
+      router.push({ path: '/settings', query: { tab: 'izdavaci' } });
+    }, 1500);
+
   } catch (error) {
     console.error('Greška pri čuvanju izdavača:', error);
     if (error.response?.status === 422) {
-      const backendErrors = error.response.data;
-      if (backendErrors.name) errors.value.name = backendErrors.name[0];
+      const backendErrors = error.response.data.errors;
+      if (backendErrors.name) errors.value.name = Array.isArray(backendErrors.name) ? backendErrors.name[0] : backendErrors.name;
+      errorSnackbar.value.text = 'Greška validacije. Molimo provjerite unesene podatke.';
     } else {
       const errorMessage = error.response?.data?.message || error.message || 'Došlo je do neočekivane greške.';
-      alert('Došlo je do greške pri čuvanju izdavača: ' + errorMessage);
+      errorSnackbar.value.text = 'Došlo je do greške pri čuvanju izdavača: ' + errorMessage;
     }
+    errorSnackbar.value.show = true;
   } finally {
     loading.value = false;
   }
 };
 
 const cancel = () => { router.push({ path: '/settings', query: { tab: 'izdavaci' } }); };
+
+const closeNoChangesDialogAndStay = () => {
+  noChangesDialog.value.show = false;
+};
 
 onMounted(() => {
   fetchPublisher();
@@ -157,7 +232,19 @@ onMounted(() => {
 .header-divider { height: 1px; background-color: #e0e0e0; margin-top: 15px; margin-bottom: 24px; }
 .page-content { padding: 0 24px; flex-grow: 1; }
 .form-section { width: 724px; display: flex; flex-direction: column; }
-.form-field-name { width: 100%; } /* Prilagođena širina */
+.form-field-name { width: 100%; }
 .error-message { color: #ff5252; font-size: 12px; margin-top: -10px; margin-bottom: 16px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 16px; margin-top: 24px; }
+
+.dialog-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.dialog-text {
+  font-size: 16px;
+  color: #555;
+  margin: 0;
+}
 </style>

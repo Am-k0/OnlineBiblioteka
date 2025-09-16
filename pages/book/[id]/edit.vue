@@ -36,6 +36,7 @@
                       :style="fieldStyle"
                       :error="showErrors && !book.name"
                       hide-details="auto"
+                      color="primary"
                     />
                     <div v-if="showErrors && !book.name" class="custom-error">
                       Morate unijeti naziv knjige!
@@ -50,6 +51,7 @@
                       rows="3"
                       :error="showErrors && !book.description"
                       hide-details="auto"
+                      color="primary"
                     />
                     <div v-if="showErrors && !book.description" class="custom-error">
                       Morate unijeti kratak sadržaj knjige!
@@ -67,6 +69,7 @@
                       chips
                       :style="fieldStyle"
                       hide-details="auto"
+                      color="primary"
                     />
                   </div>
                   <div class="field-wrapper">
@@ -81,6 +84,7 @@
                       chips
                       :style="fieldStyle"
                       hide-details="auto"
+                      color="primary"
                     />
                   </div>
                   <div class="field-wrapper">
@@ -96,6 +100,7 @@
                       :style="fieldStyle"
                       :error="showErrors && book.authors.length === 0"
                       hide-details="auto"
+                      color="primary"
                     />
                     <div v-if="showErrors && book.authors.length === 0" class="custom-error">
                       Morate izabrati barem jednog autora!
@@ -112,6 +117,7 @@
                       :style="fieldStyle"
                       :error="showErrors && !book.publisher_id"
                       hide-details="auto"
+                      color="primary"
                     />
                     <div v-if="showErrors && !book.publisher_id" class="custom-error">
                       Morate izabrati izdavača!
@@ -126,6 +132,7 @@
                       :style="fieldStyle"
                       :error="showErrors && (!book.publication_year || book.publication_year <= 0)"
                       hide-details="auto"
+                      color="primary"
                     />
                     <div v-if="showErrors && (!book.publication_year || book.publication_year <= 0)" class="custom-error">
                       Morate unijeti godinu izdavanja!
@@ -140,6 +147,7 @@
                       :style="fieldStyle"
                       :error="showErrors && (!book.number_of_copies_available || book.number_of_copies_available <= 0)"
                       hide-details="auto"
+                      color="primary"
                     />
                     <div v-if="showErrors && (!book.number_of_copies_available || book.number_of_copies_available <= 0)" class="custom-error">
                       Morate unijeti pozitivnu količinu!
@@ -161,6 +169,7 @@
                       :style="fieldStyle"
                       :error="showErrors && (!book.number_of_pages || book.number_of_pages <= 0)"
                       hide-details="auto"
+                      color="primary"
                     />
                     <div v-if="showErrors && (!book.number_of_pages || book.number_of_pages <= 0)" class="custom-error">
                       Morate unijeti broj stranica!
@@ -176,6 +185,7 @@
                       variant="outlined"
                       :style="fieldStyle"
                       hide-details="auto"
+                      color="primary"
                     />
                   </div>
                   <div class="field-wrapper">
@@ -188,6 +198,7 @@
                       variant="outlined"
                       :style="fieldStyle"
                       hide-details="auto"
+                      color="primary"
                     />
                   </div>
                   <div class="field-wrapper">
@@ -198,6 +209,7 @@
                       variant="outlined"
                       :style="fieldStyle"
                       hide-details="auto"
+                      color="primary"
                     />
                   </div>
                   <div class="field-wrapper">
@@ -210,6 +222,7 @@
                       variant="outlined"
                       :style="fieldStyle"
                       hide-details="auto"
+                      color="primary"
                     />
                   </div>
                   <div class="field-wrapper">
@@ -220,6 +233,7 @@
                       :style="fieldStyle"
                       :error="showErrors && !book.isbn"
                       hide-details="auto"
+                      color="primary"
                     />
                     <div v-if="showErrors && !book.isbn" class="custom-error">
                       Morate unijeti ISBN!
@@ -263,6 +277,24 @@
         </v-card-text>
       </v-card>
     </div>
+
+    <v-snackbar
+      v-model="successSnackbar.show"
+      color="primary"
+      :timeout="3000"
+      bottom
+    >
+      {{ successSnackbar.text }}
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="successSnackbar.show = false"
+        >
+          Zatvori
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
@@ -272,7 +304,7 @@ definePageMeta({
 })
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import ActionButtons from '@/components/ActionButtons.vue'
+import ActionButtons from '~/components/action-buttons.vue'
 import axios from '@/axios'
 
 const tab = ref('one')
@@ -286,6 +318,11 @@ const selectedFile = ref(null)
 const showErrors = ref(false)
 const globalError = ref('')
 const defaultImageUrl = ref('/images/default-book-1.jpg')
+
+const successSnackbar = ref({
+  show: false,
+  text: ''
+});
 
 const book = reactive({
   id: null,
@@ -472,8 +509,8 @@ async function saveBook() {
     const formData = new FormData()
     formData.append('name', book.name)
     formData.append('description', book.description)
-    formData.append('number_of_pages', book.number_of_pages)
     formData.append('number_of_copies_available', book.number_of_copies_available)
+    formData.append('number_of_pages', book.number_of_pages)
     formData.append('publication_year', book.publication_year)
     formData.append('isbn', book.isbn)
     if (book.language) formData.append('language', book.language)
@@ -490,7 +527,14 @@ async function saveBook() {
     await axios.post(`/books/${bookId}/update?_method=PATCH`, formData, {
       headers: { 'Content-Type': 'multipart/form-data', 'Accept': 'application/json' }
     })
-    router.push(`/book/${bookId}`)
+
+    successSnackbar.value.text = 'Uspješno ste promijenili podatke o ovoj knjizi';
+    successSnackbar.value.show = true;
+
+    setTimeout(() => {
+      router.push(`/book/${bookId}`);
+    }, 1500);
+
   } catch (error) {
     if (error.response) {
       if (error.response.status === 422 && error.response.data?.errors) {
@@ -524,6 +568,7 @@ const textareaStyle = { width: '724px', height: '160px' }
 </script>
 
 <style scoped>
+/* Vaši stilovi ostaju nepromenjeni */
 .page-container {
   padding: 0;
   background-color: white;

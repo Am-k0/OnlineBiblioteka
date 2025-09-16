@@ -43,14 +43,14 @@ definePageMeta({
 })
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import BooksTable from '@/components/booksTable.vue'
+import BooksTable from '~/components/books-table.vue'
 
 const search = ref('')
 const router = useRouter()
 const user = ref(null)
 
 const onAddBook = () => {
-  router.push('/newBook')
+  router.push('/new-book')
 }
 
 onMounted(() => {

@@ -66,7 +66,15 @@
         <template #bottom>
           <div class="pagination-and-actions">
             <v-spacer></v-spacer>
-            <ActionButtons @save="showReturnDialog" @cancel="cancel" :saveText="'Vrati knjigu'" />
+            <ActionButtons 
+              @save="showReturnDialog" 
+              @cancel="cancel" 
+              :loading="loading"
+              saveLabel="VRATI KNJIGU"
+              cancelLabel="PONIŠTI"
+              saveIcon="mdi-book-arrow-left" 
+              saveWidth="160px"
+            />
           </div>
         </template>
       </v-data-table>
@@ -143,9 +151,9 @@ definePageMeta({
 import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from '@/axios';
-import ActionButtons from '@/components/ActionButtons.vue';
-import PaginationFooter from '@/components/PaginationFooter.vue';
-import BookMenu from '@/components/BookMenu.vue';
+import ActionButtons from '~/components/action-buttons.vue';
+import PaginationFooter from '~/components/pagination-footer.vue';
+import BookMenu from '~/components/book-menu.vue';
 
 const route = useRoute();
 const router = useRouter();

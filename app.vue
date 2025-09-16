@@ -13,7 +13,7 @@
 <script setup lang="ts">
 import { useRoute } from '#app'
 import { computed } from 'vue'
-import AppBar from '~/components/AppBar.vue'
+import AppBar from '~/components/app-bar.vue'
 import SideBar from '~/components/sidebar.vue'
 
 const route = useRoute()
